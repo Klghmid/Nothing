@@ -1,0 +1,27 @@
+{
+  "server": {
+    "port": 5000,
+    "jwt_secret": "terminal-social-secret-key",
+    "database": "social_app.db"
+  },
+  "client": {
+    "port": 3000,
+    "api_url": "http://localhost:5000"
+  },
+  "admin": {
+    "default_username": "admin",
+    "default_password": "admin123"
+  },
+  "theme": {
+    "primary_color": "#00ff00",
+    "secondary_color": "#00aa00",
+    "background_color": "#0a0a0a",
+    "accent_color": "#00cc00"
+  },
+  "features": {
+    "file_upload": true,
+    "real_time_messaging": true,
+    "admin_panel": true,
+    "user_registration": true
+  }
+}
