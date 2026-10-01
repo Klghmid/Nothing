@@ -61,8 +61,16 @@ function remember(ctx) {
   snapshot.set(value);
   return value;
 }
+// Any fresh /object_info (a run, a refresh) also updates the offline snapshot.
+let snapshotOf = null;
 async function context({ force = false } = {}) {
-  return contextFrom(await comfy.objectInfo({ force }));
+  const info = await comfy.objectInfo({ force });
+  const ctx = contextFrom(info);
+  if (info !== snapshotOf) {
+    snapshotOf = info;
+    remember(ctx);
+  }
+  return ctx;
 }
 async function connection() {
   try {
@@ -116,7 +124,7 @@ const readJSON = async (req) => {
 };
 const MIME = { ".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".css": "text/css; charset=utf-8", ".svg": "image/svg+xml", ".png": "image/png", ".ico": "image/x-icon", ".json": "application/json" };
 const VIEW_TYPES = new Set(["input", "output", "temp"]);
-const safeName = (s) => String(s || "image.png").replace(/[^\w.\- ()]+/g, "_").slice(-120) || "image.png";
+const safeName = (s) => String(s || "image.png").replace(/[^\p{L}\p{N}_.\- ()]+/gu, "_").slice(-120) || "image.png";
 
 async function serveStatic(req, res, pathname) {
   const rel = pathname === "/" ? "index.html" : decodeURIComponent(pathname.slice(1));

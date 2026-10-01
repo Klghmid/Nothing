@@ -173,6 +173,11 @@ test("server end to end against a mock ComfyUI", async (t) => {
     assert.ok(!r.data.inventory.unsortedLoras.includes("detail_slider.safetensors"));
   });
 
+  await t.test("unicode file names are kept", async () => {
+    const up = await s.api("/api/upload", { method: "POST", body: makePNG(16, 16, 1), headers: { "content-type": "image/png", "x-filename": encodeURIComponent("фото <1>.png") } });
+    assert.equal(up.data.name, "фото _1_.png");
+  });
+
   await t.test("an unreachable ComfyUI is reported, then reconnecting works", async () => {
     const bad = await s.api("/api/connect", { method: "POST", json: { url: "127.0.0.1:9" } });
     assert.equal(bad.data.connection.ok, false);
