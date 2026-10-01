@@ -1,0 +1,18 @@
+{
+  "name": "wire-studio",
+  "version": "1.0.0",
+  "description": "A clean local front-end that wires to your ComfyUI: independent, tested workflows for Anima, SDXL, Z-Image and Krea 2.",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node server.mjs",
+    "dev:mock": "node tests/dev-mock.mjs",
+    "test": "node --test tests/*.test.mjs",
+    "export-workflows": "node scripts/export-workflows.mjs",
+    "test:ui": "node tests/ui.mjs"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "license": "MIT"
+}

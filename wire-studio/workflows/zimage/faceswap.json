@@ -1,0 +1,197 @@
+{
+  "1": {
+    "class_type": "LoadImage",
+    "inputs": {
+      "image": "input.png"
+    },
+    "_meta": {
+      "title": "Target image"
+    }
+  },
+  "2": {
+    "class_type": "LoadImage",
+    "inputs": {
+      "image": "face.png"
+    },
+    "_meta": {
+      "title": "Face photo"
+    }
+  },
+  "3": {
+    "class_type": "ReActorFaceSwap",
+    "inputs": {
+      "enabled": true,
+      "input_image": [
+        "1",
+        0
+      ],
+      "source_image": [
+        "2",
+        0
+      ],
+      "swap_model": "inswapper_128.onnx",
+      "facedetection": "retinaface_resnet50",
+      "face_restore_model": "codeformer-v0.1.0.pth",
+      "face_restore_visibility": 1,
+      "codeformer_weight": 0.6,
+      "detect_gender_input": "no",
+      "detect_gender_source": "no",
+      "input_faces_index": "0",
+      "source_faces_index": "0",
+      "console_log_level": 1
+    },
+    "_meta": {
+      "title": "Face swap (ReActor)"
+    }
+  },
+  "4": {
+    "class_type": "UNETLoader",
+    "inputs": {
+      "unet_name": "z_image_turbo_bf16.safetensors",
+      "weight_dtype": "default"
+    },
+    "_meta": {
+      "title": "Z-Image model"
+    }
+  },
+  "5": {
+    "class_type": "CLIPLoader",
+    "inputs": {
+      "clip_name": "qwen_3_4b.safetensors",
+      "type": "lumina2",
+      "device": "default"
+    },
+    "_meta": {
+      "title": "Text encoder (Qwen3 4B)"
+    }
+  },
+  "6": {
+    "class_type": "VAELoader",
+    "inputs": {
+      "vae_name": "ae.safetensors"
+    },
+    "_meta": {
+      "title": "Z-Image VAE (ae)"
+    }
+  },
+  "7": {
+    "class_type": "CLIPTextEncode",
+    "inputs": {
+      "text": "Optional: describe the face",
+      "clip": [
+        "5",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "Prompt"
+    }
+  },
+  "8": {
+    "class_type": "ConditioningZeroOut",
+    "inputs": {
+      "conditioning": [
+        "7",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "No negative (CFG 1)"
+    }
+  },
+  "9": {
+    "class_type": "ModelSamplingAuraFlow",
+    "inputs": {
+      "model": [
+        "4",
+        0
+      ],
+      "shift": 3
+    },
+    "_meta": {
+      "title": "Sampling shift"
+    }
+  },
+  "10": {
+    "class_type": "UltralyticsDetectorProvider",
+    "inputs": {
+      "model_name": "bbox/face_yolov8m.pt"
+    },
+    "_meta": {
+      "title": "Face detector"
+    }
+  },
+  "11": {
+    "class_type": "FaceDetailer",
+    "inputs": {
+      "image": [
+        "3",
+        0
+      ],
+      "model": [
+        "9",
+        0
+      ],
+      "clip": [
+        "5",
+        0
+      ],
+      "vae": [
+        "6",
+        0
+      ],
+      "positive": [
+        "7",
+        0
+      ],
+      "negative": [
+        "8",
+        0
+      ],
+      "seed": 123456789,
+      "steps": 8,
+      "cfg": 1,
+      "sampler_name": "res_multistep",
+      "scheduler": "simple",
+      "guide_size": 1024,
+      "guide_size_for": true,
+      "max_size": 1024,
+      "denoise": 0.25,
+      "feather": 5,
+      "noise_mask": true,
+      "force_inpaint": true,
+      "bbox_threshold": 0.35,
+      "bbox_dilation": 6,
+      "bbox_crop_factor": 3,
+      "drop_size": 10,
+      "bbox_detector": [
+        "10",
+        0
+      ],
+      "wildcard": "",
+      "cycle": 1,
+      "sam_detection_hint": "center-1",
+      "sam_dilation": 0,
+      "sam_threshold": 0.93,
+      "sam_bbox_expansion": 0,
+      "sam_mask_hint_threshold": 0.7,
+      "sam_mask_hint_use_negative": "False"
+    },
+    "_meta": {
+      "title": "Blend new face (Z-Image)"
+    }
+  },
+  "12": {
+    "class_type": "SaveImage",
+    "inputs": {
+      "images": [
+        "11",
+        0
+      ],
+      "filename_prefix": "WireStudio/zimage-faceswap"
+    },
+    "_meta": {
+      "title": "Save image"
+    }
+  }
+}

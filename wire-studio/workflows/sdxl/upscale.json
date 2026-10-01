@@ -1,0 +1,162 @@
+{
+  "1": {
+    "class_type": "LoadImage",
+    "inputs": {
+      "image": "input.png"
+    },
+    "_meta": {
+      "title": "Image"
+    }
+  },
+  "2": {
+    "class_type": "CheckpointLoaderSimple",
+    "inputs": {
+      "ckpt_name": "sd_xl_base_1.0.safetensors"
+    },
+    "_meta": {
+      "title": "SDXL checkpoint"
+    }
+  },
+  "3": {
+    "class_type": "CLIPTextEncode",
+    "inputs": {
+      "text": "Optional: describe the picture for the detail pass",
+      "clip": [
+        "2",
+        1
+      ]
+    },
+    "_meta": {
+      "title": "Prompt"
+    }
+  },
+  "4": {
+    "class_type": "CLIPTextEncode",
+    "inputs": {
+      "text": "lowres, worst quality, low quality, bad anatomy, bad hands, extra fingers, text, watermark, jpeg artifacts, blurry",
+      "clip": [
+        "2",
+        1
+      ]
+    },
+    "_meta": {
+      "title": "Negative prompt"
+    }
+  },
+  "5": {
+    "class_type": "UpscaleModelLoader",
+    "inputs": {
+      "model_name": "RealESRGAN_x4plus.safetensors"
+    },
+    "_meta": {
+      "title": "Upscale model"
+    }
+  },
+  "6": {
+    "class_type": "ImageUpscaleWithModel",
+    "inputs": {
+      "upscale_model": [
+        "5",
+        0
+      ],
+      "image": [
+        "1",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "Upscale with model"
+    }
+  },
+  "7": {
+    "class_type": "ImageScale",
+    "inputs": {
+      "image": [
+        "6",
+        0
+      ],
+      "upscale_method": "lanczos",
+      "width": 2048,
+      "height": 2048,
+      "crop": "disabled"
+    },
+    "_meta": {
+      "title": "Exact output size"
+    }
+  },
+  "8": {
+    "class_type": "VAEEncode",
+    "inputs": {
+      "pixels": [
+        "7",
+        0
+      ],
+      "vae": [
+        "2",
+        2
+      ]
+    },
+    "_meta": {
+      "title": "Encode upscaled image"
+    }
+  },
+  "9": {
+    "class_type": "KSampler",
+    "inputs": {
+      "model": [
+        "2",
+        0
+      ],
+      "positive": [
+        "3",
+        0
+      ],
+      "negative": [
+        "4",
+        0
+      ],
+      "latent_image": [
+        "8",
+        0
+      ],
+      "seed": 123456789,
+      "steps": 12,
+      "cfg": 6,
+      "sampler_name": "dpmpp_2m",
+      "scheduler": "karras",
+      "denoise": 0.3
+    },
+    "_meta": {
+      "title": "Refine detail"
+    }
+  },
+  "10": {
+    "class_type": "VAEDecode",
+    "inputs": {
+      "samples": [
+        "9",
+        0
+      ],
+      "vae": [
+        "2",
+        2
+      ]
+    },
+    "_meta": {
+      "title": "Decode"
+    }
+  },
+  "11": {
+    "class_type": "SaveImage",
+    "inputs": {
+      "images": [
+        "10",
+        0
+      ],
+      "filename_prefix": "WireStudio/sdxl-upscale"
+    },
+    "_meta": {
+      "title": "Save image"
+    }
+  }
+}

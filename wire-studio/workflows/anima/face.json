@@ -1,0 +1,149 @@
+{
+  "1": {
+    "class_type": "UNETLoader",
+    "inputs": {
+      "unet_name": "anima-base-v1.0.safetensors",
+      "weight_dtype": "default"
+    },
+    "_meta": {
+      "title": "Anima model"
+    }
+  },
+  "2": {
+    "class_type": "CLIPLoader",
+    "inputs": {
+      "clip_name": "qwen_3_06b_base.safetensors",
+      "type": "stable_diffusion",
+      "device": "default"
+    },
+    "_meta": {
+      "title": "Text encoder (Qwen3 0.6B)"
+    }
+  },
+  "3": {
+    "class_type": "VAELoader",
+    "inputs": {
+      "vae_name": "qwen_image_vae.safetensors"
+    },
+    "_meta": {
+      "title": "Qwen Image VAE"
+    }
+  },
+  "4": {
+    "class_type": "CLIPTextEncode",
+    "inputs": {
+      "text": "Optional: describe the face (e.g. blue eyes, smile)",
+      "clip": [
+        "2",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "Prompt"
+    }
+  },
+  "5": {
+    "class_type": "CLIPTextEncode",
+    "inputs": {
+      "text": "worst quality, low quality, score_1, score_2, score_3, blurry, jpeg artifacts, sepia",
+      "clip": [
+        "2",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "Negative prompt"
+    }
+  },
+  "6": {
+    "class_type": "LoadImage",
+    "inputs": {
+      "image": "input.png"
+    },
+    "_meta": {
+      "title": "Image"
+    }
+  },
+  "7": {
+    "class_type": "UltralyticsDetectorProvider",
+    "inputs": {
+      "model_name": "bbox/face_yolov8m.pt"
+    },
+    "_meta": {
+      "title": "Face detector"
+    }
+  },
+  "8": {
+    "class_type": "FaceDetailer",
+    "inputs": {
+      "image": [
+        "6",
+        0
+      ],
+      "model": [
+        "1",
+        0
+      ],
+      "clip": [
+        "2",
+        0
+      ],
+      "vae": [
+        "3",
+        0
+      ],
+      "positive": [
+        "4",
+        0
+      ],
+      "negative": [
+        "5",
+        0
+      ],
+      "seed": 123456789,
+      "steps": 20,
+      "cfg": 4,
+      "sampler_name": "euler",
+      "scheduler": "simple",
+      "guide_size": 1024,
+      "guide_size_for": true,
+      "max_size": 1024,
+      "denoise": 0.4,
+      "feather": 5,
+      "noise_mask": true,
+      "force_inpaint": true,
+      "bbox_threshold": 0.35,
+      "bbox_dilation": 6,
+      "bbox_crop_factor": 3,
+      "drop_size": 10,
+      "bbox_detector": [
+        "7",
+        0
+      ],
+      "wildcard": "",
+      "cycle": 1,
+      "sam_detection_hint": "center-1",
+      "sam_dilation": 0,
+      "sam_threshold": 0.93,
+      "sam_bbox_expansion": 0,
+      "sam_mask_hint_threshold": 0.7,
+      "sam_mask_hint_use_negative": "False"
+    },
+    "_meta": {
+      "title": "Face fix"
+    }
+  },
+  "9": {
+    "class_type": "SaveImage",
+    "inputs": {
+      "images": [
+        "8",
+        0
+      ],
+      "filename_prefix": "WireStudio/anima-face"
+    },
+    "_meta": {
+      "title": "Save image"
+    }
+  }
+}

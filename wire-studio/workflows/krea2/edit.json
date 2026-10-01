@@ -1,0 +1,201 @@
+{
+  "1": {
+    "class_type": "UNETLoader",
+    "inputs": {
+      "unet_name": "krea2_turbo_fp8_scaled.safetensors",
+      "weight_dtype": "default"
+    },
+    "_meta": {
+      "title": "Krea 2 model"
+    }
+  },
+  "2": {
+    "class_type": "CLIPLoader",
+    "inputs": {
+      "clip_name": "qwen3vl_4b_fp8_scaled.safetensors",
+      "type": "krea2",
+      "device": "default"
+    },
+    "_meta": {
+      "title": "Text encoder (Qwen3-VL 4B)"
+    }
+  },
+  "3": {
+    "class_type": "VAELoader",
+    "inputs": {
+      "vae_name": "qwen_image_vae.safetensors"
+    },
+    "_meta": {
+      "title": "Qwen Image VAE"
+    }
+  },
+  "4": {
+    "class_type": "LoraLoaderModelOnly",
+    "inputs": {
+      "model": [
+        "1",
+        0
+      ],
+      "lora_name": "krea2_identity_edit_v1_2.safetensors",
+      "strength_model": 1
+    },
+    "_meta": {
+      "title": "Krea 2 Identity Edit LoRA"
+    }
+  },
+  "5": {
+    "class_type": "LoadImage",
+    "inputs": {
+      "image": "input.png"
+    },
+    "_meta": {
+      "title": "Image to edit"
+    }
+  },
+  "6": {
+    "class_type": "EmptySD3LatentImage",
+    "inputs": {
+      "width": 1024,
+      "height": 1024,
+      "batch_size": 1
+    },
+    "_meta": {
+      "title": "Output canvas"
+    }
+  },
+  "7": {
+    "class_type": "VAEEncode",
+    "inputs": {
+      "pixels": [
+        "5",
+        0
+      ],
+      "vae": [
+        "3",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "Encode image"
+    }
+  },
+  "8": {
+    "class_type": "Krea2EditModelPatch",
+    "inputs": {
+      "model": [
+        "4",
+        0
+      ],
+      "source_latent": [
+        "7",
+        0
+      ],
+      "vae": [
+        "3",
+        0
+      ],
+      "source_image": [
+        "5",
+        0
+      ],
+      "target_latent": [
+        "6",
+        0
+      ],
+      "fit_mode": "fit",
+      "ref_boost": 1
+    },
+    "_meta": {
+      "title": "Inject source image"
+    }
+  },
+  "9": {
+    "class_type": "Krea2EditGroundedEncode",
+    "inputs": {
+      "clip": [
+        "2",
+        0
+      ],
+      "prompt": "e.g. make the jacket red leather, keep everything else",
+      "image": [
+        "5",
+        0
+      ],
+      "grounding_px": 768
+    },
+    "_meta": {
+      "title": "Instruction (image-grounded)"
+    }
+  },
+  "10": {
+    "class_type": "ConditioningZeroOut",
+    "inputs": {
+      "conditioning": [
+        "9",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "No negative (CFG 1)"
+    }
+  },
+  "11": {
+    "class_type": "KSampler",
+    "inputs": {
+      "model": [
+        "8",
+        0
+      ],
+      "positive": [
+        "9",
+        0
+      ],
+      "negative": [
+        "10",
+        0
+      ],
+      "latent_image": [
+        "6",
+        0
+      ],
+      "seed": 123456789,
+      "steps": 8,
+      "cfg": 1,
+      "sampler_name": "euler",
+      "scheduler": "simple",
+      "denoise": 1
+    },
+    "_meta": {
+      "title": "Sampler"
+    }
+  },
+  "12": {
+    "class_type": "VAEDecode",
+    "inputs": {
+      "samples": [
+        "11",
+        0
+      ],
+      "vae": [
+        "3",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "Decode"
+    }
+  },
+  "13": {
+    "class_type": "SaveImage",
+    "inputs": {
+      "images": [
+        "12",
+        0
+      ],
+      "filename_prefix": "WireStudio/krea2-edit"
+    },
+    "_meta": {
+      "title": "Save image"
+    }
+  }
+}

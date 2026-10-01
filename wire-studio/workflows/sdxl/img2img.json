@@ -1,0 +1,121 @@
+{
+  "1": {
+    "class_type": "CheckpointLoaderSimple",
+    "inputs": {
+      "ckpt_name": "sd_xl_base_1.0.safetensors"
+    },
+    "_meta": {
+      "title": "SDXL checkpoint"
+    }
+  },
+  "2": {
+    "class_type": "CLIPTextEncode",
+    "inputs": {
+      "text": "Describe the whole picture as it should look",
+      "clip": [
+        "1",
+        1
+      ]
+    },
+    "_meta": {
+      "title": "Prompt"
+    }
+  },
+  "3": {
+    "class_type": "CLIPTextEncode",
+    "inputs": {
+      "text": "lowres, worst quality, low quality, bad anatomy, bad hands, extra fingers, text, watermark, jpeg artifacts, blurry",
+      "clip": [
+        "1",
+        1
+      ]
+    },
+    "_meta": {
+      "title": "Negative prompt"
+    }
+  },
+  "4": {
+    "class_type": "LoadImage",
+    "inputs": {
+      "image": "input.png"
+    },
+    "_meta": {
+      "title": "Source image"
+    }
+  },
+  "5": {
+    "class_type": "VAEEncode",
+    "inputs": {
+      "pixels": [
+        "4",
+        0
+      ],
+      "vae": [
+        "1",
+        2
+      ]
+    },
+    "_meta": {
+      "title": "Encode image"
+    }
+  },
+  "6": {
+    "class_type": "KSampler",
+    "inputs": {
+      "model": [
+        "1",
+        0
+      ],
+      "positive": [
+        "2",
+        0
+      ],
+      "negative": [
+        "3",
+        0
+      ],
+      "latent_image": [
+        "5",
+        0
+      ],
+      "seed": 123456789,
+      "steps": 28,
+      "cfg": 6,
+      "sampler_name": "euler_ancestral",
+      "scheduler": "normal",
+      "denoise": 0.55
+    },
+    "_meta": {
+      "title": "Sampler"
+    }
+  },
+  "7": {
+    "class_type": "VAEDecode",
+    "inputs": {
+      "samples": [
+        "6",
+        0
+      ],
+      "vae": [
+        "1",
+        2
+      ]
+    },
+    "_meta": {
+      "title": "Decode"
+    }
+  },
+  "8": {
+    "class_type": "SaveImage",
+    "inputs": {
+      "images": [
+        "7",
+        0
+      ],
+      "filename_prefix": "WireStudio/sdxl-img2img"
+    },
+    "_meta": {
+      "title": "Save image"
+    }
+  }
+}

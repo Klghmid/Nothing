@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en" data-family="anima">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="dark light" />
+    <title>Wire Studio</title>
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="/css/app.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <a class="brand" href="/" aria-label="Wire Studio home">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h5l3 5 3-5h5M4 17h5l3-5 3 5h5" /></svg>
+        <span>Wire Studio</span>
+      </a>
+      <nav class="families" id="families" aria-label="Model family"></nav>
+      <div class="topbar-actions">
+        <button class="ghost" id="queue-button" aria-haspopup="dialog" aria-label="Queue"></button>
+        <button class="ghost" id="gallery-button"></button>
+        <button class="ghost" id="setup-button"></button>
+      </div>
+    </header>
+    <div class="app">
+      <aside class="tasks" id="tasks" aria-label="Tasks"></aside>
+      <main class="stage" id="stage" aria-live="polite"></main>
+      <section class="panel" id="panel" aria-label="Settings"></section>
+    </div>
+    <div class="overlay" id="overlay" hidden></div>
+    <div class="popover" id="queue" role="dialog" aria-label="Queue" hidden></div>
+    <div class="toasts" id="toasts" role="status"></div>
+    <input type="file" id="file-input" accept="image/png,image/jpeg,image/webp" hidden />
+    <script type="module" src="/js/app.js"></script>
+  </body>
+</html>

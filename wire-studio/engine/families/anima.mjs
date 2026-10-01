@@ -1,0 +1,199 @@
+// ANIMA — CircleStone Labs × Comfy Org 2B anime model (Cosmos-Predict2 DiT).
+// Reference: Comfy-Org workflow_templates image_anima_base_v1 / image_anima_lllite_*.
+// UNETLoader → model-only LoRAs; CLIPLoader qwen_3_06b_base (type stable_diffusion);
+// VAELoader qwen_image_vae; EmptyLatentImage; KSampler euler/simple, 30 steps, CFG 4.
+// Control comes from kohya-ss Anima-LLLite patches (ModelPatchLoader + AnimaLLLiteApply).
+import { field, choice, need } from "../fields.mjs";
+import { MODELS, PACKS } from "../catalog.mjs";
+import * as c from "../common.mjs";
+import { detailerNeeds, mapNeeds, upscaleNeeds, outpaintNeeds } from "../needs.mjs";
+
+const SAMPLE = { steps: 30, cfg: 4, sampler: "euler", scheduler: "simple" };
+const NEGATIVE = "worst quality, low quality, score_1, score_2, score_3, blurry, jpeg artifacts, sepia";
+const fam = (ctx) => ctx.inv.families.anima;
+
+function loaders(g, p, ctx) {
+  const f = fam(ctx);
+  const unet = c.pick(f.models, p.model, /anima-base-v1|anima_base/i, "Anima model", MODELS.animaBase);
+  let model = g.add("UNETLoader", { unet_name: unet, weight_dtype: "default" }, "Anima model");
+  const clip = g.add("CLIPLoader", { clip_name: c.pick(f.clips, null, /qwen_3_06b_base/i, "Anima text encoder", MODELS.animaClip), type: "stable_diffusion", device: "default" }, "Text encoder (Qwen3 0.6B)");
+  const vae = g.add("VAELoader", { vae_name: c.pick(f.vaes, null, /qwen_image_vae/i, "Qwen Image VAE", MODELS.qwenImageVae) }, "Qwen Image VAE");
+  ({ model } = c.applyLoras(g, { model, clip }, p.loras, f.loras, "Anima LoRA", false));
+  if (p.turbo) {
+    if (!f.turboLora) throw c.missing("Anima Turbo LoRA", MODELS.animaTurbo);
+    model = g.add("LoraLoaderModelOnly", { model, lora_name: f.turboLora, strength_model: 1 }, "Anima Turbo LoRA");
+  }
+  return { model, clip, vae };
+}
+function prompts(g, m, p, fallback = "") {
+  const positive = g.add("CLIPTextEncode", { text: String(p.prompt || fallback), clip: m.clip }, "Prompt");
+  const negative = g.add("CLIPTextEncode", { text: String(p.negative ?? NEGATIVE), clip: m.clip }, "Negative prompt");
+  return { positive, negative };
+}
+// LLLite patch on the model (inpaint, control and pose all use the same node).
+function lllite(g, model, patch, image, p, mask, title) {
+  const loader = g.add("ModelPatchLoader", { name: patch }, title + " patch");
+  return g.add("AnimaLLLiteApply", { model, model_patch: loader, image, mask, strength: c.clamp(p.strength ?? p.context, 1, 0, 2), start_percent: 0, end_percent: c.clamp(p.end, 1, 0.1, 1) }, "Apply " + title);
+}
+const patchFor = (ctx, re) => fam(ctx).patches.find((n) => re.test(n));
+const sampleAndDecode = (g, m, latent, p, denoise = 1) => c.decode(g, c.ksampler(g, { ...m, latent, sample: c.sampling(p, SAMPLE), denoise }), m.vae);
+
+const baseNeeds = (ctx) => [
+  need.model(fam(ctx).models.length, MODELS.animaBase, "Anima model", "The diffusion model"),
+  need.model(fam(ctx).clips.length, MODELS.animaClip, "Qwen3 0.6B text encoder", "Reads the prompt"),
+  need.model(fam(ctx).vaes.length, MODELS.qwenImageVae, "Qwen Image VAE", "Encodes / decodes images"),
+];
+const common = [field.model(), field.loras()];
+const advanced = [field.negative(NEGATIVE), field.seed(), field.sampling()];
+const turboField = field.toggle("turbo", "Turbo (8 steps)", false, { hint: "Uses the official Anima Turbo LoRA: 8 steps, CFG 1", preset: { on: { steps: 8, cfg: 1 }, off: { steps: 30, cfg: 4 } } });
+
+const CONTROL = {
+  lineart: { label: "Line art", patch: /any-test-like-v2|any-test-like|lineart/i, model: MODELS.animaAny, invert: true },
+  canny: { label: "Canny edges", patch: /any-test-like-v2|any-test-like|lineart/i, model: MODELS.animaAny, invert: true },
+  scribble: { label: "Scribble", patch: /scribble|any-test-like-v2|any-test-like/i, model: MODELS.animaAny, invert: true },
+  depth: { label: "Depth", patch: /lllite-depth/i, model: MODELS.animaDepth, invert: false },
+};
+
+export default {
+  id: "anima",
+  label: "Anima",
+  tagline: "Anime & illustration · 2B",
+  promptStyle: "Tags work best: masterpiece, best quality, score_7, 1girl, …",
+  defaults: { ...SAMPLE, negative: NEGATIVE, width: 1024, height: 1024 },
+  baseNeeds,
+  tasks: {
+    generate: {
+      fields: [field.prompt({ placeholder: "masterpiece, best quality, score_7, 1girl, silver hair, night city, neon lights" }), ...common, field.size(), turboField, field.slider("batch", "Images", 1, 4, 1, 1), ...advanced],
+      needs: (ctx) => [...baseNeeds(ctx), need.model(fam(ctx).turboLora, MODELS.animaTurbo, "Anima Turbo LoRA", "Optional 8-step mode", "recommended")],
+      build(g, p, ctx) {
+        const m = { ...loaders(g, p, ctx) };
+        Object.assign(m, prompts(g, m, p));
+        const { width, height, batch } = c.outputSize(p);
+        return sampleAndDecode(g, m, g.add("EmptyLatentImage", { width, height, batch_size: batch }, "Empty canvas"), p);
+      },
+    },
+    img2img: {
+      fields: [field.image("image", "Source image"), field.prompt({ placeholder: "Describe the whole picture as it should look" }), field.slider("denoise", "Change strength", 0.05, 1, 0.01, 0.55, { hint: "Low keeps the picture, high redraws it" }), ...common, turboField, field.slider("batch", "Variations", 1, 4, 1, 1), ...advanced],
+      needs: baseNeeds,
+      build(g, p, ctx) {
+        const m = loaders(g, p, ctx);
+        Object.assign(m, prompts(g, m, p));
+        const latent = c.repeatLatent(g, c.encode(g, c.loadImage(g, p.image, "Source image"), m.vae), c.int(p.batch, 1, 1, 4));
+        return sampleAndDecode(g, m, latent, p, c.clamp(p.denoise, 0.55, 0.05, 1));
+      },
+    },
+    inpaint: {
+      fields: [field.image("image", "Image"), field.mask(), field.prompt({ placeholder: "What should appear in the painted area" }), field.slider("denoise", "Redraw strength", 0.1, 1, 0.01, 1, { hint: "1.0 replaces the area; 0.5 changes it gently" }), field.slider("context", "Match surroundings", 0, 1.5, 0.05, 1, { advanced: true, hint: "Strength of the Anima LLLite inpaint patch" }), ...common, ...advanced],
+      needs: (ctx) => [...baseNeeds(ctx), need.node(ctx, "AnimaLLLiteApply", PACKS.core, "Applies the inpaint patch", "recommended"), need.model(patchFor(ctx, /inpainting/i), MODELS.animaInpaint, "Anima LLLite inpainting v2", "Makes the fill match its surroundings", "recommended")],
+      build(g, p, ctx) {
+        const m = loaders(g, p, ctx);
+        Object.assign(m, prompts(g, m, p));
+        const src = c.loadImage(g, p.image, "Image");
+        const mask = c.loadMask(g, p.mask);
+        const patch = patchFor(ctx, /inpainting-v2/i) || patchFor(ctx, /inpainting/i);
+        if (patch && g.has("AnimaLLLiteApply")) m.model = lllite(g, m.model, patch, src, { strength: p.context }, mask, "inpaint context (LLLite)");
+        else g.note("Anima inpaint patch not installed: using plain masked sampling");
+        const latent = g.add("SetLatentNoiseMask", { samples: c.encode(g, src, m.vae), mask }, "Limit to painted area");
+        const { w, h } = c.sourceSize(p);
+        return c.composite(g, src, sampleAndDecode(g, m, latent, p, c.clamp(p.denoise, 1, 0.1, 1)), c.softEdge(g, mask, w, h));
+      },
+    },
+    outpaint: {
+      fields: [field.image("image", "Image"), field.edges(), field.prompt({ placeholder: "Describe the scenery to add (avoid repeating the subject)" }), field.select("fill", "Pre-fill", [choice("navier-stokes", "Smooth (recommended)"), choice("telea", "Telea"), choice("none", "None")], "navier-stokes", { advanced: true }), field.slider("denoise", "Redraw strength", 0.5, 1, 0.01, 1, { advanced: true }), ...common, ...advanced],
+      needs: (ctx) => [...baseNeeds(ctx), need.model(patchFor(ctx, /inpainting/i), MODELS.animaInpaint, "Anima LLLite inpainting v2", "Continues the picture coherently", "recommended"), ...outpaintNeeds(ctx)],
+      build(g, p, ctx) {
+        const m = loaders(g, p, ctx);
+        Object.assign(m, prompts(g, m, p));
+        const pad = c.padCanvas(g, c.loadImage(g, p.image, "Image"), p);
+        const filled = c.edgeFill(g, pad.image, pad.mask, p);
+        const base = filled || pad.image;
+        const patch = patchFor(ctx, /inpainting-v2/i) || patchFor(ctx, /inpainting/i);
+        // The LLLite patch was trained on binary masks; the feathered mask still drives the blend.
+        if (patch && g.has("AnimaLLLiteApply")) m.model = lllite(g, m.model, patch, base, { strength: p.context }, c.hardMask(g, pad.mask), "inpaint context (LLLite)");
+        const latent = g.add("SetLatentNoiseMask", { samples: c.encode(g, base, m.vae), mask: pad.mask }, "Limit to new area");
+        return c.composite(g, base, sampleAndDecode(g, m, latent, p, filled ? c.clamp(p.denoise, 1, 0.5, 1) : 1), pad.mask);
+      },
+    },
+    face: {
+      fields: [field.image("image", "Image"), field.select("target", "Fix", [choice("face", "Whole face"), choice("eyes", "Eyes"), choice("lips", "Lips")], "face"), field.prompt({ optional: true, placeholder: "Optional: describe the face (e.g. blue eyes, smile)" }), field.slider("denoise", "Strength", 0.1, 0.9, 0.01, 0.4), field.slider("threshold", "Detection sensitivity", 0.1, 0.9, 0.01, 0.35, { advanced: true, hint: "Lower finds more (and smaller) faces" }), ...common, ...advanced],
+      needs: (ctx) => [...baseNeeds(ctx), ...detailerNeeds(ctx, "face")],
+      build(g, p, ctx) {
+        const m = loaders(g, p, ctx);
+        Object.assign(m, prompts(g, m, p, "detailed face, beautiful eyes"));
+        return c.detailer(g, c.loadImage(g, p.image, "Image"), ctx, { ...m, sample: c.sampling(p, { ...SAMPLE, steps: 20 }) }, p, p.target || "face");
+      },
+    },
+    hands: {
+      fields: [field.image("image", "Image"), field.prompt({ optional: true, placeholder: "Optional: e.g. detailed hands, five fingers" }), field.slider("denoise", "Strength", 0.1, 0.9, 0.01, 0.45), field.slider("threshold", "Detection sensitivity", 0.1, 0.9, 0.01, 0.45, { advanced: true }), ...common, ...advanced],
+      needs: (ctx) => [...baseNeeds(ctx), ...detailerNeeds(ctx, "hand")],
+      build(g, p, ctx) {
+        const m = loaders(g, p, ctx);
+        Object.assign(m, prompts(g, m, p, "detailed hands, five fingers"));
+        return c.detailer(g, c.loadImage(g, p.image, "Image"), ctx, { ...m, sample: c.sampling(p, { ...SAMPLE, steps: 20 }) }, p, "hand");
+      },
+    },
+    faceswap: {
+      unavailable:
+        "Not offered for Anima: face-swap models (InsightFace) are trained on photos and do not detect anime faces reliably. Use Face Fix with a character prompt or LoRA instead.",
+    },
+    pose: {
+      badge: "Weak control",
+      notes: ["Anima's pose patch is the legacy preview3 model; its own card says it guides placement loosely. For strict poses use Line art control on a sketch."],
+      fields: [field.image("image", "Pose reference", { hint: "A photo or drawing of the pose, or a ready pose map" }), field.toggle("isMap", "Image is already a pose map", false), field.prompt({ placeholder: "Who is in the pose: 1girl, school uniform, park" }), field.size({ fromImage: true }), field.slider("strength", "Pose strength", 0.2, 2, 0.05, 1), ...common, ...advanced],
+      needs: (ctx) => [...baseNeeds(ctx), need.node(ctx, "AnimaLLLiteApply", PACKS.core, "Applies the pose patch"), need.model(patchFor(ctx, /lllite-pose/i), MODELS.animaPose, "Anima LLLite pose", "Reads the skeleton"), ...mapNeeds(ctx, ["pose"])],
+      build(g, p, ctx) {
+        const patch = patchFor(ctx, /lllite-pose/i);
+        if (!patch) throw c.missing("Anima LLLite pose patch", MODELS.animaPose);
+        const m = loaders(g, p, ctx);
+        Object.assign(m, prompts(g, m, p));
+        const { width, height, batch } = c.outputSize(p);
+        const map = c.controlMap(g, "pose", c.loadImage(g, p.image, "Pose reference"), p, { width, height });
+        m.model = lllite(g, m.model, patch, map, p, undefined, "pose (LLLite)");
+        return sampleAndDecode(g, m, g.add("EmptyLatentImage", { width, height, batch_size: batch }, "Empty canvas"), p);
+      },
+    },
+    control: {
+      fields: [
+        field.select("kind", "Control type", Object.entries(CONTROL).map(([k, v]) => choice(k, v.label)), "lineart"),
+        field.image("image", "Control image", { hint: "A picture to take the structure from, or a ready map" }),
+        field.toggle("isMap", "Image is already a map", false),
+        field.prompt({ placeholder: "Describe the new picture" }),
+        field.size({ fromImage: true }),
+        field.slider("strength", "Control strength", 0.2, 2, 0.05, 1),
+        field.slider("end", "Release control at", 0.3, 1, 0.05, 1, { advanced: true, hint: "Lower lets the model finish details freely" }),
+        field.toggle("invertMap", "Invert map", false, { advanced: true, hint: "Anima line models expect black lines on white" }),
+        ...common,
+        ...advanced,
+      ],
+      needs: (ctx) => [
+        ...baseNeeds(ctx),
+        need.node(ctx, "AnimaLLLiteApply", PACKS.core, "Applies the control patch"),
+        need.model(patchFor(ctx, CONTROL.lineart.patch), MODELS.animaAny, "Anima LLLite any-test-like v2", "Line art / canny / scribble control"),
+        need.model(patchFor(ctx, CONTROL.depth.patch), MODELS.animaDepth, "Anima LLLite depth", "Depth control", "recommended"),
+        ...mapNeeds(ctx, ["lineart", "depth"]),
+      ],
+      build(g, p, ctx) {
+        const spec = CONTROL[p.kind] || CONTROL.lineart;
+        const patch = patchFor(ctx, spec.patch);
+        if (!patch) throw c.missing(`Anima LLLite ${spec.label.toLowerCase()} patch`, spec.model);
+        const m = loaders(g, p, ctx);
+        Object.assign(m, prompts(g, m, p));
+        const { width, height, batch } = c.outputSize(p);
+        const map = c.controlMap(g, CONTROL[p.kind] ? p.kind : "lineart", c.loadImage(g, p.image, "Control image"), p, { width, height, invert: spec.invert });
+        m.model = lllite(g, m.model, patch, map, p, undefined, spec.label.toLowerCase() + " control (LLLite)");
+        return sampleAndDecode(g, m, g.add("EmptyLatentImage", { width, height, batch_size: batch }, "Empty canvas"), p);
+      },
+    },
+    upscale: {
+      fields: [field.image("image", "Image"), field.select("scale", "Scale", [choice(1.5, "1.5×"), choice(2, "2×"), choice(3, "3×"), choice(4, "4×")], 2), field.toggle("refine", "Add detail with Anima", true, { hint: "A light second pass with your Anima model" }), field.slider("refineDenoise", "Detail strength", 0.05, 0.6, 0.01, 0.3, { when: "refine" }), field.prompt({ optional: true, when: "refine", placeholder: "Optional: describe the picture for the detail pass" }), field.model({ when: "refine" }), field.select("upscaler", "Upscale model", "upscalers", "", { advanced: true }), field.slider("refineSteps", "Detail steps", 4, 40, 1, 12, { advanced: true, when: "refine" }), field.seed()],
+      needs: (ctx) => [...upscaleNeeds(ctx), ...baseNeeds(ctx).map((n) => ({ ...n, level: "recommended", why: "Only for the detail pass" }))],
+      build(g, p, ctx) {
+        const src = c.loadImage(g, p.image, "Image");
+        if (!p.refine) return c.upscaleRefine(g, src, p, ctx, null);
+        const m = loaders(g, { ...p, loras: [] }, ctx);
+        Object.assign(m, prompts(g, m, p, "masterpiece, best quality, highly detailed"));
+        return c.upscaleRefine(g, src, p, ctx, { ...m, sample: c.sampling(p, SAMPLE), refineSteps: 12 });
+      },
+    },
+  },
+};

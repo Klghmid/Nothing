@@ -1,0 +1,27 @@
+// Form schema helpers. Families describe each task's form with these; the browser renders
+// them generically, so a family only ever shows the controls its workflow really uses.
+// `when: "key"` shows a field only while that value is truthy (e.g. refine options).
+export const field = {
+  prompt: (o = {}) => ({ type: "prompt", key: "prompt", label: o.label || "Prompt", placeholder: o.placeholder || "", optional: !!o.optional, hint: o.hint, when: o.when }),
+  negative: (def) => ({ type: "text", key: "negative", label: "Negative prompt", default: def || "", advanced: true }),
+  image: (key = "image", label = "Image", o = {}) => ({ type: "image", key, label, hint: o.hint, optional: !!o.optional, advanced: !!o.advanced, when: o.when }),
+  mask: () => ({ type: "mask", key: "mask", label: "Area to change", hint: "Paint on the image in the canvas" }),
+  model: (o = {}) => ({ type: "model", key: "model", label: "Model", when: o.when }),
+  loras: () => ({ type: "loras", key: "loras", label: "LoRAs" }),
+  size: (o = {}) => ({ type: "size", key: "size", label: "Size", fromImage: !!o.fromImage }),
+  edges: () => ({ type: "edges", key: "edges", label: "Extend by (px)" }),
+  slider: (key, label, min, max, step, def, o = {}) => ({ type: "slider", key, label, min, max, step, default: def, ...o }),
+  select: (key, label, choices, def, o = {}) => ({ type: "select", key, label, choices, default: def, ...o }),
+  toggle: (key, label, def = false, o = {}) => ({ type: "toggle", key, label, default: def, ...o }),
+  seed: () => ({ type: "seed", key: "seed", label: "Seed", advanced: true }),
+  sampling: () => ({ type: "sampling", key: "sampling", label: "Sampling", advanced: true }),
+};
+
+export const choice = (value, label, hint) => ({ value, label, hint });
+
+// Requirement checks for the Setup view. Each returns { ok, level, kind, label, help }.
+export const need = {
+  node: (ctx, type, pack, why, level = "required") => ({ ok: !!ctx.info?.[type], level, kind: "node", label: type, why, help: pack }),
+  anyNode: (ctx, types, pack, why, level = "required") => ({ ok: types.some((t) => ctx.info?.[t]), level, kind: "node", label: types.join(" or "), why, help: pack }),
+  model: (ok, model, label, why, level = "required") => ({ ok: !!ok, level, kind: "model", label, why, help: model }),
+};

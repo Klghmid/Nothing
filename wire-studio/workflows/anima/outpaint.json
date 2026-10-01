@@ -1,0 +1,265 @@
+{
+  "1": {
+    "class_type": "UNETLoader",
+    "inputs": {
+      "unet_name": "anima-base-v1.0.safetensors",
+      "weight_dtype": "default"
+    },
+    "_meta": {
+      "title": "Anima model"
+    }
+  },
+  "2": {
+    "class_type": "CLIPLoader",
+    "inputs": {
+      "clip_name": "qwen_3_06b_base.safetensors",
+      "type": "stable_diffusion",
+      "device": "default"
+    },
+    "_meta": {
+      "title": "Text encoder (Qwen3 0.6B)"
+    }
+  },
+  "3": {
+    "class_type": "VAELoader",
+    "inputs": {
+      "vae_name": "qwen_image_vae.safetensors"
+    },
+    "_meta": {
+      "title": "Qwen Image VAE"
+    }
+  },
+  "4": {
+    "class_type": "CLIPTextEncode",
+    "inputs": {
+      "text": "Describe the scenery to add (avoid repeating the subject)",
+      "clip": [
+        "2",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "Prompt"
+    }
+  },
+  "5": {
+    "class_type": "CLIPTextEncode",
+    "inputs": {
+      "text": "worst quality, low quality, score_1, score_2, score_3, blurry, jpeg artifacts, sepia",
+      "clip": [
+        "2",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "Negative prompt"
+    }
+  },
+  "6": {
+    "class_type": "LoadImage",
+    "inputs": {
+      "image": "input.png"
+    },
+    "_meta": {
+      "title": "Image"
+    }
+  },
+  "7": {
+    "class_type": "ImagePadForOutpaint",
+    "inputs": {
+      "image": [
+        "6",
+        0
+      ],
+      "left": 256,
+      "right": 256,
+      "top": 0,
+      "bottom": 0,
+      "feathering": 48
+    },
+    "_meta": {
+      "title": "Extend canvas"
+    }
+  },
+  "8": {
+    "class_type": "INPAINT_MaskedFill",
+    "inputs": {
+      "image": [
+        "7",
+        0
+      ],
+      "mask": [
+        "7",
+        1
+      ],
+      "fill": "navier-stokes",
+      "falloff": 0
+    },
+    "_meta": {
+      "title": "Pre-fill new area"
+    }
+  },
+  "9": {
+    "class_type": "ThresholdMask",
+    "inputs": {
+      "mask": [
+        "7",
+        1
+      ],
+      "value": 0.5
+    },
+    "_meta": {
+      "title": "Binary mask"
+    }
+  },
+  "10": {
+    "class_type": "ModelPatchLoader",
+    "inputs": {
+      "name": "anima-lllite-inpainting-v2.safetensors"
+    },
+    "_meta": {
+      "title": "inpaint context (LLLite) patch"
+    }
+  },
+  "11": {
+    "class_type": "AnimaLLLiteApply",
+    "inputs": {
+      "model": [
+        "1",
+        0
+      ],
+      "model_patch": [
+        "10",
+        0
+      ],
+      "image": [
+        "8",
+        0
+      ],
+      "mask": [
+        "9",
+        0
+      ],
+      "strength": 1,
+      "start_percent": 0,
+      "end_percent": 1
+    },
+    "_meta": {
+      "title": "Apply inpaint context (LLLite)"
+    }
+  },
+  "12": {
+    "class_type": "VAEEncode",
+    "inputs": {
+      "pixels": [
+        "8",
+        0
+      ],
+      "vae": [
+        "3",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "Encode image"
+    }
+  },
+  "13": {
+    "class_type": "SetLatentNoiseMask",
+    "inputs": {
+      "samples": [
+        "12",
+        0
+      ],
+      "mask": [
+        "7",
+        1
+      ]
+    },
+    "_meta": {
+      "title": "Limit to new area"
+    }
+  },
+  "14": {
+    "class_type": "KSampler",
+    "inputs": {
+      "model": [
+        "11",
+        0
+      ],
+      "positive": [
+        "4",
+        0
+      ],
+      "negative": [
+        "5",
+        0
+      ],
+      "latent_image": [
+        "13",
+        0
+      ],
+      "seed": 123456789,
+      "steps": 30,
+      "cfg": 4,
+      "sampler_name": "euler",
+      "scheduler": "simple",
+      "denoise": 1
+    },
+    "_meta": {
+      "title": "Sampler"
+    }
+  },
+  "15": {
+    "class_type": "VAEDecode",
+    "inputs": {
+      "samples": [
+        "14",
+        0
+      ],
+      "vae": [
+        "3",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "Decode"
+    }
+  },
+  "16": {
+    "class_type": "ImageCompositeMasked",
+    "inputs": {
+      "destination": [
+        "8",
+        0
+      ],
+      "source": [
+        "15",
+        0
+      ],
+      "mask": [
+        "7",
+        1
+      ],
+      "x": 0,
+      "y": 0,
+      "resize_source": false
+    },
+    "_meta": {
+      "title": "Paste result into original"
+    }
+  },
+  "17": {
+    "class_type": "SaveImage",
+    "inputs": {
+      "images": [
+        "16",
+        0
+      ],
+      "filename_prefix": "WireStudio/anima-outpaint"
+    },
+    "_meta": {
+      "title": "Save image"
+    }
+  }
+}

@@ -1,0 +1,292 @@
+{
+  "1": {
+    "class_type": "UNETLoader",
+    "inputs": {
+      "unet_name": "z_image_turbo_bf16.safetensors",
+      "weight_dtype": "default"
+    },
+    "_meta": {
+      "title": "Z-Image model"
+    }
+  },
+  "2": {
+    "class_type": "CLIPLoader",
+    "inputs": {
+      "clip_name": "qwen_3_4b.safetensors",
+      "type": "lumina2",
+      "device": "default"
+    },
+    "_meta": {
+      "title": "Text encoder (Qwen3 4B)"
+    }
+  },
+  "3": {
+    "class_type": "VAELoader",
+    "inputs": {
+      "vae_name": "ae.safetensors"
+    },
+    "_meta": {
+      "title": "Z-Image VAE (ae)"
+    }
+  },
+  "4": {
+    "class_type": "CLIPTextEncode",
+    "inputs": {
+      "text": "What should appear in the painted area",
+      "clip": [
+        "2",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "Prompt"
+    }
+  },
+  "5": {
+    "class_type": "ConditioningZeroOut",
+    "inputs": {
+      "conditioning": [
+        "4",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "No negative (CFG 1)"
+    }
+  },
+  "6": {
+    "class_type": "LoadImage",
+    "inputs": {
+      "image": "input.png"
+    },
+    "_meta": {
+      "title": "Image"
+    }
+  },
+  "7": {
+    "class_type": "LoadImage",
+    "inputs": {
+      "image": "mask.png"
+    },
+    "_meta": {
+      "title": "Painted mask"
+    }
+  },
+  "8": {
+    "class_type": "ImageToMask",
+    "inputs": {
+      "image": [
+        "7",
+        0
+      ],
+      "channel": "red"
+    },
+    "_meta": {
+      "title": "Mask"
+    }
+  },
+  "9": {
+    "class_type": "ModelPatchLoader",
+    "inputs": {
+      "name": "Z-Image-Turbo-Fun-Controlnet-Union-2.1-2601-8steps.safetensors"
+    },
+    "_meta": {
+      "title": "Fun ControlNet Union"
+    }
+  },
+  "10": {
+    "class_type": "ZImageFunControlnet",
+    "inputs": {
+      "model": [
+        "1",
+        0
+      ],
+      "model_patch": [
+        "9",
+        0
+      ],
+      "vae": [
+        "3",
+        0
+      ],
+      "inpaint_image": [
+        "6",
+        0
+      ],
+      "mask": [
+        "8",
+        0
+      ],
+      "strength": 0.9
+    },
+    "_meta": {
+      "title": "Inpaint context (Fun Union)"
+    }
+  },
+  "11": {
+    "class_type": "VAEEncode",
+    "inputs": {
+      "pixels": [
+        "6",
+        0
+      ],
+      "vae": [
+        "3",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "Encode image"
+    }
+  },
+  "12": {
+    "class_type": "SetLatentNoiseMask",
+    "inputs": {
+      "samples": [
+        "11",
+        0
+      ],
+      "mask": [
+        "8",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "Limit to painted area"
+    }
+  },
+  "13": {
+    "class_type": "ModelSamplingAuraFlow",
+    "inputs": {
+      "model": [
+        "10",
+        0
+      ],
+      "shift": 3
+    },
+    "_meta": {
+      "title": "Sampling shift"
+    }
+  },
+  "14": {
+    "class_type": "KSampler",
+    "inputs": {
+      "model": [
+        "13",
+        0
+      ],
+      "positive": [
+        "4",
+        0
+      ],
+      "negative": [
+        "5",
+        0
+      ],
+      "latent_image": [
+        "12",
+        0
+      ],
+      "seed": 123456789,
+      "steps": 8,
+      "cfg": 1,
+      "sampler_name": "res_multistep",
+      "scheduler": "simple",
+      "denoise": 1
+    },
+    "_meta": {
+      "title": "Sampler"
+    }
+  },
+  "15": {
+    "class_type": "VAEDecode",
+    "inputs": {
+      "samples": [
+        "14",
+        0
+      ],
+      "vae": [
+        "3",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "Decode"
+    }
+  },
+  "16": {
+    "class_type": "MaskToImage",
+    "inputs": {
+      "mask": [
+        "8",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "Soft edge"
+    }
+  },
+  "17": {
+    "class_type": "ImageBlur",
+    "inputs": {
+      "image": [
+        "16",
+        0
+      ],
+      "blur_radius": 4,
+      "sigma": 2
+    },
+    "_meta": {
+      "title": "Soft edge blur"
+    }
+  },
+  "18": {
+    "class_type": "ImageToMask",
+    "inputs": {
+      "image": [
+        "17",
+        0
+      ],
+      "channel": "red"
+    },
+    "_meta": {
+      "title": "Soft edge mask"
+    }
+  },
+  "19": {
+    "class_type": "ImageCompositeMasked",
+    "inputs": {
+      "destination": [
+        "6",
+        0
+      ],
+      "source": [
+        "15",
+        0
+      ],
+      "mask": [
+        "18",
+        0
+      ],
+      "x": 0,
+      "y": 0,
+      "resize_source": false
+    },
+    "_meta": {
+      "title": "Paste result into original"
+    }
+  },
+  "20": {
+    "class_type": "SaveImage",
+    "inputs": {
+      "images": [
+        "19",
+        0
+      ],
+      "filename_prefix": "WireStudio/zimage-inpaint"
+    },
+    "_meta": {
+      "title": "Save image"
+    }
+  }
+}

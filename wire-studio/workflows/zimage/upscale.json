@@ -1,0 +1,195 @@
+{
+  "1": {
+    "class_type": "LoadImage",
+    "inputs": {
+      "image": "input.png"
+    },
+    "_meta": {
+      "title": "Image"
+    }
+  },
+  "2": {
+    "class_type": "UNETLoader",
+    "inputs": {
+      "unet_name": "z_image_turbo_bf16.safetensors",
+      "weight_dtype": "default"
+    },
+    "_meta": {
+      "title": "Z-Image model"
+    }
+  },
+  "3": {
+    "class_type": "CLIPLoader",
+    "inputs": {
+      "clip_name": "qwen_3_4b.safetensors",
+      "type": "lumina2",
+      "device": "default"
+    },
+    "_meta": {
+      "title": "Text encoder (Qwen3 4B)"
+    }
+  },
+  "4": {
+    "class_type": "VAELoader",
+    "inputs": {
+      "vae_name": "ae.safetensors"
+    },
+    "_meta": {
+      "title": "Z-Image VAE (ae)"
+    }
+  },
+  "5": {
+    "class_type": "CLIPTextEncode",
+    "inputs": {
+      "text": "Optional: describe the picture for the detail pass",
+      "clip": [
+        "3",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "Prompt"
+    }
+  },
+  "6": {
+    "class_type": "ConditioningZeroOut",
+    "inputs": {
+      "conditioning": [
+        "5",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "No negative (CFG 1)"
+    }
+  },
+  "7": {
+    "class_type": "ModelSamplingAuraFlow",
+    "inputs": {
+      "model": [
+        "2",
+        0
+      ],
+      "shift": 3
+    },
+    "_meta": {
+      "title": "Sampling shift"
+    }
+  },
+  "8": {
+    "class_type": "UpscaleModelLoader",
+    "inputs": {
+      "model_name": "RealESRGAN_x4plus.safetensors"
+    },
+    "_meta": {
+      "title": "Upscale model"
+    }
+  },
+  "9": {
+    "class_type": "ImageUpscaleWithModel",
+    "inputs": {
+      "upscale_model": [
+        "8",
+        0
+      ],
+      "image": [
+        "1",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "Upscale with model"
+    }
+  },
+  "10": {
+    "class_type": "ImageScale",
+    "inputs": {
+      "image": [
+        "9",
+        0
+      ],
+      "upscale_method": "lanczos",
+      "width": 2048,
+      "height": 2048,
+      "crop": "disabled"
+    },
+    "_meta": {
+      "title": "Exact output size"
+    }
+  },
+  "11": {
+    "class_type": "VAEEncode",
+    "inputs": {
+      "pixels": [
+        "10",
+        0
+      ],
+      "vae": [
+        "4",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "Encode upscaled image"
+    }
+  },
+  "12": {
+    "class_type": "KSampler",
+    "inputs": {
+      "model": [
+        "7",
+        0
+      ],
+      "positive": [
+        "5",
+        0
+      ],
+      "negative": [
+        "6",
+        0
+      ],
+      "latent_image": [
+        "11",
+        0
+      ],
+      "seed": 123456789,
+      "steps": 5,
+      "cfg": 1,
+      "sampler_name": "dpmpp_2m_sde",
+      "scheduler": "beta",
+      "denoise": 0.3
+    },
+    "_meta": {
+      "title": "Refine detail"
+    }
+  },
+  "13": {
+    "class_type": "VAEDecode",
+    "inputs": {
+      "samples": [
+        "12",
+        0
+      ],
+      "vae": [
+        "4",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "Decode"
+    }
+  },
+  "14": {
+    "class_type": "SaveImage",
+    "inputs": {
+      "images": [
+        "13",
+        0
+      ],
+      "filename_prefix": "WireStudio/zimage-upscale"
+    },
+    "_meta": {
+      "title": "Save image"
+    }
+  }
+}

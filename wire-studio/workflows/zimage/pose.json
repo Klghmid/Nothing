@@ -1,0 +1,215 @@
+{
+  "1": {
+    "class_type": "UNETLoader",
+    "inputs": {
+      "unet_name": "z_image_turbo_bf16.safetensors",
+      "weight_dtype": "default"
+    },
+    "_meta": {
+      "title": "Z-Image model"
+    }
+  },
+  "2": {
+    "class_type": "CLIPLoader",
+    "inputs": {
+      "clip_name": "qwen_3_4b.safetensors",
+      "type": "lumina2",
+      "device": "default"
+    },
+    "_meta": {
+      "title": "Text encoder (Qwen3 4B)"
+    }
+  },
+  "3": {
+    "class_type": "VAELoader",
+    "inputs": {
+      "vae_name": "ae.safetensors"
+    },
+    "_meta": {
+      "title": "Z-Image VAE (ae)"
+    }
+  },
+  "4": {
+    "class_type": "CLIPTextEncode",
+    "inputs": {
+      "text": "Describe who is in the pose and where",
+      "clip": [
+        "2",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "Prompt"
+    }
+  },
+  "5": {
+    "class_type": "ConditioningZeroOut",
+    "inputs": {
+      "conditioning": [
+        "4",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "No negative (CFG 1)"
+    }
+  },
+  "6": {
+    "class_type": "LoadImage",
+    "inputs": {
+      "image": "input.png"
+    },
+    "_meta": {
+      "title": "Pose reference"
+    }
+  },
+  "7": {
+    "class_type": "DWPreprocessor",
+    "inputs": {
+      "image": [
+        "6",
+        0
+      ],
+      "resolution": 1024,
+      "detect_hand": "enable",
+      "detect_body": "enable",
+      "detect_face": "enable"
+    },
+    "_meta": {
+      "title": "Make pose map"
+    }
+  },
+  "8": {
+    "class_type": "ImageScale",
+    "inputs": {
+      "image": [
+        "7",
+        0
+      ],
+      "upscale_method": "lanczos",
+      "width": 1024,
+      "height": 1024,
+      "crop": "center"
+    },
+    "_meta": {
+      "title": "Fit map to output size"
+    }
+  },
+  "9": {
+    "class_type": "ModelPatchLoader",
+    "inputs": {
+      "name": "Z-Image-Turbo-Fun-Controlnet-Union-2.1-2601-8steps.safetensors"
+    },
+    "_meta": {
+      "title": "Fun ControlNet Union"
+    }
+  },
+  "10": {
+    "class_type": "ZImageFunControlnet",
+    "inputs": {
+      "model": [
+        "1",
+        0
+      ],
+      "model_patch": [
+        "9",
+        0
+      ],
+      "vae": [
+        "3",
+        0
+      ],
+      "image": [
+        "8",
+        0
+      ],
+      "strength": 0.8
+    },
+    "_meta": {
+      "title": "Apply pose control"
+    }
+  },
+  "11": {
+    "class_type": "EmptySD3LatentImage",
+    "inputs": {
+      "width": 1024,
+      "height": 1024,
+      "batch_size": 1
+    },
+    "_meta": {
+      "title": "Empty canvas"
+    }
+  },
+  "12": {
+    "class_type": "ModelSamplingAuraFlow",
+    "inputs": {
+      "model": [
+        "10",
+        0
+      ],
+      "shift": 3
+    },
+    "_meta": {
+      "title": "Sampling shift"
+    }
+  },
+  "13": {
+    "class_type": "KSampler",
+    "inputs": {
+      "model": [
+        "12",
+        0
+      ],
+      "positive": [
+        "4",
+        0
+      ],
+      "negative": [
+        "5",
+        0
+      ],
+      "latent_image": [
+        "11",
+        0
+      ],
+      "seed": 123456789,
+      "steps": 8,
+      "cfg": 1,
+      "sampler_name": "res_multistep",
+      "scheduler": "simple",
+      "denoise": 1
+    },
+    "_meta": {
+      "title": "Sampler"
+    }
+  },
+  "14": {
+    "class_type": "VAEDecode",
+    "inputs": {
+      "samples": [
+        "13",
+        0
+      ],
+      "vae": [
+        "3",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "Decode"
+    }
+  },
+  "15": {
+    "class_type": "SaveImage",
+    "inputs": {
+      "images": [
+        "14",
+        0
+      ],
+      "filename_prefix": "WireStudio/zimage-pose"
+    },
+    "_meta": {
+      "title": "Save image"
+    }
+  }
+}

@@ -1,0 +1,91 @@
+# Wire Studio
+
+A clean local front-end that wires to your **ComfyUI** and runs tested, independent workflows for
+four model families — **Anima, SDXL (Illustrious / NoobAI / Pony), Z-Image and Krea 2** — without
+touching a node graph.
+
+Pick a family, pick a task, fill a short form, press **Generate**. Every family has its own
+workflow for every task, built from the official ComfyUI templates, checked against your ComfyUI
+before it runs, and never mixed with another family's models.
+
+| Create | Edit | Fix | Control | Finish |
+|---|---|---|---|---|
+| Text to Image · Image to Image | Smart Edit (Krea 2) · Inpaint · Outpaint | Face Fix · Hand Fix · Face Swap | Pose · ControlNet | Upscale · Remove background |
+
+See [docs/WORKFLOWS.md](docs/WORKFLOWS.md) for what each family runs for each task and why, and
+[docs/PLAN.md](docs/PLAN.md) for the architecture and roadmap. Every workflow is also available as
+a standalone ComfyUI file in [workflows/](workflows/README.md).
+
+## Start
+
+Requires **Node.js 20+** (22+ adds live step progress and previews). No `npm install` needed.
+
+```bash
+cd wire-studio
+./start.sh              # Linux / macOS  (or double-click "Start Wire Studio.command" on macOS)
+start.bat               # Windows
+```
+
+Open **http://127.0.0.1:5180**. The first time, **Setup** opens: enter your ComfyUI address
+(the one you open in the browser, e.g. `http://127.0.0.1:8188`) and press **Connect**.
+
+Options: `PORT=5190 ./start.sh`, `COMFY_URL=http://192.168.1.20:8188 ./start.sh`,
+`./start.sh --no-browser`. The server listens on 127.0.0.1 only; it has no login, so do not
+expose it to the internet.
+
+## Setting up ComfyUI
+
+**Setup → What is ready** shows a family × task grid. Select any cell to see exactly which nodes
+and model files that workflow uses, which are missing, the folder each file goes in and a download
+link. **Re-check** after installing.
+
+Models are sorted into families by **folder** first, then by file name, so keep them apart:
+
+```
+models/diffusion_models/   anima-base-v1.0, z_image_turbo_bf16, krea2_turbo_fp8_scaled …
+models/checkpoints/        your SDXL / Illustrious / NoobAI / Pony checkpoints
+models/loras/Anima/  models/loras/sdxl/  models/loras/zimage/  models/loras/krea2/
+```
+
+A file whose family cannot be told (e.g. `my_style.safetensors` in the root folder) appears under
+**Setup → Library**; assign it to a family once and it is remembered.
+
+Custom node packs used by some tasks (each task tells you if it needs one):
+[Impact Pack](https://github.com/ltdrdata/ComfyUI-Impact-Pack) + [Subpack](https://github.com/ltdrdata/ComfyUI-Impact-Subpack) (face / hand fix),
+[ReActor](https://github.com/Gourieff/ComfyUI-ReActor) (face swap),
+[comfyui_controlnet_aux](https://github.com/Fannovel16/comfyui_controlnet_aux) (pose / depth / line-art maps — optional if you upload ready maps),
+[comfyui-inpaint-nodes](https://github.com/Acly/comfyui-inpaint-nodes) (smoother outpaint),
+[ComfyUI_UltimateSDUpscale](https://github.com/ssitu/ComfyUI_UltimateSDUpscale) (refine above 2304 px),
+[ComfyUI-RMBG](https://github.com/1038lab/ComfyUI-RMBG) (remove background),
+[comfyui-krea2-controlnet](https://github.com/facok/comfyui-krea2-controlnet) and [comfyui-krea2edit](https://github.com/lbouaraba/comfyui-krea2edit) (Krea 2 add-ons).
+
+## Using it
+
+- **Images**: upload, drag & drop, paste (Ctrl+V anywhere) or **From results**.
+- **Inpaint**: paint directly on the image (Brush / Erase, size, undo with Ctrl+Z, invert, clear).
+- **Results**: before/after slider for edits, full-screen viewer (← →), **Use as input** for any
+  other task, **Reuse settings** (restores the exact seed), **Workflow** (download the exact graph
+  that ran), star, download.
+- **Queue**: several runs can wait in line; cancel stops only Wire Studio's own jobs.
+- **Export workflow** (under the Run button): the current form as a ComfyUI API-format file.
+- Ctrl/⌘+Enter runs; Esc closes overlays. Light and dark themes in Setup.
+
+## Your data
+
+Everything stays on your machine: `wire-studio/data/` holds the connection, your form values, job
+history, the exact workflow of each job and your Library assignments. Images stay in ComfyUI's own
+input/output folders. Writes are atomic with a `.bak` copy, so a crash cannot corrupt your data.
+
+## Development
+
+```bash
+npm test                    # 64 tests: every workflow + the server against a mock ComfyUI
+npm run dev:mock            # the app on :5180 against a mock ComfyUI on :8199 (no GPU)
+npm i --no-save playwright-core && npm run test:ui     # 11 browser checks (desktop + phone)
+npm run export-workflows    # regenerate workflows/
+```
+
+Layout: `engine/` (workflow builders, one file per family), `lib/` (storage, ComfyUI client,
+jobs, progress), `public/` (UI, no build step), `tests/`, `docs/`.
+
+Credits: the graph-building approach and several live-tested fixes come from Anima Studio 1.5.1.
