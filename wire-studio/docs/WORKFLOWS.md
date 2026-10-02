@@ -33,13 +33,14 @@ themselves live in code (`engine/families/*.mjs`) and as exported files (`../wor
 | Default sampling | 30 steps · CFG 4 · euler/simple (Turbo LoRA: 8 · 1) | 28 · 6 · euler_ancestral/normal | Turbo 8 · 1 · res_multistep/simple, shift 3 · Base 25 · 4 | Turbo 8 · 1 · euler/simple · RAW 52 · 4 |
 | Negative prompt | real negative | real negative | `ConditioningZeroOut` at CFG 1, real negative above | `ConditioningZeroOut` at CFG 1, real negative above |
 | Prompt style | tags (`masterpiece, best quality, score_7, …`) | tags (Illustrious/Pony) or short sentences | natural sentences | rich natural language |
-| Control models | kohya **Anima-LLLite** patches | xinsir **ControlNet Union ProMax** / dedicated SDXL nets | **Fun ControlNet Union** (2.1 adds inpaint) | community **depth Control-LoRA** only |
+| Control models | kohya **Anima-LLLite** patches | xinsir **ControlNet Union ProMax** / dedicated SDXL nets | **Fun ControlNet Union** (2.1 adds inpaint) | community **depth Control-LoRA** or **UniDepth**, **OpenPose LoRA** |
 
 ## Task matrix
 
 | Task | Anima | SDXL | Z-Image | Krea 2 |
 |---|---|---|---|---|
 | Text to Image | ✓ (+ official Turbo LoRA) | ✓ | ✓ | ✓ (+ official style reference) |
+| Style Reference | — | — | — | ✓ official (1–3 references); redraw an image in the style *experimental* |
 | Image to Image | ✓ | ✓ | ✓ | ✓ |
 | Smart Edit (instruction) | — | — | — | ✓ add-on (Identity Edit LoRA) + 18 dedicated edit tasks |
 | Inpaint | ✓ LLLite inpaint v2 context | ✓ Union ProMax *repaint* context | ✓ Fun Union 2.x inpaint context | ✓ differential diffusion |
@@ -47,9 +48,9 @@ themselves live in code (`engine/families/*.mjs`) and as exported files (`../wor
 | Face Fix (face / eyes / lips) | ✓ | ✓ | ✓ | ✓ |
 | Hand Fix | ✓ | ✓ | ✓ | ✓ |
 | Face Swap | **not offered** | ✓ ReActor + SDXL blend | ✓ ReActor + Z-Image blend | ✓ ReActor + Krea 2 blend |
-| Pose | ✓ LLLite pose (*weak*) | ✓ OpenPose / Union | ✓ Fun Union pose | *experimental*, depth-guided |
-| ControlNet | line art · canny · scribble · grayscale · any · depth | canny · line art · scribble · depth · pose | canny · HED · depth · pose · M-LSD · scribble (2.1) · gray (2602) | depth |
-| Img2Img + Control | line art · canny · scribble · grayscale · depth · pose (weak) | — | canny · HED · depth · pose · M-LSD · scribble · gray | — |
+| Pose | ✓ LLLite pose (*weak*) | ✓ OpenPose / Union | ✓ Fun Union pose | *experimental*, OpenPose Control-LoRA (+ optional start image) |
+| ControlNet | line art · canny · scribble · grayscale · any · depth | canny · line art · scribble · depth · pose | canny · HED · depth · pose · M-LSD · scribble (2.1) · gray (2602) | depth (Control-LoRA, or UniDepth with reference images — *experimental*) |
+| Img2Img + Control | line art · canny · scribble · grayscale · depth · pose (weak) | — | canny · HED · depth · pose · M-LSD · scribble · gray | depth (*experimental*) |
 | Upscale (+ detail) | ✓ | ✓ | ✓ (official 2K upscaler settings) | ✓ |
 
 ---
@@ -161,9 +162,12 @@ or a RAW file), `text_encoders/qwen3vl_4b_fp8_scaled.safetensors`, `vae/qwen_ima
 
 - **Generate**: Turbo 8 steps, CFG 1, euler / simple, `ConditioningZeroOut` negative.
   RAW (undistilled, meant for training) ~52 steps, CFG 4 — community-reported defaults.
-- **Style reference** (official): `krea2_style_reference` LoRA + `TextEncodeQwenImageEditPlus`
-  (1–2 images) → `FluxKontextMultiReferenceLatentMethod(index_timestep_zero)` →
-  `ModelSamplingFlux(1.15, 0.5, w, h)`, CFG 1.
+- **Style Reference** (official, its own task; also optional in Text to Image):
+  `krea2_style_reference` LoRA + `TextEncodeQwenImageEditPlus` (1–3 images) →
+  `FluxKontextMultiReferenceLatentMethod(index_timestep_zero)` → `ModelSamplingFlux(1.15, 0.5, w, h)`,
+  CFG 1. *Redraw an image in the style* (experimental) starts from the encoded source at a chosen
+  strength. Style cannot be combined with identity editing or depth / pose control yet (see the
+  combinations table in `CAPABILITY_MATRIX.md` for the reasons).
 - **Identity Edit suite** (add-on, [comfyui-krea2edit](https://github.com/lbouaraba/comfyui-krea2edit)
   v1.2.5 + `krea2_identity_edit_v1_2` in `loras/krea2/editor/`): one shared graph —
   `Krea2EditModelPatch` (sources as in-context tokens, pixel path, `fit` geometry, `target_latent`
@@ -181,14 +185,27 @@ or a RAW file), `text_encoders/qwen3vl_4b_fp8_scaled.safetensors`, `vae/qwen_ima
   pixel-identical. Turbo 10 steps / CFG 1; RAW 40 steps / CFG 3.5; `ref_boost` 4 for likeness;
   `grounding_px` 1024 for people, 512 for scene changes; ≤ 2 MP. Details and sources:
   `WORKFLOW_RESEARCH.md`, Phase 3.
-- **ControlNet**: only a **depth** Control-LoRA exists publicly
-  ([Patil/Krea-2-depth-controlnet](https://huggingface.co/Patil/Krea-2-depth-controlnet)) through
-  [comfyui-krea2-controlnet](https://github.com/facok/comfyui-krea2-controlnet):
-  `Krea2ControlLoRALoader` → `Krea2ControlImageEncode` (grayscale, per-image min-max, matched to
-  the latent size, the pack's recommended depth settings) → `Krea2ControlApply`.
-- **Pose**: *experimental.* No pose control model exists for Krea 2 yet, so the pose is carried
-  through a depth map of the reference (which also carries body shape and silhouette).
+- **ControlNet → Depth**, two methods (never sharing a LoRA):
+  - *Depth Control-LoRA* ([Patil/Krea-2-depth-controlnet](https://huggingface.co/Patil/Krea-2-depth-controlnet)
+    through [comfyui-krea2-controlnet](https://github.com/facok/comfyui-krea2-controlnet)):
+    `Krea2ControlLoRALoader` → `Krea2ControlImageEncode` (grayscale, per-image min-max, matched to
+    the latent size, the pack's recommended depth settings) → `Krea2ControlApply`.
+  - *UniDepth* (*experimental*, [ComfyUI-Krea2-UniDepth](https://github.com/cicalooo/ComfyUI-Krea2-UniDepth)
+    + `krea2_unidepth_depth_exp_v1` in `loras/krea2/`, offered when installed):
+    `Krea2UniDepthLoRALoader` → `Krea2UniDepthConditioning` — the depth map, an optional reference
+    image and a second stacked one ride Krea 2's native reference path; a start / end window (one
+    for all references) and optional calibration.
+- **Img2Img + Control → Depth** (*experimental*): the encoded source with either depth method
+  (the control latent / UniDepth target is the source latent), partial denoise.
+- **Pose** (*experimental*): the OpenPose Control-LoRA
+  ([thedeoxen/Krea-2-pose-controlnet](https://huggingface.co/thedeoxen/Krea-2-pose-controlnet)) through
+  [ComfyUI-Krea2-Ostris-Edit](https://github.com/ostris/ComfyUI-Krea2-Ostris-Edit), as its author
+  publishes it: `Krea2OstrisEditModelPatch` → `LoraLoaderModelOnly` (1.0), the DWPose skeleton as
+  image 1 of `TextEncodeKrea2OstrisEdit` for both prompts → `index_timestep_zero`, 10 steps, CFG 1,
+  euler / simple; optionally from a start image. Looks come from the prompt; to keep a person,
+  use Pose Restage (Identity Edit).
 - **Inpaint / Outpaint**: no inpaint model exists; differential diffusion + noise mask + paste-back.
+  Outpaint can be guided by the depth of the extended picture (*experimental*, depth Control-LoRA).
 - **Face Swap**: ReActor → Krea 2 face pass (0.25).
 
 ---
@@ -225,7 +242,7 @@ or a RAW file), `text_encoders/qwen3vl_4b_fp8_scaled.safetensors`, `vae/qwen_ima
 - ComfyUI source: `comfy_extras/nodes_model_patch.py` (`AnimaLLLiteApply`, `ZImageFunControlnet`, `QwenImageDiffsynthControlnet`), `comfy/cldm/control_types.py` — https://github.com/Comfy-Org/ComfyUI
 - Anima: https://huggingface.co/circlestone-labs/Anima · LLLite: https://huggingface.co/kohya-ss/Anima-LLLite and https://huggingface.co/Comfy-Org/Anima-LLLite
 - Z-Image Fun ControlNet Union: https://huggingface.co/alibaba-pai/Z-Image-Turbo-Fun-Controlnet-Union and https://huggingface.co/alibaba-pai/Z-Image-Turbo-Fun-Controlnet-Union-2.1
-- Krea 2 in ComfyUI: https://blog.comfy.org/p/krea-2-open-source-models-are-now · depth control: https://github.com/facok/comfyui-krea2-controlnet, https://huggingface.co/Patil/Krea-2-depth-controlnet · identity edit: https://github.com/lbouaraba/comfyui-krea2edit
+- Krea 2 in ComfyUI: https://blog.comfy.org/p/krea-2-open-source-models-are-now · depth control: https://github.com/facok/comfyui-krea2-controlnet, https://huggingface.co/Patil/Krea-2-depth-controlnet, https://github.com/cicalooo/ComfyUI-Krea2-UniDepth · pose: https://huggingface.co/thedeoxen/Krea-2-pose-controlnet, https://github.com/ostris/ComfyUI-Krea2-Ostris-Edit · identity edit: https://github.com/lbouaraba/comfyui-krea2edit
 - SDXL ControlNet Union ProMax: https://huggingface.co/xinsir/controlnet-union-sdxl-1.0
 - ReActor: https://github.com/Gourieff/ComfyUI-ReActor (node inputs; "How to get the best face swap", discussion #232)
 - Impact Pack / Subpack: https://github.com/ltdrdata/ComfyUI-Impact-Pack, https://github.com/ltdrdata/ComfyUI-Impact-Subpack · detectors: https://huggingface.co/Bingsu/adetailer

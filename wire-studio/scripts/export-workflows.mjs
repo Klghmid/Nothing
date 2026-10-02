@@ -16,7 +16,7 @@ export const OUT_DIR = path.join(root, "workflows");
 export const EXPORT_FILES = {
   checkpoints: ["sd_xl_base_1.0.safetensors"],
   unets: ["anima-base-v1.0.safetensors", "z_image_turbo_bf16.safetensors", "krea2_turbo_fp8_scaled.safetensors"],
-  loras: ["anima-turbo-lora-v0.2.safetensors", "krea2_style_reference.safetensors", "krea2/krea2_depth_control_lora.safetensors", "krea2/editor/krea2_identity_edit_v1_2.safetensors"],
+  loras: ["anima-turbo-lora-v0.2.safetensors", "krea2_style_reference.safetensors", "krea2/krea2_depth_control_lora.safetensors", "krea2/editor/krea2_identity_edit_v1_2.safetensors", "krea2/control/krea2_turbo_openpose_controlnet.safetensors", "krea2/krea2_unidepth_depth_exp_v1.safetensors"],
   clips: ["qwen_3_06b_base.safetensors", "qwen_3_4b.safetensors", "qwen3vl_4b_fp8_scaled.safetensors"],
   vaes: ["qwen_image_vae.safetensors", "ae.safetensors"],
   patches: ["anima-lllite-inpainting-v2.safetensors", "anima-lllite-any-test-like-v2.safetensors", "anima-lllite-depth-1.safetensors", "anima-lllite-pose-1.safetensors", "Z-Image-Turbo-Fun-Controlnet-Union-2.1-2602-8steps.safetensors"],

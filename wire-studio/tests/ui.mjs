@@ -41,7 +41,7 @@ async function check(name, fn) {
     await fn();
     results.push(["✓", name]);
   } catch (e) {
-    results.push(["✗", name + ": " + e.message.split("\n")[0]]);
+    results.push(["✗", name + ": " + e.message.split("\n").slice(0, 6).join(" ")]);
   }
 }
 try {
@@ -98,6 +98,27 @@ try {
     assert.equal(await page.locator(".field:has(label:text-is('What to remove')) input[type=text]").count(), 1);
     assert.ok((await page.textContent(".field:has(label:has-text('Limit to an area'))")).includes("optional"));
     assert.equal(await page.locator(".task:has-text('Smart Edit')").count(), 1);
+  });
+  await check("Krea 2 Style Reference, depth methods and real pose", async () => {
+    await page.click(".family:has-text('Krea 2')");
+    await page.click(".task:has-text('Style Reference')");
+    await page.waitForSelector(".panel-head h1:has-text('Style Reference')");
+    const modes = await page.locator(".field:has(label:text-is('Start from')) option").allTextContents();
+    assert.deepEqual(modes, ["A prompt", "An image (redraw it in the style) (experimental)"]);
+    assert.equal(await page.locator(".field:has(label:has-text('Size'))").count(), 1);
+    await page.selectOption(".field:has(label:text-is('Start from')) select", "img2img");
+    assert.equal(await page.locator(".field:has(label:has-text('Size'))").count(), 0, "a redraw keeps the source size");
+    assert.equal(await page.locator(".field:has(label:text-is('Change strength'))").count(), 1);
+    await page.click(".task:has-text('ControlNet')");
+    const methods = await page.locator(".field:has(label:text-is('Depth method')) option").allTextContents();
+    assert.deepEqual(methods, ["Depth Control-LoRA", "UniDepth (experimental)"]);
+    assert.equal(await page.locator(".field:has(label:has-text('Reference image'))").count(), 0);
+    await page.selectOption(".field:has(label:text-is('Depth method')) select", "unidepth");
+    assert.equal(await page.locator(".field:has(label:has-text('Reference image'))").count(), 1, "UniDepth takes reference images");
+    await page.locator(".task").filter({ hasText: /^Pose$/ }).or(page.locator(".task:has-text('Pose'):not(:has-text('Restage'))")).first().click();
+    await page.waitForSelector(".panel-head h1:text-is('Pose')");
+    assert.equal(await page.locator("label.switch:has-text('pose skeleton')").count(), 1);
+    assert.match(await page.textContent(".panel"), /OpenPose Control-LoRA/);
   });
   await check("generate shows live progress, then the result", async () => {
     await page.click(".family:has-text('Anima')");

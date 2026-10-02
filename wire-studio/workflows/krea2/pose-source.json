@@ -166,17 +166,47 @@
     }
   },
   "13": {
-    "class_type": "EmptyLatentImage",
+    "class_type": "LoadImage",
     "inputs": {
-      "width": 1024,
-      "height": 1024,
-      "batch_size": 1
+      "image": "input.png"
     },
     "_meta": {
-      "title": "Empty canvas"
+      "title": "Start image"
     }
   },
   "14": {
+    "class_type": "ImageScale",
+    "inputs": {
+      "image": [
+        "13",
+        0
+      ],
+      "upscale_method": "lanczos",
+      "width": 1024,
+      "height": 1024,
+      "crop": "center"
+    },
+    "_meta": {
+      "title": "Fit start image to output size"
+    }
+  },
+  "15": {
+    "class_type": "VAEEncode",
+    "inputs": {
+      "pixels": [
+        "14",
+        0
+      ],
+      "vae": [
+        "3",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "Encode image"
+    }
+  },
+  "16": {
     "class_type": "KSampler",
     "inputs": {
       "model": [
@@ -192,7 +222,7 @@
         0
       ],
       "latent_image": [
-        "13",
+        "15",
         0
       ],
       "seed": 123456789,
@@ -200,17 +230,17 @@
       "cfg": 1,
       "sampler_name": "euler",
       "scheduler": "simple",
-      "denoise": 1
+      "denoise": 0.75
     },
     "_meta": {
       "title": "Sampler"
     }
   },
-  "15": {
+  "17": {
     "class_type": "VAEDecode",
     "inputs": {
       "samples": [
-        "14",
+        "16",
         0
       ],
       "vae": [
@@ -222,11 +252,11 @@
       "title": "Decode"
     }
   },
-  "16": {
+  "18": {
     "class_type": "SaveImage",
     "inputs": {
       "images": [
-        "15",
+        "17",
         0
       ],
       "filename_prefix": "WireStudio/krea2-pose"

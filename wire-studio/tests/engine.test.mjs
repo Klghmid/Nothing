@@ -14,7 +14,7 @@ function origin(prompt, link, seen = new Set()) {
   const node = prompt[link[0]];
   if (!node || seen.has(link[0])) return [];
   seen.add(link[0]);
-  if (/Loader|CheckpointLoaderSimple/.test(node.class_type) && !/LoraLoader|Krea2ControlLoRALoader/.test(node.class_type)) return [node];
+  if (/Loader|CheckpointLoaderSimple/.test(node.class_type) && !/LoraLoader/i.test(node.class_type)) return [node];
   const upstream = ["model", "clip", "vae", "conditioning", "positive", "negative"].map((k) => node.inputs[k]).filter((v) => Array.isArray(v));
   return upstream.flatMap((l) => origin(prompt, l, seen));
 }
@@ -115,7 +115,10 @@ test("inventory sorts every model into exactly one family", () => {
   for (const bad of ["sdpose_wholebody_fp16.safetensors", "sd15/dreamshaper_8.safetensors", "sd_xl_refiner_1.0.safetensors"]) assert.ok(!f.sdxl.models.includes(bad), bad);
   assert.deepEqual(f.anima.loras, ["Anima/ANIMA_DETAILER_zoda_anima_v2.safetensors", "anima/characters/miku_v3.safetensors", "AnimaLoRA/style_x.safetensors"]);
   assert.equal(f.anima.turboLora, "anima-turbo-lora-v0.2.safetensors");
-  assert.deepEqual(f.krea2.controlLoras, ["krea2/krea2_depth_control_lora.safetensors"]);
+  assert.deepEqual(f.krea2.controlLoras, ["krea2/krea2_depth_control_lora.safetensors", "krea2/control/krea2_turbo_openpose_controlnet.safetensors", "krea2/krea2_unidepth_depth_exp_v1.safetensors"]);
+  // The pose and UniDepth LoRAs need their own nodes; they are listed apart from the depth Control-LoRA.
+  assert.deepEqual(f.krea2.poseLoras, ["krea2/control/krea2_turbo_openpose_controlnet.safetensors"]);
+  assert.deepEqual(f.krea2.unidepthLoras, ["krea2/krea2_unidepth_depth_exp_v1.safetensors"]);
   assert.equal(f.krea2.editLora, "krea2_identity_edit_v1_2.safetensors");
   assert.deepEqual(f.krea2.loras, ["krea2_darkbrush.safetensors"]);
   assert.deepEqual(ctx.inv.unsortedLoras, ["detail_slider.safetensors"]);
@@ -135,21 +138,26 @@ for (const [familyId, fam] of Object.entries(FAMILIES)) {
     }
     test(`${familyId}/${taskId} builds a valid, family-pure workflow`, () => {
       const needsMask = task.fields.some((f) => f.type === "mask" && !f.optional);
-      const { prompt } = buildWorkflow(familyId, taskId, { ...sampleParams(taskId), ...(needsMask ? { mask: "mask.png" } : {}), ...(task.example || {}) }, ctx);
-      assert.ok(nodesOf(prompt, "SaveImage").length === 1);
-      for (const [id, n] of Object.entries(prompt)) {
-        const spec = info[n.class_type];
-        assert.ok(spec, `${n.class_type} exists`);
-        for (const k of Object.keys(spec.input.required)) assert.ok(k in n.inputs, `${id} ${n.class_type}.${k} is set`);
-        for (const v of Object.values(n.inputs)) if (Array.isArray(v) && typeof v[0] === "string") assert.ok(prompt[v[0]], `${id} links to an existing node`);
-      }
-      // Every sampler / detail pass is wired only to this family's loaders.
-      for (const s of Object.values(prompt).filter((n) => ["KSampler", "FaceDetailer", "UltimateSDUpscale"].includes(n.class_type))) {
-        const loaders = ["model", "positive", "negative", "vae", "clip"].flatMap((k) => (Array.isArray(s.inputs[k]) ? origin(prompt, s.inputs[k]) : []));
-        assert.ok(loaders.length, `${s.class_type} has loaders`);
-        for (const l of loaders) assert.ok(LOADERS[familyId](l), `${familyId}/${taskId}: ${l.class_type} ${JSON.stringify(l.inputs)} belongs to ${familyId}`);
-      }
+      const base = { ...sampleParams(taskId), ...(needsMask ? { mask: "mask.png" } : {}), ...(task.example || {}) };
+      // The test parameters, then every exported variant (each method / option the task offers).
+      for (const params of [base, ...(task.variants || []).map((v) => ({ ...base, ...v.params }))]) checkPure(familyId, taskId, buildWorkflow(familyId, taskId, params, ctx).prompt);
     });
+  }
+}
+
+function checkPure(familyId, taskId, prompt) {
+  assert.ok(nodesOf(prompt, "SaveImage").length === 1);
+  for (const [id, n] of Object.entries(prompt)) {
+    const spec = info[n.class_type];
+    assert.ok(spec, `${n.class_type} exists`);
+    for (const k of Object.keys(spec.input.required)) assert.ok(k in n.inputs, `${id} ${n.class_type}.${k} is set`);
+    for (const v of Object.values(n.inputs)) if (Array.isArray(v) && typeof v[0] === "string") assert.ok(prompt[v[0]], `${id} links to an existing node`);
+  }
+  // Every sampler / detail pass is wired only to this family's loaders.
+  for (const s of Object.values(prompt).filter((n) => ["KSampler", "FaceDetailer", "UltimateSDUpscale"].includes(n.class_type))) {
+    const loaders = ["model", "positive", "negative", "vae", "clip"].flatMap((k) => (Array.isArray(s.inputs[k]) ? origin(prompt, s.inputs[k]) : []));
+    assert.ok(loaders.length, `${s.class_type} has loaders`);
+    for (const l of loaders) assert.ok(LOADERS[familyId](l), `${familyId}/${taskId}: ${l.class_type} ${JSON.stringify(l.inputs)} belongs to ${familyId}`);
   }
 }
 
@@ -230,6 +238,115 @@ test("Krea 2: official turbo settings, RAW defaults, style reference and depth c
   assert.ok(types(inpaint).includes("DifferentialDiffusion"));
   const edit = buildWorkflow("krea2", "edit", sampleParams("edit"), ctx).prompt;
   assert.ok(types(edit).includes("Krea2EditModelPatch") && types(edit).includes("Krea2EditGroundedEncode"));
+});
+
+test("Krea 2 Style Reference: official graph with up to three references; redraw mode encodes the source", () => {
+  const p = { ...sampleParams("style"), style2: "style2.png", style3: "style3.png" };
+  const gen = buildWorkflow("krea2", "style", p, ctx).prompt;
+  const enc = nodesOf(gen, "TextEncodeQwenImageEditPlus")[0].inputs;
+  assert.ok(enc.image1 && enc.image2 && enc.image3 && enc.vae, "three references, VAE for the reference latents");
+  assert.equal(nodesOf(gen, "FluxKontextMultiReferenceLatentMethod")[0].inputs.reference_latents_method, "index_timestep_zero");
+  assert.ok(types(gen).includes("EmptyLatentImage") && !types(gen).includes("VAEEncode"));
+  assert.ok(nodesOf(gen, "LoraLoaderModelOnly").some((n) => n.inputs.lora_name === "krea2_style_reference.safetensors"));
+  assert.equal(nodesOf(gen, "KSampler")[0].inputs.denoise, 1);
+  const third = buildWorkflow("krea2", "style", { ...p, style2: "" }, ctx).prompt;
+  assert.ok(!nodesOf(third, "TextEncodeQwenImageEditPlus")[0].inputs.image3, "a third reference needs a second one");
+  const redraw = buildWorkflow("krea2", "style", { ...p, mode: "img2img", denoise: 0.6 }, ctx).prompt;
+  const ks = nodesOf(redraw, "KSampler")[0].inputs;
+  assert.equal(ks.denoise, 0.6);
+  assert.equal(redraw[ks.latent_image[0]].class_type, "VAEEncode", "redraw starts from the source");
+  const shift = nodesOf(redraw, "ModelSamplingFlux")[0].inputs;
+  assert.deepEqual([shift.width, shift.height], [832, 1216], "shift follows the source size");
+  assert.throws(() => buildWorkflow("krea2", "style", { ...sampleParams("style"), style1: "" }, ctx), /style reference/);
+  const noLora = objectInfo({ ...FILES, loras: FILES.loras.filter((n) => !/style_reference/.test(n)) });
+  assert.throws(() => buildWorkflow("krea2", "style", sampleParams("style"), { info: noLora, inv: readInventory(noLora) }), /krea2_style_reference/);
+});
+
+test("Krea 2 depth: Control-LoRA and UniDepth are separate paths with their own LoRAs", () => {
+  const lora = buildWorkflow("krea2", "control", sampleParams("control"), ctx).prompt;
+  assert.equal(nodesOf(lora, "Krea2ControlLoRALoader")[0].inputs.lora_name, "krea2/krea2_depth_control_lora.safetensors", "never the UniDepth or pose LoRA");
+  assert.ok(!types(lora).some((t) => /UniDepth/.test(t)));
+  const uni = buildWorkflow("krea2", "control", { ...sampleParams("control"), method: "unidepth", ref1: "a.png", ref2: "b.png", start: 0.5, end: 0.3 }, ctx).prompt;
+  assert.ok(!types(uni).some((t) => /^Krea2Control/.test(t)), "UniDepth does not use the Control-LoRA nodes");
+  assert.equal(nodesOf(uni, "Krea2UniDepthLoRALoader")[0].inputs.lora_name, "krea2/krea2_unidepth_depth_exp_v1.safetensors");
+  const cond = nodesOf(uni, "Krea2UniDepthConditioning")[0].inputs;
+  assert.equal(uni[cond.image[0]].inputs.image, "a.png", "reference 1 is the direct image input");
+  assert.equal(uni[uni[cond.references[0]].inputs.image[0]].inputs.image, "b.png", "reference 2 goes through the stack");
+  assert.ok(cond.start_percent < cond.end_percent, "the window is always valid");
+  const ks = nodesOf(uni, "KSampler")[0].inputs;
+  const condId = Object.keys(uni).find((id) => uni[id].class_type === "Krea2UniDepthConditioning");
+  assert.deepEqual([ks.positive, ks.negative, ks.latent_image], [[condId, 0], [condId, 1], [condId, 2]]);
+  assert.equal(uni[ks.model[0]].class_type, "Krea2UniDepthLoRALoader");
+  // Only UniDepth installed: it is used without being chosen; neither installed: refused.
+  const onlyUni = objectInfo({ ...FILES, loras: FILES.loras.filter((n) => !/depth_control/.test(n)) });
+  const octx = { info: onlyUni, inv: readInventory(onlyUni) };
+  assert.ok(types(buildWorkflow("krea2", "control", sampleParams("control"), octx).prompt).includes("Krea2UniDepthConditioning"));
+  assert.equal(readiness(octx).krea2.control.state, "ready");
+  const none = objectInfo({ ...FILES, loras: FILES.loras.filter((n) => !/depth/.test(n)) });
+  assert.throws(() => buildWorkflow("krea2", "control", sampleParams("control"), { info: none, inv: readInventory(none) }), /depth Control LoRA/);
+  // UniDepth is offered only when its nodes and LoRA are installed.
+  assert.equal(ctx.inv.families.krea2.features.unidepth, true);
+  const noNodes = objectInfo(FILES, { without: ["Krea2UniDepthConditioning"] });
+  assert.equal(readInventory(noNodes).families.krea2.features.unidepth, false);
+});
+
+test("Krea 2 Img2Img + Control and depth-guided outpaint size the control to the sampled latent", () => {
+  const p = { ...sampleParams("img2img-control"), kind: "depth" };
+  const viaLora = buildWorkflow("krea2", "img2img-control", p, ctx).prompt;
+  const ks = nodesOf(viaLora, "KSampler")[0].inputs;
+  assert.equal(viaLora[ks.latent_image[0]].class_type, "VAEEncode");
+  assert.deepEqual(nodesOf(viaLora, "Krea2ControlImageEncode")[0].inputs.latent, ks.latent_image, "control latent matches the source latent");
+  assert.equal(ks.denoise, 0.6);
+  const viaUni = buildWorkflow("krea2", "img2img-control", { ...p, method: "unidepth" }, ctx).prompt;
+  const cond = nodesOf(viaUni, "Krea2UniDepthConditioning")[0].inputs;
+  assert.equal(viaUni[cond.target_latent[0]].class_type, "VAEEncode", "the source sets UniDepth's target geometry");
+  const out = buildWorkflow("krea2", "outpaint", { ...sampleParams("outpaint"), guide: "depth" }, ctx).prompt;
+  const enc = nodesOf(out, "Krea2ControlImageEncode")[0].inputs;
+  assert.equal(out[enc.latent[0]].class_type, "SetLatentNoiseMask", "the depth guide matches the padded, masked latent");
+  assert.equal(nodesOf(out, "Krea2ControlLoRALoader")[0].inputs.strength, 0.6);
+  assert.ok(!types(buildWorkflow("krea2", "outpaint", sampleParams("outpaint"), ctx).prompt).includes("Krea2ControlLoRALoader"), "no guide by default");
+});
+
+test("Krea 2 Pose: the OpenPose LoRA through the Ostris Edit nodes, never the depth path", () => {
+  const pose = buildWorkflow("krea2", "pose", sampleParams("pose"), ctx).prompt;
+  assert.ok(!types(pose).some((t) => /Krea2Control|UniDepth|DepthAnything|DA3/.test(t)), "no depth path");
+  const ks = nodesOf(pose, "KSampler")[0].inputs;
+  assert.deepEqual([ks.steps, ks.cfg, ks.sampler_name, ks.scheduler], [10, 1, "euler", "simple"], "the published workflow's settings");
+  const lora = pose[ks.model[0]];
+  assert.equal(lora.class_type, "LoraLoaderModelOnly");
+  assert.equal(lora.inputs.lora_name, "krea2/control/krea2_turbo_openpose_controlnet.safetensors");
+  assert.equal(pose[lora.inputs.model[0]].class_type, "Krea2OstrisEditModelPatch", "patch, then the LoRA, as published");
+  assert.equal(pose[lora.inputs.model[0]].inputs.kv_cache, true);
+  for (const side of ["positive", "negative"]) {
+    const method = pose[ks[side][0]];
+    assert.equal(method.inputs.reference_latents_method, "index_timestep_zero");
+    const enc = pose[method.inputs.conditioning[0]];
+    assert.equal(enc.class_type, "TextEncodeKrea2OstrisEdit");
+    assert.ok(enc.inputs.vae && enc.inputs.image1, `${side} carries the pose map as image 1`);
+  }
+  assert.ok(types(pose).includes("DWPreprocessor"));
+  const skeleton = buildWorkflow("krea2", "pose", { ...sampleParams("pose"), isSkeleton: true, isMap: false }, ctx).prompt;
+  assert.ok(!types(skeleton).includes("DWPreprocessor"), "a ready skeleton is used as is");
+  const old = buildWorkflow("krea2", "pose", { ...sampleParams("pose"), isMap: true }, ctx).prompt;
+  assert.ok(types(old).includes("DWPreprocessor"), "an old saved depth-map switch is not read as a skeleton");
+  const fromSource = buildWorkflow("krea2", "pose", { ...sampleParams("pose"), source: "start.png", denoise: 0.7 }, ctx).prompt;
+  const fks = nodesOf(fromSource, "KSampler")[0].inputs;
+  assert.equal(fromSource[fks.latent_image[0]].class_type, "VAEEncode");
+  assert.equal(fks.denoise, 0.7);
+  const noPose = objectInfo({ ...FILES, loras: FILES.loras.filter((n) => !/openpose/.test(n)) });
+  assert.throws(() => buildWorkflow("krea2", "pose", sampleParams("pose"), { info: noPose, inv: readInventory(noPose) }), /krea2_turbo_openpose_controlnet\.safetensors in models\/loras\/krea2\/control/);
+  assert.equal(readiness({ info: noPose, inv: readInventory(noPose) }).krea2.pose.state, "missing");
+});
+
+test("Krea 2 safety check: task LoRAs only go to the loaders made for them", async () => {
+  const { assertFamily } = await import("../engine/index.mjs");
+  const { Graph } = await import("../engine/graph.mjs");
+  const g = new Graph({ family: "krea2", info });
+  g.add("Krea2UniDepthLoRALoader", { lora_name: "krea2/krea2_depth_control_lora.safetensors" });
+  assert.throws(() => assertFamily("krea2", g, ctx.inv), /not a krea2 UniDepth LoRA/);
+  const h = new Graph({ family: "sdxl", info });
+  h.add("TextEncodeKrea2OstrisEdit", {});
+  assert.throws(() => assertFamily("sdxl", h, ctx.inv), /belongs to another family/);
 });
 
 test("Krea 2 Smart Edit: a second image reaches both the appearance path and the encoder", () => {

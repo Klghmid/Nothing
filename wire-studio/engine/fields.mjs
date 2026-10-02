@@ -13,7 +13,7 @@ export const field = {
   line: (key, label, placeholder = "", o = {}) => ({ type: "line", key, label, placeholder, ...o }),
   model: (o = {}) => ({ type: "model", key: "model", label: "Model", when: o.when }),
   loras: () => ({ type: "loras", key: "loras", label: "LoRAs" }),
-  size: (o = {}) => ({ type: "size", key: "size", label: "Size", fromImage: !!o.fromImage, ...(o.width ? { width: o.width, height: o.height } : {}) }),
+  size: (o = {}) => ({ type: "size", key: "size", label: "Size", fromImage: !!o.fromImage, ...(o.width ? { width: o.width, height: o.height } : {}), when: o.when }),
   edges: () => ({ type: "edges", key: "edges", label: "Extend by (px)" }),
   slider: (key, label, min, max, step, def, o = {}) => ({ type: "slider", key, label, min, max, step, default: def, ...o }),
   select: (key, label, choices, def, o = {}) => ({ type: "select", key, label, choices, default: def, ...o }),

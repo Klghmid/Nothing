@@ -59,7 +59,10 @@ const EXCLUSIVE = {
   anima: ["AnimaLLLiteApply"],
   sdxl: ["CheckpointLoaderSimple", "LoraLoader", "ControlNetLoader", "ControlNetApplyAdvanced", "SetUnionControlNetType", "VAEEncodeForInpaint"],
   zimage: ["ModelSamplingAuraFlow", "ZImageFunControlnet", "QwenImageDiffsynthControlnet"],
-  krea2: ["Krea2ControlLoRALoader", "Krea2ControlApply", "Krea2ControlImageEncode", "Krea2EditModelPatch", "Krea2EditGroundedEncode", "ModelSamplingFlux", "TextEncodeQwenImageEditPlus", "FluxKontextMultiReferenceLatentMethod"],
+  krea2: [
+    "Krea2ControlLoRALoader", "Krea2ControlApply", "Krea2ControlImageEncode", "Krea2EditModelPatch", "Krea2EditGroundedEncode", "ModelSamplingFlux", "TextEncodeQwenImageEditPlus", "FluxKontextMultiReferenceLatentMethod",
+    "Krea2UniDepthLoRALoader", "Krea2UniDepthConditioning", "Krea2UniDepthReferenceStack", "Krea2OstrisEditModelPatch", "TextEncodeKrea2OstrisEdit",
+  ],
 };
 const CLIP_TYPE = { anima: "stable_diffusion", zimage: "lumina2", krea2: "krea2" };
 
@@ -77,7 +80,8 @@ export function assertFamily(family, g, inv) {
     if (t === "UNETLoader" && !own(f.models, i.unet_name)) problems.push(`model ${i.unet_name} is not a ${family} model`);
     if (t === "CLIPLoader" && (i.type !== CLIP_TYPE[family] || !own(f.clips, i.clip_name))) problems.push(`text encoder ${i.clip_name} (${i.type}) does not match ${family}`);
     if (t === "VAELoader" && !own(f.vaes, i.vae_name)) problems.push(`VAE ${i.vae_name} does not match ${family}`);
-    if (t === "LoraLoaderModelOnly" && !own([...(f.loras || []), f.turboLora, f.styleLora, f.editLora], i.lora_name)) problems.push(`LoRA ${i.lora_name} is not a ${family} LoRA`);
+    if (t === "LoraLoaderModelOnly" && !own([...(f.loras || []), f.turboLora, f.styleLora, f.editLora, ...(f.poseLoras || [])], i.lora_name)) problems.push(`LoRA ${i.lora_name} is not a ${family} LoRA`);
+    if (t === "Krea2UniDepthLoRALoader" && !own(f.unidepthLoras, i.lora_name)) problems.push(`LoRA ${i.lora_name} is not a ${family} UniDepth LoRA`);
     if (t === "LoraLoader" && !own(f.loras, i.lora_name)) problems.push(`LoRA ${i.lora_name} is not an SDXL LoRA`);
     if (t === "CheckpointLoaderSimple" && !own(f.models, i.ckpt_name)) problems.push(`checkpoint ${i.ckpt_name} is not an SDXL checkpoint`);
     if (t === "ModelPatchLoader" && !own(f.patches, i.name)) problems.push(`patch ${i.name} is not a ${family} patch`);

@@ -37,7 +37,7 @@ export const CAPABILITIES = [
   { id: "upscale", label: "Upscale", from: [{ task: "upscale" }] },
   { id: "tile", label: "Tile Restore", from: [{ task: "tile" }] },
   { id: "remove-bg", label: "Remove Background", tool: "remove-bg" },
-  { id: "style", label: "Style Reference", from: [{ task: "generate", field: "style1" }] },
+  { id: "style", label: "Style Reference", from: [{ task: "style" }, { task: "generate", field: "style1" }] },
   { id: "identity", label: "Identity Editing", from: [{ task: "edit" }] },
   { id: "object-remove", label: "Object Remove", from: [{ task: "k2-remove" }, { task: "object-remove" }] },
   { id: "object-replace", label: "Object Replace", from: [{ task: "k2-replace" }, { task: "object-replace" }] },
@@ -89,6 +89,27 @@ export function capabilityMatrix(families) {
     rows.push({ ...cap, cells });
   }
   return rows;
+}
+
+// Workflow combinations a family declares (`combinations`), with status derived like the matrix:
+// { label, from: { task, choice?: { key, value }, field? } } or { label, status, note }.
+export function combinationRows(fam) {
+  return (fam.combinations || []).map((x) => {
+    if (!x.from) return { label: x.label, status: x.status, note: x.note || "" };
+    const task = fam.tasks[x.from.task];
+    if (!task || task.unavailable) return { label: x.label, status: "missing", note: x.note || "" };
+    const ch = x.from.choice && choicesOf(task, x.from.choice.key)?.find?.((c) => c.value === x.from.choice.value);
+    if (x.from.choice && !ch) return { label: x.label, status: "missing", note: x.note || "" };
+    if (x.from.field && !task.fields?.some((f) => f.key === x.from.field)) return { label: x.label, status: "missing", note: x.note || "" };
+    return {
+      label: x.label,
+      task: x.from.task,
+      status: ch?.status || task.status || "ready",
+      evidence: x.evidence || ch?.evidence || task.evidence,
+      verified: task.verified,
+      note: x.note || "",
+    };
+  });
 }
 
 export const kindLabel = (k) => CONTROL_KINDS[k] || k;

@@ -49,7 +49,10 @@ Status of the method itself:
 | [lbouaraba/comfyui-krea2edit](https://github.com/lbouaraba/comfyui-krea2edit) `86f886d` — `__init__.py`, `README.md`, `CHANGELOG.md`, `workflows/krea2_identity_edit.json` | Krea 2 Identity Edit nodes, inputs, two-reference order, ref_boost, fit geometry, sampling defaults, v1.2 capabilities |
 | [ostris/ComfyUI-Krea2-Ostris-Edit](https://github.com/ostris/ComfyUI-Krea2-Ostris-Edit) `7756566` — `nodes.py`, `workflow/Krea2_Ostris_Edit.json` | The ai-toolkit edit-LoRA conditioning path used by the public Krea 2 pose LoRA |
 | [facok/comfyui-krea2-controlnet](https://github.com/facok/comfyui-krea2-controlnet) `79ebfd3` | Krea 2 Control-LoRA (channel-concat) nodes and recommended encode settings |
-| [s-adhit/krea2-pose-controlnet](https://github.com/s-adhit/krea2-pose-controlnet) `daaf2e6` | A pose Control-LoRA with standalone Python inference only (no ComfyUI integration) |
+| [s-adhit/krea2-pose-controlnet](https://github.com/s-adhit/krea2-pose-controlnet) `daaf2e6` — `comfyui/README.md`, `comfyui/krea2_pose_control/` | A pose Control-LoRA whose ComfyUI package is self-contained (own runtime and model loading) — research only, see Phases 4–6 |
+| [cicalooo/ComfyUI-Krea2-UniDepth](https://github.com/cicalooo/ComfyUI-Krea2-UniDepth) `2641b08` — `nodes.py`, `conditioning.py`, `geometry.py`, `README.md`, `VALIDATION.md`, `workflows/*.json` | UniDepth depth + reference conditioning on Krea 2's native reference path, its inputs and validation record |
+| thedeoxen/Krea-2-pose-controlnet (Hugging Face; read through the GitHub mirror [bencoster/Krea-2-pose-controlnet](https://github.com/bencoster/Krea-2-pose-controlnet)) — `README.md`, `krea2_controlnet_pose.json` | The Krea 2 OpenPose Control-LoRA, its settings and its published ComfyUI workflow |
+| ComfyUI 0.38.0 `comfy/ldm/krea2/model.py`, `node_helpers.py` | How Krea 2 consumes reference latents; that conditioning values replace (not append) by default |
 | [cubiq/ComfyUI_IPAdapter_plus](https://github.com/cubiq/ComfyUI_IPAdapter_plus) `a0f451a` — `IPAdapterPlus.py`, `README.md` | IPAdapter nodes, SDXL style (block 6) / composition (block 3) weighting, model files |
 | [cubiq/ComfyUI_InstantID](https://github.com/cubiq/ComfyUI_InstantID) `72495e8` — `README.md`, `examples/*.json` | InstantID nodes, files, CFG / noise advice, extra-ControlNet pattern |
 | [cubiq/PuLID_ComfyUI](https://github.com/cubiq/PuLID_ComfyUI) `93e0c4c` | PuLID SDXL nodes (research only) |
@@ -254,3 +257,104 @@ head, eye and person replacement tasks.
 
 **VRAM:** not measured here; the README explains the pixel path's VRAM interaction and why
 `target_latent` must be wired (every Wire Studio edit graph wires it).
+
+---
+
+## Phases 4–6 — Krea 2 Style Reference, advanced Depth, real Pose
+
+**Family:** Krea 2 only. The question for each requested combination was not "can a graph be
+wired" but "does each mechanism still see what it was trained on when combined". That depends
+on how each implementation feeds the model, so the node code was read first.
+
+### How each mechanism reaches the model
+
+| Mechanism | How it conditions Krea 2 | Source |
+|---|---|---|
+| Native reference latents (core) | `_forward` concatenates the reference tokens to the image tokens, **then** runs the input projection `self.first` on the whole sequence; `index_timestep_zero` gives the references t = 0 | ComfyUI 0.38.0 `comfy/ldm/krea2/model.py` `_forward` |
+| Style reference (official) | `krea2_style_reference` LoRA; `TextEncodeQwenImageEditPlus` adds the images as vision tokens ("Picture N") **and** as `reference_latents` → `FluxKontextMultiReferenceLatentMethod(index_timestep_zero)`; `ModelSamplingFlux(1.15, 0.5, w, h)`, 8 steps, CFG 1, euler / simple | Comfy-Org template `image_krea2_turbo_int8_image_style_reference` |
+| Depth Control-LoRA (facok + Patil) | replaces `first` with `Krea2ControlInputProjection`, which adds the control tokens to the image tokens and **requires the same token count** — otherwise `RuntimeError("Krea2 control token count mismatch")`. No start / end inputs | `comfyui-krea2-controlnet` `79ebfd3` `nodes.py` `forward` |
+| UniDepth (cicalooo) | `Krea2UniDepthConditioning` VAE-encodes the depth map (+ optional `image`, + a `references` stack) at the target geometry and sets them as `reference_latents` with `index_timestep_zero`. It uses `conditioning_set_values` **without append**, so references already on the conditioning are **replaced**. `start_percent` / `end_percent` set **one** window for the whole reference list | `ComfyUI-Krea2-UniDepth` `2641b08` `conditioning.py`, `nodes.py`; ComfyUI `node_helpers.py` |
+| Identity Edit (krea2edit) | a diffusion-model wrapper: "ref_latents are ignored (this patch supplies its own source path)"; it runs `m.first` separately on the target and on each source | `comfyui-krea2edit` `86f886d` `__init__.py` L336–343, L211–213 |
+| Ostris Edit (ai-toolkit edit LoRAs) | `TextEncodeKrea2OstrisEdit` writes "Picture N" vision tokens and (with a VAE) `reference_latents`; `Krea2OstrisEditModelPatch` replaces the forward so references are appended at t = 0; `kv_cache` reuses their K/V | `ComfyUI-Krea2-Ostris-Edit` `7756566` `nodes.py`, `README.md` |
+
+### Phase 4 — Style Reference
+
+| Combination | Status | Why |
+|---|---|---|
+| Style Reference (+ prompt) | READY † (Official) | The official template, now its own task (up to three references, as `TextEncodeQwenImageEditPlus` takes `image1..3`); Text to Image keeps its optional style fields for saved settings |
+| Style + Img2Img | EXPERIMENTAL † (Composed) | Same conditioning; the sampler starts from the VAE-encoded source at a chosen strength, and the Flux shift is computed for the source size. Each step is documented; the combination is not |
+| Style + Identity | UNSUPPORTED | The Identity Edit wrapper ignores `reference_latents`, so the style images would be silently dropped (only their vision tokens would remain) |
+| Style + Depth | RESEARCH_ONLY | Control-LoRA: the style reference tokens enter `first` with the image tokens → token-count mismatch (a hard error). UniDepth: its conditioning replaces the style `reference_latents`. Stacking the style image into UniDepth's reference list would put it behind the depth map as reference 2, a layout neither LoRA was trained on; no tested workflow exists |
+| Style + Pose | RESEARCH_ONLY | Both LoRAs expect their own image as reference 1 ("Picture 1"); no tested combination |
+
+### Phase 5 — advanced Depth
+
+Two public implementations exist and are **not interchangeable** (different LoRAs, different
+mechanisms): Patil's depth Control-LoRA through comfyui-krea2-controlnet (already used), and the
+UniDepth functional LoRA (`krea2_unidepth_depth_exp_v1.safetensors`, `cicalooo/krea2_unidepth_depth`,
+placed in `loras/krea2/`) through ComfyUI-Krea2-UniDepth (requires ComfyUI ≥ 0.29.2). Wire Studio
+offers UniDepth as a *Depth method* only when its nodes **and** LoRA are installed, uses it on its
+own when it is the only one installed, and never passes one implementation's LoRA to the other's
+loader (the safety check refuses it).
+
+Options, as verified against the installed node (`/object_info` of the real pack):
+
+| Requested option | Offered as | Status | Notes |
+|---|---|---|---|
+| Depth + prompt | ControlNet → Depth (either method) | READY † (Control-LoRA) / EXPERIMENTAL † (UniDepth) | UniDepth's own validation record states that no full-size sample was rendered; image-quality presets "still require fixed-seed A/B renders" |
+| Depth + source image | Img2Img + Control → Depth | EXPERIMENTAL † (Composed) | Control-LoRA: the control latent is sized from the encoded source (`Krea2ControlImageEncode.latent`); UniDepth: the encoded source is its `target_latent` (which sets the geometry), then partial denoise |
+| Depth + reference images | ControlNet → Depth → UniDepth: *Reference image*, *Second reference* | EXPERIMENTAL † | The pack's documented `image` input and its `Reference Stack` (appended after the depth map, center-crop / letterbox / stretch fit) |
+| Multiple references | the same, two images | EXPERIMENTAL † | The stack is chainable; two are offered in the form |
+| Independent ranges | *Guide from / until* (UniDepth) | EXPERIMENTAL † | One window for the depth map **and** its references together — per-reference windows are not possible because they share one conditioning entry. The Control-LoRA nodes have no range at all |
+| Calibration | *Calibrate depth map* + gamma (UniDepth) | EXPERIMENTAL † | The pack's built-in 1–99 % percentile clipping and gamma; smoothing, polarity and per-section LoRA strengths are left at the pack's baseline ("all controls at 1.0 … the correct baseline before tuning") |
+| Depth + style | — | RESEARCH_ONLY | See Phase 4 |
+| Depth + identity | — | UNSUPPORTED | UniDepth's depth map would be ignored by the Identity Edit wrapper; with the Control-LoRA the wrapper runs `first` on every source too, so the depth would be added to the sources (same size) or fail with a token-count mismatch (other sizes) |
+| Depth-guided outpaint | Outpaint → *Guide: Depth of the extended picture* | EXPERIMENTAL † (Composed) | The depth of the pre-filled padded canvas through the Control-LoRA; its control latent is the padded, noise-masked latent, so sizes always match. Original pixels are still pasted back. UniDepth's own "prompt-led depth outpainting" (LoRA 0.9, letterbox padding) is described by its author as "empirical rather than registered or mask-aware" and is not used |
+| Depth-guided reframe | comes with Reframe (Phase 8), which reuses outpaint | — | — |
+
+### Phase 6 — real Pose
+
+The public **Krea 2 OpenPose Control-LoRA** (thedeoxen, Apache-2.0, base Krea-2-Turbo,
+`krea2_turbo_openpose_controlnet.safetensors`, 228,587,504 bytes per its LFS pointer) is an
+ai-toolkit edit-style LoRA run through the Ostris Edit nodes. From its README and its published
+workflow `krea2_controlnet_pose.json`:
+
+- `UNETLoader` → `Krea2OstrisEditModelPatch(kv_cache = true)` → `LoraLoaderModelOnly(1.0)` →
+  `KSampler(10 steps, CFG 1, euler, simple)`;
+- `DWPreprocessor` (body, hands and face on) → `FluxKontextImageScale` →
+  `TextEncodeKrea2OstrisEdit(prompt, vae, image1 = pose map)` →
+  `FluxKontextMultiReferenceLatentMethod(index_timestep_zero)`, and the same with an empty prompt
+  for the negative; `EmptyLatentImage` sized from the scaled pose map;
+- "pass the pose map as image 1", weight 0.8–1.0 (0.6–0.8 if the pose is too rigid), DWPose maps on
+  a black background work best, "no special trigger phrase", "primarily trained on humans, but
+  also works with stylized characters", and explicitly **"not a reference + pose fusion model"**.
+
+Wire Studio's Pose task follows that graph. One deliberate difference: the map is fitted to the
+size you choose (by default the reference's aspect) instead of setting the output size from the
+map, so skeleton and canvas always match. The Ostris README says `kv_cache` is for LoRAs trained
+with it; the LoRA author's own workflow turns it on, so Wire Studio does too (an advanced switch).
+
+| Combination | Status | Why |
+|---|---|---|
+| Pose → Image | EXPERIMENTAL † (Community) | The author's workflow; graph validated, not run on a GPU here |
+| Pose + source image | EXPERIMENTAL † (Composed) | The same conditioning with a partially denoised start image |
+| Pose + identity | EXPERIMENTAL † | Pose Restage (Identity Edit, Phase 3) — the identity LoRA reads the pose photo as image 1 |
+| Pose + style, Pose + identity + style | RESEARCH_ONLY | No pose+reference fusion model exists (the author says this LoRA is not one), and the identity wrapper ignores other references |
+
+**Retired:** the previous Krea 2 *Pose* task copied the pose through a depth map (silhouette
+transfer, no pose model). The Pose task now uses only the pose model; depth-based silhouette
+transfer remains available as ControlNet → Depth. Saved Pose settings keep working: the old
+*Image is already a depth map* switch is no longer read by Pose (a new *pose skeleton* switch
+replaces it), so an old saved depth map is not mistaken for a skeleton.
+
+**RESEARCH_ONLY — s-adhit/krea2-pose-controlnet.** Its ComfyUI package is self-contained: the
+`Krea2PoseGenerate` node vendors its own Krea 2 runtime and Turbo sampler, loads the model from
+absolute paths (`models/krea2/…`) and downloads Qwen3-VL-4B-Instruct and the Qwen Image VAE on
+first use, with CFG fixed internally. It bypasses ComfyUI's loaders and model management (a second
+copy of Krea 2 and the text encoder next to the ones Wire Studio loads) and accepts only its own
+frozen "PoseBridge" COCO-17 rendering ("Do not pass a generic OpenPose or native DWPose condition
+raster"). It cannot be built from the installed loaders, so it is not offered.
+
+**VRAM:** not measured here (no GPU in the research environment). UniDepth recommends FP8 Krea 2
+weights and names native INT8 as the supported minimum for its depth and edit functions.
+

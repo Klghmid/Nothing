@@ -32,7 +32,7 @@
   "4": {
     "class_type": "CLIPTextEncode",
     "inputs": {
-      "text": "Describe the new picture",
+      "text": "Describe the scenery to add (avoid repeating the subject)",
       "clip": [
         "2",
         0
@@ -60,31 +60,110 @@
       "image": "input.png"
     },
     "_meta": {
-      "title": "Control image"
+      "title": "Image"
     }
   },
   "7": {
-    "class_type": "DepthAnythingV2Preprocessor",
+    "class_type": "ImagePadForOutpaint",
     "inputs": {
       "image": [
         "6",
         0
       ],
-      "resolution": 1024
+      "left": 256,
+      "right": 256,
+      "top": 0,
+      "bottom": 0,
+      "feathering": 48
     },
     "_meta": {
-      "title": "Make depth map"
+      "title": "Extend canvas"
     }
   },
   "8": {
-    "class_type": "ImageScale",
+    "class_type": "INPAINT_MaskedFill",
     "inputs": {
       "image": [
         "7",
         0
       ],
+      "mask": [
+        "7",
+        1
+      ],
+      "fill": "navier-stokes",
+      "falloff": 0
+    },
+    "_meta": {
+      "title": "Pre-fill new area"
+    }
+  },
+  "9": {
+    "class_type": "DifferentialDiffusion",
+    "inputs": {
+      "model": [
+        "1",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "Differential diffusion"
+    }
+  },
+  "10": {
+    "class_type": "VAEEncode",
+    "inputs": {
+      "pixels": [
+        "8",
+        0
+      ],
+      "vae": [
+        "3",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "Encode image"
+    }
+  },
+  "11": {
+    "class_type": "SetLatentNoiseMask",
+    "inputs": {
+      "samples": [
+        "10",
+        0
+      ],
+      "mask": [
+        "7",
+        1
+      ]
+    },
+    "_meta": {
+      "title": "Limit to painted area"
+    }
+  },
+  "12": {
+    "class_type": "DepthAnythingV2Preprocessor",
+    "inputs": {
+      "image": [
+        "8",
+        0
+      ],
+      "resolution": 1536
+    },
+    "_meta": {
+      "title": "Make depth map"
+    }
+  },
+  "13": {
+    "class_type": "ImageScale",
+    "inputs": {
+      "image": [
+        "12",
+        0
+      ],
       "upscale_method": "lanczos",
-      "width": 1024,
+      "width": 1536,
       "height": 1024,
       "crop": "center"
     },
@@ -92,36 +171,25 @@
       "title": "Fit map to output size"
     }
   },
-  "9": {
-    "class_type": "EmptyLatentImage",
-    "inputs": {
-      "width": 1024,
-      "height": 1024,
-      "batch_size": 1
-    },
-    "_meta": {
-      "title": "Empty canvas"
-    }
-  },
-  "10": {
+  "14": {
     "class_type": "Krea2ControlLoRALoader",
     "inputs": {
       "model": [
-        "1",
+        "9",
         0
       ],
       "lora_name": "krea2/krea2_depth_control_lora.safetensors",
-      "strength": 1
+      "strength": 0.6
     },
     "_meta": {
       "title": "Krea 2 depth Control LoRA"
     }
   },
-  "11": {
+  "15": {
     "class_type": "Krea2ControlImageEncode",
     "inputs": {
       "control_image": [
-        "8",
+        "13",
         0
       ],
       "vae": [
@@ -136,7 +204,7 @@
       "invert": false,
       "batch_mode": "independent_images",
       "latent": [
-        "9",
+        "11",
         0
       ]
     },
@@ -144,15 +212,15 @@
       "title": "Encode depth map"
     }
   },
-  "12": {
+  "16": {
     "class_type": "Krea2ControlApply",
     "inputs": {
       "model": [
-        "10",
+        "14",
         0
       ],
       "control_latent": [
-        "11",
+        "15",
         0
       ]
     },
@@ -160,11 +228,11 @@
       "title": "Apply depth control"
     }
   },
-  "13": {
+  "17": {
     "class_type": "KSampler",
     "inputs": {
       "model": [
-        "12",
+        "16",
         0
       ],
       "positive": [
@@ -176,7 +244,7 @@
         0
       ],
       "latent_image": [
-        "9",
+        "11",
         0
       ],
       "seed": 123456789,
@@ -190,11 +258,11 @@
       "title": "Sampler"
     }
   },
-  "14": {
+  "18": {
     "class_type": "VAEDecode",
     "inputs": {
       "samples": [
-        "13",
+        "17",
         0
       ],
       "vae": [
@@ -206,14 +274,37 @@
       "title": "Decode"
     }
   },
-  "15": {
+  "19": {
+    "class_type": "ImageCompositeMasked",
+    "inputs": {
+      "destination": [
+        "8",
+        0
+      ],
+      "source": [
+        "18",
+        0
+      ],
+      "mask": [
+        "7",
+        1
+      ],
+      "x": 0,
+      "y": 0,
+      "resize_source": false
+    },
+    "_meta": {
+      "title": "Paste result into original"
+    }
+  },
+  "20": {
     "class_type": "SaveImage",
     "inputs": {
       "images": [
-        "14",
+        "19",
         0
       ],
-      "filename_prefix": "WireStudio/krea2-control"
+      "filename_prefix": "WireStudio/krea2-outpaint"
     },
     "_meta": {
       "title": "Save image"

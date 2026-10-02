@@ -2092,8 +2092,10 @@
        "anima-turbo-lora-v0.2.safetensors",
        "anima/characters/miku_v3.safetensors",
        "krea2/control/krea2_depth_control_lora.safetensors",
+       "krea2/control/krea2_turbo_openpose_controlnet.safetensors",
        "krea2/editor/krea2_identity_edit_v1_2.safetensors",
        "krea2/krea2_style_reference.safetensors",
+       "krea2/krea2_unidepth_depth_exp_v1.safetensors",
        "krea2/styles/krea2_darkbrush.safetensors",
        "z-image/people/portrait_v2.safetensors"
       ]
@@ -2258,6 +2260,413 @@
    ],
    "python_module": "custom_nodes.comfyui-krea2edit"
   },
+  "Krea2OstrisEditModelPatch": {
+   "input": {
+    "required": {
+     "model": [
+      "MODEL"
+     ],
+     "kv_cache": [
+      "BOOLEAN",
+      {
+       "default": false,
+       "tooltip": "Cache the reference tokens' attention K/V: they are precomputed in one t=0 pass and reused every denoising step, so the refs never ride along in the per-step sequence. The LoRA must be trained with ai-toolkit's kv_cache model kwarg for this to work properly. Leave off for normal edit LoRAs."
+      }
+     ]
+    }
+   },
+   "output": [
+    "MODEL"
+   ],
+   "output_name": [
+    "MODEL"
+   ],
+   "python_module": "custom_nodes.ComfyUI-Krea2-Ostris-Edit"
+  },
+  "Krea2UniDepthConditioning": {
+   "input": {
+    "required": {
+     "positive": [
+      "CONDITIONING",
+      {}
+     ],
+     "negative": [
+      "CONDITIONING",
+      {}
+     ],
+     "vae": [
+      "VAE",
+      {}
+     ],
+     "depth_image": [
+      "IMAGE",
+      {}
+     ],
+     "width": [
+      "INT",
+      {
+       "default": 1024,
+       "min": 16,
+       "max": 16384,
+       "step": 16
+      }
+     ],
+     "height": [
+      "INT",
+      {
+       "default": 1024,
+       "min": 16,
+       "max": 16384,
+       "step": 16
+      }
+     ],
+     "batch_size": [
+      "INT",
+      {
+       "default": 1,
+       "min": 1,
+       "max": 4096
+      }
+     ],
+     "fit_mode": [
+      "COMBO",
+      {
+       "default": "center_crop",
+       "multiselect": false,
+       "options": [
+        "center_crop",
+        "letterbox",
+        "stretch"
+       ]
+      }
+     ],
+     "negative_policy": [
+      "COMBO",
+      {
+       "default": "same reference",
+       "multiselect": false,
+       "options": [
+        "same reference",
+        "positive only"
+       ]
+      }
+     ],
+     "start_percent": [
+      "FLOAT",
+      {
+       "advanced": true,
+       "default": 0,
+       "min": 0,
+       "max": 0.99,
+       "step": 0.01
+      }
+     ],
+     "end_percent": [
+      "FLOAT",
+      {
+       "advanced": true,
+       "default": 1,
+       "min": 0.01,
+       "max": 1,
+       "step": 0.01
+      }
+     ],
+     "pad_value": [
+      "FLOAT",
+      {
+       "advanced": true,
+       "default": 0,
+       "min": 0,
+       "max": 1,
+       "step": 0.01
+      }
+     ],
+     "calibrate": [
+      "BOOLEAN",
+      {
+       "advanced": true,
+       "default": false
+      }
+     ],
+     "low_percent": [
+      "FLOAT",
+      {
+       "advanced": true,
+       "default": 1,
+       "min": 0,
+       "max": 49,
+       "step": 0.1
+      }
+     ],
+     "high_percent": [
+      "FLOAT",
+      {
+       "advanced": true,
+       "default": 99,
+       "min": 51,
+       "max": 100,
+       "step": 0.1
+      }
+     ],
+     "gamma": [
+      "FLOAT",
+      {
+       "advanced": true,
+       "default": 1,
+       "min": 0.1,
+       "max": 4,
+       "step": 0.05
+      }
+     ],
+     "polarity": [
+      "COMBO",
+      {
+       "advanced": true,
+       "default": "keep",
+       "multiselect": false,
+       "options": [
+        "keep",
+        "invert"
+       ]
+      }
+     ],
+     "smoothing_radius": [
+      "INT",
+      {
+       "advanced": true,
+       "default": 0,
+       "min": 0,
+       "max": 32,
+       "step": 1
+      }
+     ],
+     "smoothing_strength": [
+      "FLOAT",
+      {
+       "advanced": true,
+       "default": 0,
+       "min": 0,
+       "max": 1,
+       "step": 0.05
+      }
+     ],
+     "edge_epsilon": [
+      "FLOAT",
+      {
+       "advanced": true,
+       "default": 0.01,
+       "min": 0.0001,
+       "max": 0.25,
+       "step": 0.001
+      }
+     ]
+    },
+    "optional": {
+     "image": [
+      "IMAGE",
+      {}
+     ],
+     "references": [
+      "KREA2_UNIDEPTH_REFERENCES",
+      {}
+     ],
+     "target_latent": [
+      "LATENT",
+      {
+       "advanced": true
+      }
+     ]
+    }
+   },
+   "output": [
+    "CONDITIONING",
+    "CONDITIONING",
+    "LATENT",
+    "IMAGE",
+    "LATENT"
+   ],
+   "output_name": [
+    "positive",
+    "negative",
+    "target_latent",
+    "prepared_depth",
+    "reference_latent"
+   ],
+   "python_module": "custom_nodes.ComfyUI-Krea2-UniDepth"
+  },
+  "Krea2UniDepthLoRALoader": {
+   "input": {
+    "required": {
+     "model": [
+      "MODEL",
+      {}
+     ],
+     "lora_name": [
+      "COMBO",
+      {
+       "multiselect": false,
+       "options": [
+        "SDXL/styles/watercolor.safetensors",
+        "anima-turbo-lora-v0.2.safetensors",
+        "anima/characters/miku_v3.safetensors",
+        "krea2/control/krea2_depth_control_lora.safetensors",
+        "krea2/control/krea2_turbo_openpose_controlnet.safetensors",
+        "krea2/editor/krea2_identity_edit_v1_2.safetensors",
+        "krea2/krea2_style_reference.safetensors",
+        "krea2/krea2_unidepth_depth_exp_v1.safetensors",
+        "krea2/styles/krea2_darkbrush.safetensors",
+        "z-image/people/portrait_v2.safetensors"
+       ]
+      }
+     ],
+     "base_strength": [
+      "FLOAT",
+      {
+       "default": 1,
+       "min": -4,
+       "max": 4,
+       "step": 0.01
+      }
+     ],
+     "early_blocks": [
+      "FLOAT",
+      {
+       "default": 1,
+       "min": 0,
+       "max": 2,
+       "step": 0.05
+      }
+     ],
+     "middle_blocks": [
+      "FLOAT",
+      {
+       "default": 1,
+       "min": 0,
+       "max": 2,
+       "step": 0.05
+      }
+     ],
+     "late_blocks": [
+      "FLOAT",
+      {
+       "default": 1,
+       "min": 0,
+       "max": 2,
+       "step": 0.05
+      }
+     ],
+     "text_fusion": [
+      "FLOAT",
+      {
+       "default": 1,
+       "min": 0,
+       "max": 2,
+       "step": 0.05
+      }
+     ],
+     "attention": [
+      "FLOAT",
+      {
+       "advanced": true,
+       "default": 1,
+       "min": 0,
+       "max": 2,
+       "step": 0.05
+      }
+     ],
+     "mlp": [
+      "FLOAT",
+      {
+       "advanced": true,
+       "default": 1,
+       "min": 0,
+       "max": 2,
+       "step": 0.05
+      }
+     ],
+     "other": [
+      "FLOAT",
+      {
+       "advanced": true,
+       "default": 1,
+       "min": 0,
+       "max": 2,
+       "step": 0.05
+      }
+     ]
+    }
+   },
+   "output": [
+    "MODEL",
+    "STRING"
+   ],
+   "output_name": [
+    "model",
+    "patch_report"
+   ],
+   "python_module": "custom_nodes.ComfyUI-Krea2-UniDepth"
+  },
+  "Krea2UniDepthReferenceStack": {
+   "input": {
+    "required": {
+     "image": [
+      "IMAGE",
+      {}
+     ],
+     "fit_mode": [
+      "COMBO",
+      {
+       "default": "center_crop",
+       "multiselect": false,
+       "options": [
+        "center_crop",
+        "letterbox",
+        "stretch"
+       ]
+      }
+     ],
+     "image_mode": [
+      "COMBO",
+      {
+       "default": "rgb",
+       "multiselect": false,
+       "options": [
+        "rgb",
+        "depth_grayscale",
+        "depth_normalize",
+        "depth_invert",
+        "depth_normalize_invert"
+       ]
+      }
+     ],
+     "pad_value": [
+      "FLOAT",
+      {
+       "advanced": true,
+       "default": 0,
+       "min": 0,
+       "max": 1,
+       "step": 0.01
+      }
+     ]
+    },
+    "optional": {
+     "references": [
+      "KREA2_UNIDEPTH_REFERENCES",
+      {}
+     ]
+    }
+   },
+   "output": [
+    "KREA2_UNIDEPTH_REFERENCES",
+    "INT"
+   ],
+   "output_name": [
+    "references",
+    "count"
+   ],
+   "python_module": "custom_nodes.ComfyUI-Krea2-UniDepth"
+  },
   "LineArtPreprocessor": {
    "input": {
     "required": {
@@ -2382,8 +2791,10 @@
        "anima-turbo-lora-v0.2.safetensors",
        "anima/characters/miku_v3.safetensors",
        "krea2/control/krea2_depth_control_lora.safetensors",
+       "krea2/control/krea2_turbo_openpose_controlnet.safetensors",
        "krea2/editor/krea2_identity_edit_v1_2.safetensors",
        "krea2/krea2_style_reference.safetensors",
+       "krea2/krea2_unidepth_depth_exp_v1.safetensors",
        "krea2/styles/krea2_darkbrush.safetensors",
        "z-image/people/portrait_v2.safetensors"
       ],
@@ -2435,8 +2846,10 @@
        "anima-turbo-lora-v0.2.safetensors",
        "anima/characters/miku_v3.safetensors",
        "krea2/control/krea2_depth_control_lora.safetensors",
+       "krea2/control/krea2_turbo_openpose_controlnet.safetensors",
        "krea2/editor/krea2_identity_edit_v1_2.safetensors",
        "krea2/krea2_style_reference.safetensors",
+       "krea2/krea2_unidepth_depth_exp_v1.safetensors",
        "krea2/styles/krea2_darkbrush.safetensors",
        "z-image/people/portrait_v2.safetensors"
       ]
@@ -3157,6 +3570,43 @@
     "CONTROL_NET"
    ],
    "python_module": "comfy_extras.nodes_controlnet"
+  },
+  "TextEncodeKrea2OstrisEdit": {
+   "input": {
+    "required": {
+     "clip": [
+      "CLIP"
+     ],
+     "prompt": [
+      "STRING",
+      {
+       "multiline": true,
+       "dynamicPrompts": true
+      }
+     ]
+    },
+    "optional": {
+     "vae": [
+      "VAE"
+     ],
+     "image1": [
+      "IMAGE"
+     ],
+     "image2": [
+      "IMAGE"
+     ],
+     "image3": [
+      "IMAGE"
+     ]
+    }
+   },
+   "output": [
+    "CONDITIONING"
+   ],
+   "output_name": [
+    "CONDITIONING"
+   ],
+   "python_module": "custom_nodes.ComfyUI-Krea2-Ostris-Edit"
   },
   "TextEncodeQwenImageEditPlus": {
    "input": {

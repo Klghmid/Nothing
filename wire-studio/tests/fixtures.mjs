@@ -14,6 +14,12 @@ const node = (required, optional = {}, output = []) => ({ input: { required, opt
 import fs from "node:fs";
 const LIVE = JSON.parse(fs.readFileSync(new URL("./live-object-info.json", import.meta.url), "utf8")).nodes;
 const live = (type) => structuredClone({ input: LIVE[type].input, output: LIVE[type].output, output_name: LIVE[type].output_name });
+// A live definition whose file list (a combo input) comes from the fixture files instead.
+const withCombo = (def, key, list) => {
+  const spec = def.input.required[key];
+  def.input.required[key] = spec[0] === "COMBO" ? ["COMBO", { ...spec[1], options: list }] : [list, spec[1] || {}];
+  return def;
+};
 
 export const FILES = {
   checkpoints: ["Illustrious-XL-v2.0.safetensors", "SDXL/juggernautXL_v9.safetensors", "noobaiXLNAIXL_vPred10.safetensors", "sdpose_wholebody_fp16.safetensors", "sd15/dreamshaper_8.safetensors", "mystery_mix_v3.safetensors", "sd_xl_refiner_1.0.safetensors", "SDXL/turbo/dreamshaperMix_v8.safetensors", "Z-Image/turbo/z_image_turbo_aio.safetensors"],
@@ -27,6 +33,8 @@ export const FILES = {
     "krea2_darkbrush.safetensors",
     "krea2_style_reference.safetensors",
     "krea2/krea2_depth_control_lora.safetensors",
+    "krea2/control/krea2_turbo_openpose_controlnet.safetensors",
+    "krea2/krea2_unidepth_depth_exp_v1.safetensors",
     "krea2_identity_edit_v1_2.safetensors",
     "detail_slider.safetensors",
     "anima/characters/miku_v3.safetensors",
@@ -179,12 +187,18 @@ export function objectInfo(files = FILES, { without = [] } = {}) {
       ["MODEL"],
     ),
     Krea2EditGroundedEncode: node({ clip: L("CLIP"), prompt: S("", true) }, { image: L("IMAGE"), image_b: L("IMAGE"), grounding_px: I(768, 0, 4096), system_prompt: S("", true) }, ["CONDITIONING"]),
+    // ComfyUI-Krea2-UniDepth and ComfyUI-Krea2-Ostris-Edit (real definitions, LoRA list from `files`)
+    Krea2UniDepthLoRALoader: withCombo(live("Krea2UniDepthLoRALoader"), "lora_name", files.loras),
+    Krea2UniDepthConditioning: live("Krea2UniDepthConditioning"),
+    Krea2UniDepthReferenceStack: live("Krea2UniDepthReferenceStack"),
+    Krea2OstrisEditModelPatch: live("Krea2OstrisEditModelPatch"),
+    TextEncodeKrea2OstrisEdit: live("TextEncodeKrea2OstrisEdit"),
   };
   for (const n of without) delete info[n];
   return info;
 }
 
-export const CUSTOM_NODES = ["UltralyticsDetectorProvider", "FaceDetailer", "BboxDetectorSEGS", "SegsToCombinedMask", "ReActorFaceSwap", "DWPreprocessor", "DepthAnythingV2Preprocessor", "LineArtPreprocessor", "AnimeLineArtPreprocessor", "HEDPreprocessor", "PiDiNetPreprocessor", "FakeScribblePreprocessor", "M-LSDPreprocessor", "ImageLuminanceDetector", "ImageIntensityDetector", "BiRefNetRMBG", "INPAINT_MaskedFill", "UltimateSDUpscale", "Krea2ControlLoRALoader", "Krea2ControlApply", "Krea2ControlImageEncode", "Krea2EditModelPatch", "Krea2EditGroundedEncode"];
+export const CUSTOM_NODES = ["UltralyticsDetectorProvider", "FaceDetailer", "BboxDetectorSEGS", "SegsToCombinedMask", "ReActorFaceSwap", "DWPreprocessor", "DepthAnythingV2Preprocessor", "LineArtPreprocessor", "AnimeLineArtPreprocessor", "HEDPreprocessor", "PiDiNetPreprocessor", "FakeScribblePreprocessor", "M-LSDPreprocessor", "ImageLuminanceDetector", "ImageIntensityDetector", "BiRefNetRMBG", "INPAINT_MaskedFill", "UltimateSDUpscale", "Krea2ControlLoRALoader", "Krea2ControlApply", "Krea2ControlImageEncode", "Krea2EditModelPatch", "Krea2EditGroundedEncode", "Krea2UniDepthLoRALoader", "Krea2UniDepthConditioning", "Krea2UniDepthReferenceStack", "Krea2OstrisEditModelPatch", "TextEncodeKrea2OstrisEdit"];
 
 // Parameters that make every task buildable (image names are just strings for LoadImage).
 export function sampleParams(task) {
@@ -199,6 +213,7 @@ export function sampleParams(task) {
     faceswap: { image: "example.png", face: "face.png" },
     pose: { image: "example.png" },
     control: { image: "example.png", kind: "depth" },
+    style: { style1: "style.png" },
     "img2img-control": { image: "example.png", kind: "canny", denoise: 0.6 },
     upscale: { image: "example.png", scale: 2, refine: true },
   };

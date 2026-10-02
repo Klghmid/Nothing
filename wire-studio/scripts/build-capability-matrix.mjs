@@ -7,7 +7,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import fsSync from "node:fs";
 import { FAMILIES, requirements } from "../engine/index.mjs";
-import { capabilityMatrix, STATUS } from "../engine/capabilities.mjs";
+import { capabilityMatrix, combinationRows, STATUS } from "../engine/capabilities.mjs";
 import { TASKS } from "../engine/catalog.mjs";
 import { variantParams } from "../engine/variants.mjs";
 
@@ -34,6 +34,21 @@ export function buildMatrix() {
     }
   }
   return out.join("\n");
+}
+
+export function buildCombos() {
+  const out = [];
+  for (const fam of Object.values(FAMILIES)) {
+    const rows = combinationRows(fam);
+    if (!rows.length) continue;
+    out.push(`**${fam.label}**`, "", "| Combination | Status | How | Notes |", "|---|---|---|---|");
+    for (const r of rows) {
+      const how = r.task ? [`task \`${r.task}\``, r.evidence ? EVIDENCE[r.evidence] : "", r.verified === "graph" ? "graph validated, not yet run on a GPU" : r.verified === "inference" ? "run on a GPU" : ""].filter(Boolean).join("; ") : "—";
+      out.push(`| ${r.label} | ${STATUS[r.status]} | ${how} | ${String(r.note || "").replaceAll("|", "\\|")} |`);
+    }
+    out.push("");
+  }
+  return out.join("\n").trim();
 }
 
 // Tests that name a workflow explicitly (beyond the per-workflow build, purity and
@@ -78,7 +93,7 @@ export function buildAudit() {
   return out.join("\n");
 }
 
-const DOCS = { matrix: buildMatrix, audit: buildAudit };
+const DOCS = { matrix: buildMatrix, audit: buildAudit, combos: buildCombos };
 export function render(text, name = "matrix") {
   const re = new RegExp(`(<!-- generated:${name} -->)[\\s\\S]*?(<!-- \\/generated:${name} -->)`);
   if (!re.test(text)) throw new Error(`missing the generated:${name} markers`);
@@ -86,9 +101,9 @@ export function render(text, name = "matrix") {
 }
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.argv[1])) {
-  for (const [file, name] of [[MATRIX_DOC, "matrix"], [AUDIT_DOC, "audit"]]) {
+  for (const [file, names] of [[MATRIX_DOC, ["matrix", "combos"]], [AUDIT_DOC, ["audit"]]]) {
     const before = await fs.readFile(file, "utf8");
-    const after = render(before, name);
+    const after = names.reduce((text, name) => render(text, name), before);
     await fs.writeFile(file, after);
     console.log(after === before ? `${path.relative(root, file)} is already up to date` : `Updated ${path.relative(root, file)}`);
   }

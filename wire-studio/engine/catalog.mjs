@@ -14,6 +14,8 @@ export const PACKS = {
   usdu: { name: "ComfyUI_UltimateSDUpscale", url: "https://github.com/ssitu/ComfyUI_UltimateSDUpscale" },
   krea2control: { name: "comfyui-krea2-controlnet", url: "https://github.com/facok/comfyui-krea2-controlnet" },
   krea2edit: { name: "comfyui-krea2edit", url: "https://github.com/lbouaraba/comfyui-krea2edit" },
+  krea2unidepth: { name: "ComfyUI-Krea2-UniDepth", url: "https://github.com/cicalooo/ComfyUI-Krea2-UniDepth" },
+  krea2ostris: { name: "ComfyUI-Krea2-Ostris-Edit", url: "https://github.com/ostris/ComfyUI-Krea2-Ostris-Edit" },
   core: { name: "a newer ComfyUI (update ComfyUI)", url: "https://github.com/Comfy-Org/ComfyUI" },
 };
 
@@ -56,6 +58,11 @@ export const NODE_PACK = {
   Krea2ControlImageEncode: "krea2control",
   Krea2EditModelPatch: "krea2edit",
   Krea2EditGroundedEncode: "krea2edit",
+  Krea2UniDepthLoRALoader: "krea2unidepth",
+  Krea2UniDepthConditioning: "krea2unidepth",
+  Krea2UniDepthReferenceStack: "krea2unidepth",
+  Krea2OstrisEditModelPatch: "krea2ostris",
+  TextEncodeKrea2OstrisEdit: "krea2ostris",
 };
 export const packOf = (type) => PACKS[NODE_PACK[type] || "core"];
 
@@ -68,6 +75,7 @@ export const TASK_GROUPS = ["Create", "Edit", "Identity Edit", "Fix", "Control",
 // Task metadata shared by every family (each family decides if and how it runs a task).
 export const TASKS = {
   generate: { label: "Text to Image", group: "Create", icon: "sparkles", run: "Generate", about: "Create a new image from a prompt." },
+  style: { label: "Style Reference", group: "Create", icon: "palette", run: "Generate", about: "Make a picture in the look of one to three reference images." },
   img2img: { label: "Image to Image", group: "Create", icon: "layers", run: "Redraw", about: "Redraw an existing image; strength decides how much changes." },
   edit: { label: "Smart Edit", group: "Identity Edit", icon: "wand", run: "Apply edit", about: "Describe a change in words; the subject's identity is kept." },
   "k2-remove": { label: "Object Remove", group: "Identity Edit", icon: "eraser", run: "Remove", about: "Remove an object or person; the rest of the picture is kept." },

@@ -30,92 +30,88 @@
     }
   },
   "4": {
-    "class_type": "Krea2OstrisEditModelPatch",
-    "inputs": {
-      "model": [
-        "1",
-        0
-      ],
-      "kv_cache": true
-    },
-    "_meta": {
-      "title": "Reference patch (Ostris Edit)"
-    }
-  },
-  "5": {
-    "class_type": "LoraLoaderModelOnly",
-    "inputs": {
-      "model": [
-        "4",
-        0
-      ],
-      "lora_name": "krea2/control/krea2_turbo_openpose_controlnet.safetensors",
-      "strength_model": 1
-    },
-    "_meta": {
-      "title": "Krea 2 pose LoRA"
-    }
-  },
-  "6": {
     "class_type": "LoadImage",
     "inputs": {
       "image": "input.png"
     },
     "_meta": {
-      "title": "Pose reference"
+      "title": "Source image"
     }
   },
-  "7": {
-    "class_type": "DWPreprocessor",
-    "inputs": {
-      "image": [
-        "6",
-        0
-      ],
-      "resolution": 1024,
-      "detect_hand": "enable",
-      "detect_body": "enable",
-      "detect_face": "enable"
-    },
-    "_meta": {
-      "title": "Make pose map"
-    }
-  },
-  "8": {
+  "5": {
     "class_type": "ImageScale",
     "inputs": {
       "image": [
-        "7",
+        "4",
         0
       ],
       "upscale_method": "lanczos",
       "width": 1024,
       "height": 1024,
-      "crop": "center"
+      "crop": "disabled"
     },
     "_meta": {
-      "title": "Fit map to output size"
+      "title": "Fit source to /16"
+    }
+  },
+  "6": {
+    "class_type": "VAEEncode",
+    "inputs": {
+      "pixels": [
+        "5",
+        0
+      ],
+      "vae": [
+        "3",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "Encode image"
+    }
+  },
+  "7": {
+    "class_type": "LoraLoaderModelOnly",
+    "inputs": {
+      "model": [
+        "1",
+        0
+      ],
+      "lora_name": "krea2_style_reference.safetensors",
+      "strength_model": 1
+    },
+    "_meta": {
+      "title": "Krea 2 style reference LoRA"
+    }
+  },
+  "8": {
+    "class_type": "LoadImage",
+    "inputs": {
+      "image": "style.png"
+    },
+    "_meta": {
+      "title": "Style reference"
     }
   },
   "9": {
-    "class_type": "TextEncodeKrea2OstrisEdit",
+    "class_type": "TextEncodeQwenImageEditPlus",
     "inputs": {
       "clip": [
         "2",
         0
       ],
-      "prompt": "Describe who is in the pose, their clothes and the scene",
       "vae": [
         "3",
         0
       ],
+      "prompt": "Describe the picture; the references give its look",
       "image1": [
         "8",
         0
       ]
     },
     "_meta": {
-      "title": "Prompt + pose map"
+      "title": "Prompt + style references"
     }
   },
   "10": {
@@ -128,59 +124,42 @@
       "reference_latents_method": "index_timestep_zero"
     },
     "_meta": {
-      "title": "Prompt + pose map · reference method"
+      "title": "Reference latent method"
     }
   },
   "11": {
-    "class_type": "TextEncodeKrea2OstrisEdit",
+    "class_type": "ModelSamplingFlux",
     "inputs": {
-      "clip": [
-        "2",
+      "model": [
+        "7",
         0
       ],
-      "prompt": "",
-      "vae": [
-        "3",
-        0
-      ],
-      "image1": [
-        "8",
+      "max_shift": 1.15,
+      "base_shift": 0.5,
+      "width": 1024,
+      "height": 1024
+    },
+    "_meta": {
+      "title": "Sampling shift"
+    }
+  },
+  "12": {
+    "class_type": "ConditioningZeroOut",
+    "inputs": {
+      "conditioning": [
+        "10",
         0
       ]
     },
     "_meta": {
-      "title": "Negative + pose map"
-    }
-  },
-  "12": {
-    "class_type": "FluxKontextMultiReferenceLatentMethod",
-    "inputs": {
-      "conditioning": [
-        "11",
-        0
-      ],
-      "reference_latents_method": "index_timestep_zero"
-    },
-    "_meta": {
-      "title": "Negative + pose map · reference method"
+      "title": "No negative"
     }
   },
   "13": {
-    "class_type": "EmptyLatentImage",
-    "inputs": {
-      "width": 1024,
-      "height": 1024,
-      "batch_size": 1
-    },
-    "_meta": {
-      "title": "Empty canvas"
-    }
-  },
-  "14": {
     "class_type": "KSampler",
     "inputs": {
       "model": [
-        "5",
+        "11",
         0
       ],
       "positive": [
@@ -192,25 +171,25 @@
         0
       ],
       "latent_image": [
-        "13",
+        "6",
         0
       ],
       "seed": 123456789,
-      "steps": 10,
+      "steps": 8,
       "cfg": 1,
       "sampler_name": "euler",
       "scheduler": "simple",
-      "denoise": 1
+      "denoise": 0.75
     },
     "_meta": {
       "title": "Sampler"
     }
   },
-  "15": {
+  "14": {
     "class_type": "VAEDecode",
     "inputs": {
       "samples": [
-        "14",
+        "13",
         0
       ],
       "vae": [
@@ -222,14 +201,14 @@
       "title": "Decode"
     }
   },
-  "16": {
+  "15": {
     "class_type": "SaveImage",
     "inputs": {
       "images": [
-        "15",
+        "14",
         0
       ],
-      "filename_prefix": "WireStudio/krea2-pose"
+      "filename_prefix": "WireStudio/krea2-style"
     },
     "_meta": {
       "title": "Save image"

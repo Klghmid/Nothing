@@ -30,30 +30,28 @@
     }
   },
   "4": {
-    "class_type": "Krea2OstrisEditModelPatch",
+    "class_type": "CLIPTextEncode",
     "inputs": {
-      "model": [
-        "1",
+      "text": "Describe the whole picture as it should look",
+      "clip": [
+        "2",
         0
-      ],
-      "kv_cache": true
+      ]
     },
     "_meta": {
-      "title": "Reference patch (Ostris Edit)"
+      "title": "Prompt"
     }
   },
   "5": {
-    "class_type": "LoraLoaderModelOnly",
+    "class_type": "ConditioningZeroOut",
     "inputs": {
-      "model": [
+      "conditioning": [
         "4",
         0
-      ],
-      "lora_name": "krea2/control/krea2_turbo_openpose_controlnet.safetensors",
-      "strength_model": 1
+      ]
     },
     "_meta": {
-      "title": "Krea 2 pose LoRA"
+      "title": "No negative (CFG 1)"
     }
   },
   "6": {
@@ -62,23 +60,20 @@
       "image": "input.png"
     },
     "_meta": {
-      "title": "Pose reference"
+      "title": "Source image"
     }
   },
   "7": {
-    "class_type": "DWPreprocessor",
+    "class_type": "DepthAnythingV2Preprocessor",
     "inputs": {
       "image": [
         "6",
         0
       ],
-      "resolution": 1024,
-      "detect_hand": "enable",
-      "detect_body": "enable",
-      "detect_face": "enable"
+      "resolution": 1024
     },
     "_meta": {
-      "title": "Make pose map"
+      "title": "Make depth map"
     }
   },
   "8": {
@@ -98,109 +93,119 @@
     }
   },
   "9": {
-    "class_type": "TextEncodeKrea2OstrisEdit",
+    "class_type": "ImageScale",
     "inputs": {
-      "clip": [
-        "2",
+      "image": [
+        "6",
         0
       ],
-      "prompt": "Describe who is in the pose, their clothes and the scene",
-      "vae": [
-        "3",
-        0
-      ],
-      "image1": [
-        "8",
-        0
-      ]
+      "upscale_method": "lanczos",
+      "width": 1024,
+      "height": 1024,
+      "crop": "disabled"
     },
     "_meta": {
-      "title": "Prompt + pose map"
+      "title": "Fit source to /16"
     }
   },
   "10": {
-    "class_type": "FluxKontextMultiReferenceLatentMethod",
+    "class_type": "VAEEncode",
     "inputs": {
-      "conditioning": [
+      "pixels": [
         "9",
         0
       ],
-      "reference_latents_method": "index_timestep_zero"
-    },
-    "_meta": {
-      "title": "Prompt + pose map · reference method"
-    }
-  },
-  "11": {
-    "class_type": "TextEncodeKrea2OstrisEdit",
-    "inputs": {
-      "clip": [
-        "2",
-        0
-      ],
-      "prompt": "",
       "vae": [
         "3",
-        0
-      ],
-      "image1": [
-        "8",
         0
       ]
     },
     "_meta": {
-      "title": "Negative + pose map"
+      "title": "Encode image"
+    }
+  },
+  "11": {
+    "class_type": "Krea2ControlLoRALoader",
+    "inputs": {
+      "model": [
+        "1",
+        0
+      ],
+      "lora_name": "krea2/krea2_depth_control_lora.safetensors",
+      "strength": 1
+    },
+    "_meta": {
+      "title": "Krea 2 depth Control LoRA"
     }
   },
   "12": {
-    "class_type": "FluxKontextMultiReferenceLatentMethod",
+    "class_type": "Krea2ControlImageEncode",
     "inputs": {
-      "conditioning": [
-        "11",
+      "control_image": [
+        "8",
         0
       ],
-      "reference_latents_method": "index_timestep_zero"
+      "vae": [
+        "3",
+        0
+      ],
+      "resize": "match_latent_size",
+      "upscale_method": "lanczos",
+      "crop": "center",
+      "channel_mode": "grayscale",
+      "normalize": "per_image_minmax",
+      "invert": false,
+      "batch_mode": "independent_images",
+      "latent": [
+        "10",
+        0
+      ]
     },
     "_meta": {
-      "title": "Negative + pose map · reference method"
+      "title": "Encode depth map"
     }
   },
   "13": {
-    "class_type": "EmptyLatentImage",
+    "class_type": "Krea2ControlApply",
     "inputs": {
-      "width": 1024,
-      "height": 1024,
-      "batch_size": 1
+      "model": [
+        "11",
+        0
+      ],
+      "control_latent": [
+        "12",
+        0
+      ]
     },
     "_meta": {
-      "title": "Empty canvas"
+      "title": "Apply depth control"
     }
   },
   "14": {
     "class_type": "KSampler",
     "inputs": {
       "model": [
-        "5",
-        0
-      ],
-      "positive": [
-        "10",
-        0
-      ],
-      "negative": [
-        "12",
-        0
-      ],
-      "latent_image": [
         "13",
         0
       ],
+      "positive": [
+        "4",
+        0
+      ],
+      "negative": [
+        "5",
+        0
+      ],
+      "latent_image": [
+        "10",
+        0
+      ],
       "seed": 123456789,
-      "steps": 10,
+      "steps": 8,
       "cfg": 1,
       "sampler_name": "euler",
       "scheduler": "simple",
-      "denoise": 1
+      "denoise": 0.65
     },
     "_meta": {
       "title": "Sampler"
@@ -229,7 +234,7 @@
         "15",
         0
       ],
-      "filename_prefix": "WireStudio/krea2-pose"
+      "filename_prefix": "WireStudio/krea2-img2img-control"
     },
     "_meta": {
       "title": "Save image"

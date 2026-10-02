@@ -28,6 +28,7 @@ from their upstream repositories (commit, date):
 | comfyui-krea2edit | `86f886d` 2026-07-29 | v1.2.5 |
 | ComfyUI-Krea2-Ostris-Edit | `7756566` 2026-07-17 | |
 | comfyui-krea2-controlnet | `79ebfd3` 2026-07-04 | |
+| ComfyUI-Krea2-UniDepth | `2641b08` 2026-08-02 | v0.3.0; needs ComfyUI ≥ 0.29.2 (native Krea 2 reference latents) |
 | ComfyUI_IPAdapter_plus | `a0f451a` 2025-04-14 | upstream in maintenance-only mode |
 | ComfyUI_InstantID | `72495e8` 2025-04-14 | |
 | PuLID_ComfyUI | `93e0c4c` 2025-04-14 | research only |
@@ -189,3 +190,59 @@ defaults, RAW preference, locality, face focus (with and without Impact), masked
 `target_latent` wiring, reframe geometry and the reframe calculator have dedicated tests.
 Results: `npm test` 210/210 · browser checks 15/15 · live ComfyUI validator 95/95.
 Not run on a GPU: all 19 tasks (†). Sources of uncertainty are listed in the research report.
+
+## Phases 4–6 — Krea 2 Style Reference, advanced Depth, real Pose
+
+Research: [WORKFLOW_RESEARCH.md § Phases 4–6](WORKFLOW_RESEARCH.md#phases-46--krea-2-style-reference-advanced-depth-real-pose).
+Implementation: `engine/families/krea2.mjs` — `styleReference()` (shared by Text to Image and the
+new Style Reference task), `depthControl()` (Control-LoRA) and `uniDepth()` (UniDepth) behind one
+*Depth method* choice, `poseConditioning()` for the pose LoRA. The family declares its
+`combinations`, from which [CAPABILITY_MATRIX.md](CAPABILITY_MATRIX.md#workflow-combinations)
+generates the combinations table (offered ones take their status from the task that runs them;
+the others carry their reason).
+
+| Workflow | Status | What it builds | Export |
+|---|---|---|---|
+| Style Reference (prompt) | READY † | official template, up to three references | `krea2/style-prompt.json` |
+| Style Reference (redraw an image) | EXPERIMENTAL † | the same conditioning, VAE-encoded source, partial denoise, shift for the source size | `krea2/style-img2img.json` |
+| ControlNet → Depth, Control-LoRA | READY † (unchanged) | Patil depth Control-LoRA (facok nodes) | `krea2/control-depth.json` |
+| ControlNet → Depth, UniDepth | EXPERIMENTAL † | UniDepth LoRA loader → UniDepth Conditioning (depth, reference image, stacked second reference, window, calibration) | `krea2/control-depth-unidepth.json` |
+| Img2Img + Control → Depth | EXPERIMENTAL † | encoded source; Control-LoRA control latent sized from it, or UniDepth `target_latent` | `krea2/img2img-control-depth.json`, `…-depth-unidepth.json` |
+| Outpaint with depth guide | EXPERIMENTAL † | depth of the pre-filled padded canvas through the Control-LoRA on the masked latent; paste-back as before | `krea2/outpaint-depth.json` |
+| Pose (rebuilt) | EXPERIMENTAL † | Ostris Edit patch → OpenPose LoRA, pose map as image 1 of both prompts, 10 steps CFG 1 | `krea2/pose.json` |
+| Pose from a start image | EXPERIMENTAL † | the same with an encoded start image and partial denoise | `krea2/pose-source.json` |
+
+Not offered, with the reason in the generated table: Style + Identity and Depth + Identity
+(UNSUPPORTED), Style + Depth, Style + Pose, Pose + Style, Pose + Identity + Style and the
+s-adhit pose package (RESEARCH_ONLY).
+
+Requirements: style — `krea2_style_reference.safetensors`; UniDepth — the
+`Krea2UniDepth*` nodes (ComfyUI-Krea2-UniDepth) and `krea2_unidepth_depth_exp_v1.safetensors` in
+`loras/krea2/`; pose — `Krea2OstrisEditModelPatch` + `TextEncodeKrea2OstrisEdit`
+(ComfyUI-Krea2-Ostris-Edit) and `krea2_turbo_openpose_controlnet.safetensors` in
+`loras/krea2/control/`, plus a pose preprocessor (DWPose) unless a skeleton is uploaded. The
+inventory keeps three lists apart (`controlLoras` for the facok loader, `poseLoras`,
+`unidepthLoras`), and the safety check refuses a LoRA sent to a loader that is not made for it.
+
+Changes to existing behaviour (intended):
+- **Krea 2 Pose** no longer uses the depth path. Old saved Pose settings still build; the old
+  *depth map* switch is ignored by Pose (a new *pose skeleton* switch replaces it). Without the
+  pose LoRA the task now reports exactly that file as missing instead of running a depth
+  transfer.
+- The depth Control-LoRA picker now skips UniDepth and pose LoRAs even when their file name says
+  "depth" or they sit in `loras/krea2/control/` (before, a UniDepth LoRA named `…depth…` would
+  have been handed to the facok loader, which cannot read it).
+- Text to Image keeps its optional style fields (saved settings), now built by the same
+  `styleReference()` as the Style Reference task.
+
+Tests: dedicated tests for the style graph (three references, the third only with a second,
+redraw latent and shift, refusal without the LoRA), the two depth paths (LoRA separation,
+reference order, window always valid, UniDepth used alone when it is the only one, refusal with
+neither, feature flag), control-latent sizing for img2img and depth-guided outpaint, the pose
+graph (Ostris patch before the LoRA, image 1 in both prompts, published settings, no depth node,
+skeleton upload, old depth switch ignored, start image, refusal naming the missing file), and the
+safety check for task LoRAs. The family-purity test now builds **every exported variant** of every
+task, not only one parameter set. Browser: Style Reference modes, Depth method and UniDepth
+fields, Pose. Results: `npm test` 225/225 · browser checks 16/16 · live ComfyUI validator
+102/102. Not run on a GPU: everything in this section (†).
+

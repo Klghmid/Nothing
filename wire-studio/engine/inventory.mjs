@@ -135,6 +135,10 @@ export function readInventory(info = {}, overrides = {}) {
         variants: variants(unetModels.krea2),
         loras: krea2Loras.filter((n) => !isControlLora(n) && !isEditLora(n) && !/style[-_]?reference/i.test(n)),
         controlLoras: krea2Loras.filter((n) => isControlLora(n)),
+        // Control LoRAs that need their own nodes: the OpenPose LoRA (Ostris Edit nodes) and the
+        // UniDepth functional depth LoRA (Krea2-UniDepth nodes), never the facok depth loader.
+        poseLoras: krea2Loras.filter((n) => isControlLora(n) && /pose/i.test(parts(n).pop())),
+        unidepthLoras: krea2Loras.filter((n) => /unidepth/i.test(parts(n).pop())),
         styleLora: loras.find((n) => /krea2[-_]?style[-_]?reference/i.test(n)) || null,
         editLora: editLoras.at(-1) || null,
         editLoras,

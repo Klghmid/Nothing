@@ -76,10 +76,12 @@ ComfyUI/models/
 │       ├── editor/
 │       │   └── krea2_identity_edit_v1_2.safetensors      Krea 2 · Identity Edit LoRA · optional
 │       ├── control/
-│       │   └── (your Krea 2 depth Control-LoRA, any file name)  Krea 2 · Depth Control-LoRA · optional
+│       │   ├── (your Krea 2 depth Control-LoRA, any file name)  Krea 2 · Depth Control-LoRA · optional
+│       │   └── krea2_turbo_openpose_controlnet.safetensors  Krea 2 · OpenPose Control-LoRA (Turbo) · optional
 │       ├── styles/
 │       │   └── krea2_darkbrush.safetensors               Krea 2 · Example style LoRA
-│       └── krea2_style_reference.safetensors             Krea 2 · Style reference LoRA · optional
+│       ├── krea2_style_reference.safetensors             Krea 2 · Style reference LoRA · optional
+│       └── krea2_unidepth_depth_exp_v1.safetensors       Krea 2 · UniDepth functional depth LoRA · optional
 ├── text_encoders/                                        ← shared, picked by file name
 │   ├── qwen_3_06b_base.safetensors                       Anima · Text encoder (Qwen3 0.6B)
 │   ├── qwen_3_4b.safetensors                             Z-Image · Text encoder (Qwen3 4B)
@@ -195,9 +197,11 @@ page* links go to the model's own page where a direct link could not be verified
 | *your Krea 2 RAW model* | `diffusion_models/krea2/regular/` | Diffusion model (RAW, undistilled): 52 steps · CFG 4 preset | Your files | — |
 | `qwen3vl_4b_fp8_scaled.safetensors` | `text_encoders/` | Text encoder (Qwen3-VL 4B): All Krea 2 tasks | Required | [Download](https://huggingface.co/Comfy-Org/Krea-2/resolve/main/text_encoders/qwen3vl_4b_fp8_scaled.safetensors) |
 | `qwen_image_vae.safetensors` | `vae/` | VAE (the same file as Anima): All Krea 2 tasks | Required | [Download](https://huggingface.co/Comfy-Org/Krea-2/resolve/main/vae/qwen_image_vae.safetensors) |
-| `krea2_style_reference.safetensors` | `loras/krea2/` | Style reference LoRA: Text to Image → Style reference | Optional | [Download](https://huggingface.co/Comfy-Org/Krea-2/resolve/main/loras/krea2_style_reference.safetensors) |
+| `krea2_style_reference.safetensors` | `loras/krea2/` | Style reference LoRA: Style Reference, Text to Image → style references | Optional | [Download](https://huggingface.co/Comfy-Org/Krea-2/resolve/main/loras/krea2_style_reference.safetensors) |
 | `krea2_identity_edit_v1_2.safetensors` | `loras/krea2/editor/` | Identity Edit LoRA: Smart Edit (with the comfyui-krea2edit nodes) | Optional | [Project page](https://github.com/lbouaraba/comfyui-krea2edit) |
-| *your Krea 2 depth Control-LoRA, any file name* | `loras/krea2/control/` | Depth Control-LoRA: ControlNet: depth, Pose (with comfyui-krea2-controlnet) | Optional | [Project page](https://huggingface.co/Patil/Krea-2-depth-controlnet) |
+| *your Krea 2 depth Control-LoRA, any file name* | `loras/krea2/control/` | Depth Control-LoRA: ControlNet: depth, Img2Img + Control, Outpaint depth guide (with comfyui-krea2-controlnet) | Optional | [Project page](https://huggingface.co/Patil/Krea-2-depth-controlnet) |
+| `krea2_turbo_openpose_controlnet.safetensors` | `loras/krea2/control/` | OpenPose Control-LoRA (Turbo): Pose (with ComfyUI-Krea2-Ostris-Edit) | Optional | [Project page](https://huggingface.co/thedeoxen/Krea-2-pose-controlnet) |
+| `krea2_unidepth_depth_exp_v1.safetensors` | `loras/krea2/` | UniDepth functional depth LoRA: ControlNet: depth with references (with ComfyUI-Krea2-UniDepth) | Optional | [Project page](https://huggingface.co/cicalooo/krea2_unidepth_depth) |
 | `krea2_darkbrush.safetensors` | `loras/krea2/styles/` | Example style LoRA: Any Krea 2 task | Your files | [Download](https://huggingface.co/Comfy-Org/Krea-2/resolve/main/loras/krea2_darkbrush.safetensors) |
 
 ### Shared helpers (all families)
@@ -249,6 +253,8 @@ page* links go to the model's own page where a direct link could not be verified
 | `krea2_style_reference.safetensors` | `models/loras/krea2/` | Krea 2 |
 | `krea2_turbo_fp8_scaled.safetensors` | `models/diffusion_models/krea2/turbo/` | Krea 2 |
 | `krea2_turbo_int8_convrot.safetensors` | `models/diffusion_models/krea2/turbo/` | Krea 2 |
+| `krea2_turbo_openpose_controlnet.safetensors` | `models/loras/krea2/control/` | Krea 2 |
+| `krea2_unidepth_depth_exp_v1.safetensors` | `models/loras/krea2/` | Krea 2 |
 | `qwen_3_06b_base.safetensors` | `models/text_encoders/` | Anima |
 | `qwen_3_4b_fp8_mixed.safetensors` | `models/text_encoders/` | Z-Image |
 | `qwen_3_4b.safetensors` | `models/text_encoders/` | Z-Image |

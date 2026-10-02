@@ -73,6 +73,18 @@ test("docs/CAPABILITY_MATRIX.md is generated from the engine (run npm run docs)"
   const { render, MATRIX_DOC } = await import("../scripts/build-capability-matrix.mjs");
   const text = await fs.readFile(MATRIX_DOC, "utf8");
   assert.equal(render(text), text);
+  assert.equal(render(text, "combos"), text, "the combinations table is current");
+});
+
+test("every declared workflow combination resolves to a task, or says why it is not offered", async () => {
+  const { FAMILIES } = await import("../engine/index.mjs");
+  const { combinationRows } = await import("../engine/capabilities.mjs");
+  for (const [f, fam] of Object.entries(FAMILIES))
+    for (const row of combinationRows(fam)) {
+      assert.notEqual(row.status, "missing", `${f} "${row.label}" points at a task or option that does not exist`);
+      if (["research", "unsupported"].includes(row.status)) assert.ok(row.note?.length > 20, `${f} "${row.label}" needs a reason`);
+      else assert.ok(row.task, `${f} "${row.label}" names its task`);
+    }
 });
 
 test("every offered task declares its status, evidence and verification level", async () => {

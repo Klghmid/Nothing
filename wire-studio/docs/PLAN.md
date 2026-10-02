@@ -98,8 +98,9 @@ long-lived cache headers and small WebP thumbnails from ComfyUI's own `preview` 
 
 1. **Live verification pass** on a real ComfyUI for everything marked *not yet run on real
    hardware*, recording results in a test report (as Anima Studio did).
-2. **Krea 2 pose / canny** as soon as public control-LoRAs appear (the loader already takes any
-   Krea 2 control LoRA; only the type list and preprocessors need adding).
+2. **Krea 2 canny / line art** as soon as public control-LoRAs appear (pose arrived as an
+   Ostris-Edit LoRA and has its own path; depth has two). Style + depth / pose / identity once a
+   tested combination exists (reasons in `CAPABILITY_MATRIX.md` → Workflow combinations).
 3. **SDXL identity options**: InstantID / PuLID face reference for generation (SDXL-only), next to
    the ReActor face swap.
 4. **Batch runs** (a folder of images through Face Fix, Upscale or Remove background).
