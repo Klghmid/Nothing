@@ -68,3 +68,24 @@ test("following the guide gives a fully detected setup: right family, right type
   // Setup → Suggested models & LoRAs then shows every file placed by the guide as installed.
   for (const m of suggestions({ info, inv }, ready)) if (m.path.split("/")[0] in slot) assert.equal(m.status, "found", `${m.file} shows as installed`);
 });
+
+test("docs/CAPABILITY_MATRIX.md is generated from the engine (run npm run docs)", async () => {
+  const { render, MATRIX_DOC } = await import("../scripts/build-capability-matrix.mjs");
+  const text = await fs.readFile(MATRIX_DOC, "utf8");
+  assert.equal(render(text), text);
+});
+
+test("every offered task declares its status, evidence and verification level", async () => {
+  const { FAMILIES } = await import("../engine/index.mjs");
+  const { capabilityMatrix } = await import("../engine/capabilities.mjs");
+  for (const [f, fam] of Object.entries(FAMILIES))
+    for (const [t, task] of Object.entries(fam.tasks)) {
+      if (task.unavailable) continue;
+      assert.ok(["ready", "partial", "experimental", "research"].includes(task.status || "ready"), `${f}/${t} status`);
+      assert.ok(["official", "community", "composed"].includes(task.evidence), `${f}/${t} evidence`);
+      assert.ok(["inference", "graph"].includes(task.verified), `${f}/${t} verified`);
+      if (["partial", "experimental"].includes(task.status)) assert.ok(task.statusNote, `${f}/${t} explains its ${task.status} status`);
+    }
+  for (const row of capabilityMatrix(FAMILIES))
+    for (const [f, cell] of Object.entries(row.cells)) if (cell.status === "unsupported") assert.ok(cell.note, `${f} ${row.id}: unsupported needs a reason`);
+});

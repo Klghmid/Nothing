@@ -90,7 +90,7 @@ export function objectInfo(files = FILES, { without = [] } = {}) {
     AnimaLLLiteApply: node({ model: L("MODEL"), model_patch: L("MODEL_PATCH"), image: L("IMAGE"), strength: F(1, -10, 10), start_percent: F(0, 0, 1), end_percent: F(1, 0, 1) }, { mask: L("MASK") }, ["MODEL"]),
     QwenImageDiffsynthControlnet: node({ model: L("MODEL"), model_patch: L("MODEL_PATCH"), vae: L("VAE"), image: L("IMAGE"), strength: F(1, -10, 10) }, { mask: L("MASK"), start_percent: F(0, 0, 1), end_percent: F(1, 0, 1) }, ["MODEL"]),
     ZImageFunControlnet: node({ model: L("MODEL"), model_patch: L("MODEL_PATCH"), vae: L("VAE"), strength: F(1, -10, 10) }, { image: L("IMAGE"), inpaint_image: L("IMAGE"), mask: L("MASK"), start_percent: F(0, 0, 1), end_percent: F(1, 0, 1) }, ["MODEL"]),
-    ModelSamplingAuraFlow: node({ model: L("MODEL"), shift: F(1.73, 0, 100) }, {}, ["MODEL"]),
+    ModelSamplingAuraFlow: node({ model: L("MODEL"), shift: F(1.73, 0, 100) }, { sampling: C(["flow", "img_to_img_velocity"], "flow") }, ["MODEL"]),
     ModelSamplingFlux: node({ model: L("MODEL"), max_shift: F(1.15, 0, 100), base_shift: F(0.5, 0, 100), width: I(1024, 16), height: I(1024, 16) }, {}, ["MODEL"]),
     DifferentialDiffusion: node({ model: L("MODEL") }, { strength: F(1, 0, 1) }, ["MODEL"]),
     TextEncodeQwenImageEditPlus: node({ clip: L("CLIP"), prompt: S("", true) }, { vae: L("VAE"), image1: L("IMAGE"), image2: L("IMAGE"), image3: L("IMAGE") }, ["CONDITIONING"]),
@@ -110,7 +110,7 @@ export function objectInfo(files = FILES, { without = [] } = {}) {
         sam_bbox_expansion: I(0, 0, 1000), sam_mask_hint_threshold: F(0.7, 0, 1), sam_mask_hint_use_negative: C(["False", "Small", "Outter"]),
         drop_size: I(10, 1, 16384), bbox_detector: L("BBOX_DETECTOR"), wildcard: S("", true), cycle: I(1, 1, 10),
       },
-      { sam_model_opt: L("SAM_MODEL"), segm_detector_opt: L("SEGM_DETECTOR"), detailer_hook: L("DETAILER_HOOK"), inpaint_model: B(false), noise_mask_feather: I(20, 0, 100) },
+      { sam_model_opt: L("SAM_MODEL"), segm_detector_opt: L("SEGM_DETECTOR"), detailer_hook: L("DETAILER_HOOK"), inpaint_model: B(false), noise_mask_feather: I(20, 0, 100), scheduler_func_opt: L("SCHEDULER_FUNC"), tiled_encode: B(false), tiled_decode: B(false) },
       ["IMAGE", "IMAGE", "IMAGE", "MASK", "DETAILER_PIPE", "IMAGE"],
     ),
     // ReActor
@@ -134,7 +134,7 @@ export function objectInfo(files = FILES, { without = [] } = {}) {
     FakeScribblePreprocessor: node({ image: L("IMAGE") }, { safe: C(ONOFF), resolution: I(512, 64) }, ["IMAGE"]),
     "M-LSDPreprocessor": node({ image: L("IMAGE") }, { score_threshold: F(0.1, 0.01, 2), dist_threshold: F(0.1, 0.01, 20), resolution: I(512, 64) }, ["IMAGE"]),
     // ComfyUI-RMBG
-    BiRefNetRMBG: node({ image: L("IMAGE"), model: C(["BiRefNet-general", "BiRefNet_HR"]) }, { mask_blur: I(0, 0, 64), mask_offset: I(0, -20, 20), invert_output: B(false), refine_foreground: B(false), background: C(["Alpha", "Color"]), background_color: S("#222222") }, ["IMAGE", "MASK"]),
+    BiRefNetRMBG: node({ image: L("IMAGE"), model: C(["BiRefNet-general", "BiRefNet-HR", "BiRefNet-portrait"]) }, { sensitivity: F(1, 0, 1), mask_blur: I(0, 0, 64), mask_offset: I(0, -20, 20), invert_output: B(false), refine_foreground: B(false), unload_model: B(false), background: C(["Alpha", "Color"]), background_color: ["COLORCODE", { default: "#222222" }] }, ["IMAGE", "MASK", "IMAGE"]),
     // comfyui-inpaint-nodes
     INPAINT_MaskedFill: node({ image: L("IMAGE"), mask: L("MASK"), fill: C(["neutral", "telea", "navier-stokes"]), falloff: I(0, 0, 8191) }, {}, ["IMAGE"]),
     // ComfyUI_UltimateSDUpscale
@@ -142,7 +142,7 @@ export function objectInfo(files = FILES, { without = [] } = {}) {
       {
         image: L("IMAGE"), model: L("MODEL"), positive: L("CONDITIONING"), negative: L("CONDITIONING"), vae: L("VAE"), upscale_by: F(2, 0.05, 4),
         seed: I(0, 0, Number.MAX_SAFE_INTEGER), steps: I(20, 1, 10000), cfg: F(8, 0, 100), sampler_name: C(SAMPLERS), scheduler: C(SCHEDULERS), denoise: F(0.2, 0, 1),
-        upscale_model: L("UPSCALE_MODEL"), mode_type: C(["Linear", "Chess", "None"]), tile_width: I(512, 64, 8192), tile_height: I(512, 64, 8192), mask_blur: I(8, 0, 64), tile_padding: I(32, 0, 8192),
+        upscale_model: L("UPSCALE_MODEL"), mode_type: C(["Linear", "Chess", "None"]), batch_size: I(1, 1, 4096), tile_width: I(512, 64, 8192), tile_height: I(512, 64, 8192), mask_blur: I(8, 0, 64), tile_padding: I(32, 0, 8192),
         seam_fix_mode: C(["None", "Band Pass", "Half Tile", "Half Tile + Intersections"]), seam_fix_denoise: F(1, 0, 1), seam_fix_width: I(64, 0, 8192), seam_fix_mask_blur: I(8, 0, 64), seam_fix_padding: I(16, 0, 8192),
         force_uniform_tiles: B(true), tiled_decode: B(false),
       },
@@ -158,8 +158,13 @@ export function objectInfo(files = FILES, { without = [] } = {}) {
       ["LATENT", "IMAGE"],
     ),
     // comfyui-krea2edit
-    Krea2EditModelPatch: node({ model: L("MODEL"), source_latent: L("LATENT"), fit_mode: C(["fit", "crop"]), ref_boost: F(1, 0, 4) }, { source_latent_b: L("LATENT"), vae: L("VAE"), source_image: L("IMAGE"), target_latent: L("LATENT"), ref_boost_a: F(1, 0, 4) }, ["MODEL"]),
-    Krea2EditGroundedEncode: node({ clip: L("CLIP"), prompt: S("", true), image: L("IMAGE"), grounding_px: I(768, 256, 2048) }, { image_b: L("IMAGE") }, ["CONDITIONING"]),
+    // comfyui-krea2edit v1.2.5 (every input but model / source_latent / clip / prompt is optional)
+    Krea2EditModelPatch: node(
+      { model: L("MODEL"), source_latent: L("LATENT") },
+      { source_latent_b: L("LATENT"), ref_boost: F(1, 0, 1000), ref_boost_a: F(1, 0, 1000), fit_mode: C(["fit", "crop (legacy)"], "fit"), ref_boost_mask: L("MASK"), vae: L("VAE"), source_image: L("IMAGE"), source_image_b: L("IMAGE"), target_latent: L("LATENT") },
+      ["MODEL"],
+    ),
+    Krea2EditGroundedEncode: node({ clip: L("CLIP"), prompt: S("", true) }, { image: L("IMAGE"), image_b: L("IMAGE"), grounding_px: I(768, 0, 4096), system_prompt: S("", true) }, ["CONDITIONING"]),
   };
   for (const n of without) delete info[n];
   return info;

@@ -140,6 +140,7 @@ const PREPROCESSORS = {
 };
 export const preprocessorFor = (info, kind) => (PREPROCESSORS[kind] || []).find((x) => info?.[x.node]);
 export const preprocessorNames = (kind) => (PREPROCESSORS[kind] || []).map((x) => x.node);
+export const allPreprocessorNames = () => [...new Set(Object.values(PREPROCESSORS).flatMap((list) => list.map((x) => x.node)))];
 
 export function controlMap(g, kind, image, p, { width, height, invert = false }) {
   let map = image;

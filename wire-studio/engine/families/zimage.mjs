@@ -83,8 +83,17 @@ export default {
   preferModel: PREFER,
   presets: { turbo: { label: "Turbo", ...TURBO }, regular: { label: "Base", ...BASE } },
   baseNeeds,
+  unsupported: {
+    lineart: "Fun ControlNet Union has no line-art mode; use Soft edge (HED) or Scribble.",
+  },
+  missing: {
+    style: "No style-reference model for Z-Image was found.",
+    identity: "Z-Image-Edit is announced but not released.",
+  },
   tasks: {
     generate: {
+      evidence: "official",
+      verified: "inference",
       fields: [field.prompt({ placeholder: "A woman with wavy hair on a harbour at golden hour, pastel houses behind her, cinematic close-up" }), ...common, field.size(), field.slider("batch", "Images", 1, 4, 1, 1), ...advanced],
       needs: baseNeeds,
       build(g, p, ctx) {
@@ -95,6 +104,8 @@ export default {
       },
     },
     img2img: {
+      evidence: "composed",
+      verified: "inference",
       fields: [field.image("image", "Source image"), field.prompt({ placeholder: "Describe the whole picture as it should look" }), field.slider("denoise", "Change strength", 0.05, 1, 0.01, 0.55), ...common, field.slider("batch", "Variations", 1, 4, 1, 1), ...advanced],
       needs: baseNeeds,
       build(g, p, ctx) {
@@ -105,6 +116,8 @@ export default {
       },
     },
     inpaint: {
+      evidence: "official",
+      verified: "graph",
       fields: [field.image("image", "Image"), field.mask(), field.prompt({ placeholder: "What should appear in the painted area" }), field.slider("denoise", "Redraw strength", 0.1, 1, 0.01, 1), field.slider("context", "Match surroundings", 0, 1.5, 0.05, 0.9, { advanced: true, hint: "Fun Union 2.x inpaint strength (model card: 0.65–1.0)" }), ...common, ...advanced],
       needs: (ctx) => [...baseNeeds(ctx), need.node(ctx, "ZImageFunControlnet", PACKS.core, "Inpaint mode of the Fun ControlNet", "recommended"), need.model(unionPatch(ctx, true), MODELS.zimageUnion21, "Fun ControlNet Union 2.1", "Makes the fill match its surroundings", "recommended")],
       build(g, p, ctx) {
@@ -117,6 +130,8 @@ export default {
       },
     },
     outpaint: {
+      evidence: "composed",
+      verified: "graph",
       fields: [field.image("image", "Image"), field.edges(), field.prompt({ placeholder: "Describe the scenery to add (avoid repeating the subject)" }), field.select("fill", "Pre-fill", [choice("navier-stokes", "Smooth (recommended)"), choice("telea", "Telea"), choice("none", "None")], "navier-stokes", { advanced: true }), field.slider("denoise", "Redraw strength", 0.5, 1, 0.01, 1, { advanced: true }), ...common, ...advanced],
       needs: (ctx) => [...baseNeeds(ctx), need.model(unionPatch(ctx, true), MODELS.zimageUnion21, "Fun ControlNet Union 2.1", "Continues the picture coherently", "recommended"), ...outpaintNeeds(ctx)],
       build(g, p, ctx) {
@@ -129,6 +144,8 @@ export default {
       },
     },
     face: {
+      evidence: "community",
+      verified: "graph",
       fields: [field.image("image", "Image"), field.select("target", "Fix", [choice("face", "Whole face"), choice("eyes", "Eyes"), choice("lips", "Lips")], "face"), field.prompt({ optional: true, placeholder: "Optional: describe the face" }), field.slider("denoise", "Strength", 0.1, 0.9, 0.01, 0.35), field.slider("threshold", "Detection sensitivity", 0.1, 0.9, 0.01, 0.35, { advanced: true }), ...common, ...advanced],
       needs: (ctx) => [...baseNeeds(ctx), ...detailerNeeds(ctx, "face")],
       build(g, p, ctx) {
@@ -138,6 +155,8 @@ export default {
       },
     },
     hands: {
+      evidence: "community",
+      verified: "graph",
       fields: [field.image("image", "Image"), field.prompt({ optional: true, placeholder: "Optional: e.g. relaxed hands, five fingers" }), field.slider("denoise", "Strength", 0.1, 0.9, 0.01, 0.45), field.slider("threshold", "Detection sensitivity", 0.1, 0.9, 0.01, 0.45, { advanced: true }), ...common, ...advanced],
       needs: (ctx) => [...baseNeeds(ctx), ...detailerNeeds(ctx, "hand")],
       build(g, p, ctx) {
@@ -147,6 +166,8 @@ export default {
       },
     },
     faceswap: {
+      evidence: "community",
+      verified: "graph",
       fields: [
         field.image("image", "Target image", { hint: "The picture whose face is replaced" }),
         field.image("face", "Face photo", { hint: "A clear, front-facing photo of the new face" }),
@@ -168,6 +189,8 @@ export default {
       },
     },
     pose: {
+      evidence: "official",
+      verified: "graph",
       fields: [
         field.image("image", "Pose reference", { hint: "A photo or drawing of the pose, or a ready pose map" }),
         field.toggle("isMap", "Image is already a pose map", false),
@@ -190,6 +213,8 @@ export default {
       },
     },
     control: {
+      evidence: "official",
+      verified: "graph",
       fields: [
         field.select("kind", "Control type", KINDS, "canny"),
         field.image("image", "Control image", { hint: "A picture to take the structure from, or a ready map" }),
@@ -215,6 +240,8 @@ export default {
       },
     },
     upscale: {
+      evidence: "official",
+      verified: "inference",
       fields: [field.image("image", "Image"), field.select("scale", "Scale", [choice(1.5, "1.5×"), choice(2, "2×"), choice(3, "3×"), choice(4, "4×")], 2), field.toggle("refine", "Add detail with Z-Image", true), field.slider("refineDenoise", "Detail strength", 0.05, 0.6, 0.01, 0.33, { when: "refine", hint: "Official 2K upscaler template uses 0.33" }), field.prompt({ optional: true, when: "refine", placeholder: "Optional: describe the picture for the detail pass" }), field.model({ when: "refine" }), field.select("upscaler", "Upscale model", "upscalers", "", { advanced: true }), field.slider("refineSteps", "Detail steps", 3, 30, 1, 5, { advanced: true, when: "refine" }), field.seed()],
       needs: (ctx) => [...upscaleNeeds(ctx), ...baseNeeds(ctx).map((n) => ({ ...n, level: "recommended", why: "Only for the detail pass" }))],
       build(g, p, ctx) {

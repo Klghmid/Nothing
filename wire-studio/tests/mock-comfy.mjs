@@ -4,6 +4,7 @@ import http from "node:http";
 import crypto from "node:crypto";
 import zlib from "node:zlib";
 import { objectInfo, FILES } from "./fixtures.mjs";
+import { validatePrompt } from "./comfy-validate.mjs";
 
 const CRC = new Int32Array(256).map((_, n) => {
   let c = n;
@@ -96,34 +97,12 @@ export function startMockComfy({ port = 0, info = objectInfo(), stepMs = 40, ste
     if (s && !s.destroyed) s.write(wsFrame(buf, 2));
   };
 
+  // The same checks as ComfyUI's POST /prompt (shared with the tests), in its error format.
   function validate(prompt) {
     const errors = {};
-    const add = (id, message, details) => ((errors[id] ||= { errors: [], class_type: prompt[id]?.class_type }).errors.push({ message, details }));
-    for (const [id, n] of Object.entries(prompt)) {
-      const spec = info[n.class_type];
-      if (!spec) {
-        add(id, "Node type not found", n.class_type);
-        continue;
-      }
-      const req = spec.input.required || {}, opt = spec.input.optional || {};
-      for (const [k, def] of Object.entries({ ...req, ...opt })) {
-        const v = n.inputs[k];
-        if (v === undefined) {
-          if (k in req) add(id, "Required input is missing", k);
-          continue;
-        }
-        if (Array.isArray(v) && typeof v[0] === "string") {
-          const src = prompt[v[0]];
-          if (!src) add(id, "Bad link", `${k} → ${v[0]}`);
-          else if (v[1] >= (info[src.class_type]?.output?.length || 0)) add(id, "Bad output index", `${k} → ${v[0]}[${v[1]}]`);
-          continue;
-        }
-        const choices = Array.isArray(def[0]) ? def[0] : def[0] === "COMBO" ? def[1].options : null;
-        if (n.class_type === "LoadImage" && k === "image") {
-          if (!inputs.has(v)) add(id, "Invalid image file", v);
-        } else if (choices && !choices.includes(v)) add(id, "Value not in list", `${k}: '${v}' not in list`);
-        else if ((def[0] === "INT" || def[0] === "FLOAT") && (typeof v !== "number" || v < def[1].min || v > def[1].max)) add(id, "Value out of range", `${k}: ${v}`);
-      }
+    for (const e of validatePrompt(prompt, info, { images: inputs })) {
+      if (!e.id) continue;
+      (errors[e.id] ||= { errors: [], class_type: e.class_type }).errors.push({ message: "Prompt validation failed", details: e.message });
     }
     return errors;
   }

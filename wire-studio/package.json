@@ -10,7 +10,8 @@
     "test": "node --test tests/*.test.mjs",
     "export-workflows": "node scripts/export-workflows.mjs",
     "test:ui": "node tests/ui.mjs",
-    "docs": "node scripts/build-model-guide.mjs"
+    "docs": "node scripts/build-model-guide.mjs && node scripts/build-capability-matrix.mjs",
+    "validate:live": "node scripts/validate-live.mjs"
   },
   "engines": {
     "node": ">=20"

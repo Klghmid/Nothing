@@ -17,7 +17,19 @@ export const PACKS = {
   core: { name: "a newer ComfyUI (update ComfyUI)", url: "https://github.com/Comfy-Org/ComfyUI" },
 };
 
-const NODE_PACK = {
+// Core ComfyUI nodes Wire Studio builds with (kept in the live node-definition snapshot).
+export const CORE_NODES = [
+  "CheckpointLoaderSimple", "UNETLoader", "CLIPLoader", "VAELoader", "LoraLoader", "LoraLoaderModelOnly",
+  "CLIPTextEncode", "ConditioningZeroOut", "EmptyLatentImage", "EmptySD3LatentImage", "KSampler",
+  "VAEEncode", "VAEDecode", "VAEEncodeForInpaint", "SetLatentNoiseMask", "RepeatLatentBatch",
+  "LoadImage", "SaveImage", "ImageToMask", "MaskToImage", "ImageBlur", "ThresholdMask", "ImageCompositeMasked",
+  "ImagePadForOutpaint", "ImageScale", "ImageInvert", "Canny", "UpscaleModelLoader", "ImageUpscaleWithModel",
+  "ControlNetLoader", "ControlNetApplyAdvanced", "SetUnionControlNetType", "EmptyImage", "ModelPatchLoader",
+  "AnimaLLLiteApply", "QwenImageDiffsynthControlnet", "ZImageFunControlnet", "ModelSamplingAuraFlow", "ModelSamplingFlux",
+  "DifferentialDiffusion", "TextEncodeQwenImageEditPlus", "FluxKontextMultiReferenceLatentMethod",
+];
+
+export const NODE_PACK = {
   FaceDetailer: "impact",
   UltralyticsDetectorProvider: "impactSub",
   DWPreprocessor: "aux",

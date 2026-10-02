@@ -27,6 +27,17 @@ export function nodeInputs(info, type) {
   return { required: input.required || {}, optional: input.optional || {} };
 }
 
+// Link type check as ComfyUI does it (comfy_execution/validation.py validate_node_input):
+// equal types, "*" on either side, a combo fed by a list output, or overlapping "A,B" unions.
+export function typeMatches(received, expected) {
+  if (received === undefined || expected === undefined) return true;
+  if (Array.isArray(expected) || expected === "COMBO") return Array.isArray(received) || received === "COMBO" || received === "*";
+  if (received === expected || received === "*" || expected === "*") return true;
+  if (typeof received !== "string" || typeof expected !== "string") return false;
+  const a = received.split(","), b = new Set(expected.split(","));
+  return a.some((t) => b.has(t));
+}
+
 // Read the option list of one combo input (model lists, samplers…).
 export function options(info, type, input) {
   const { required, optional } = nodeInputs(info, type);
@@ -88,7 +99,18 @@ export function finalize(g, packOf = () => null) {
       if (!(key in node.inputs)) continue;
       const value = node.inputs[key];
       if (isLink(value)) {
-        if (!g.nodes[value[0]]) errors.push(`${title}: "${key}" points to a missing node`);
+        const src = g.nodes[value[0]];
+        if (!src) {
+          errors.push(`${title}: "${key}" points to a missing node`);
+          continue;
+        }
+        // Wrong output slots or types are build bugs: refuse them before ComfyUI sees them.
+        const outs = g.info[src.class_type]?.output;
+        if (Array.isArray(outs) && outs.length) {
+          const srcTitle = src._meta?.title || src.class_type;
+          if (value[1] >= outs.length) errors.push(`${title}: "${key}" uses output ${value[1]} of ${srcTitle}, which has ${outs.length}`);
+          else if (!typeMatches(outs[value[1]], def?.[0])) errors.push(`${title}: "${key}" expects ${def[0]} but ${srcTitle} gives ${outs[value[1]]}`);
+        }
         continue;
       }
       const opts = comboOptions(def);

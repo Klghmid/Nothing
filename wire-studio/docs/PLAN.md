@@ -81,12 +81,18 @@ long-lived cache headers and small WebP thumbnails from ComfyUI's own `preview` 
 
 ## Testing
 
-- `npm test` — 64 tests, no GPU: every family × task builds and validates; every sampler and
+- `npm test` — no GPU: every family × task builds and validates; every sampler and
   detail pass traces to its own family's loaders; mixing is refused; readiness with and without
-  custom nodes; and the server end to end against a mock ComfyUI (upload, run, SSE progress,
-  results, cancel, restart persistence, `.bak` recovery, library assignment, reconnect).
-- `npm run test:ui` — 11 browser checks (desktop + phone) with Playwright against the mock.
-- Real-GPU checks still to do: see "What was verified" in `WORKFLOWS.md`.
+  custom nodes; every workflow against **real node definitions** captured from a live ComfyUI
+  (`tests/live-object-info.json`, including link types); the test fixture, `workflows/` and the
+  generated docs may not drift from the engine; and the server end to end against a mock ComfyUI
+  (upload, run, SSE progress, results, cancel, restart persistence, `.bak` recovery, library
+  assignment, reconnect).
+- `npm run validate:live` — every workflow sent to a running ComfyUI's own validator
+  (`COMFY_URL=…`; nothing is executed). `-- --snapshot` refreshes the node-definition snapshot.
+- `npm run test:ui` — browser checks (desktop + phone) with Playwright against the mock.
+- Real-GPU checks still to do: the † cells of `docs/CAPABILITY_MATRIX.md`, listed in
+  `docs/WORKFLOW_IMPLEMENTATION_AUDIT.md`.
 
 ## Roadmap
 

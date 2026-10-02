@@ -84,8 +84,14 @@ export default {
   preferModel: PREFER,
   presets: { turbo: { label: "Turbo", ...TURBO }, regular: { label: "RAW", ...RAW } },
   baseNeeds,
+  missing: {
+    canny: "No public Krea 2 canny Control-LoRA.",
+    lineart: "No public Krea 2 line-art Control-LoRA (one is announced by tori29umai).",
+  },
   tasks: {
     generate: {
+      evidence: "official",
+      verified: "graph",
       fields: [
         field.prompt({ placeholder: "A surreal ink-and-photo illustration of a hand holding a martini glass, playful doodles on a clean white background" }),
         ...common,
@@ -118,6 +124,8 @@ export default {
       },
     },
     img2img: {
+      evidence: "composed",
+      verified: "graph",
       fields: [field.image("image", "Source image"), field.prompt({ placeholder: "Describe the whole picture as it should look" }), field.slider("denoise", "Change strength", 0.05, 1, 0.01, 0.55), ...common, field.slider("batch", "Variations", 1, 4, 1, 1), ...advanced],
       needs: baseNeeds,
       build(g, p, ctx) {
@@ -128,6 +136,8 @@ export default {
       },
     },
     edit: {
+      evidence: "community",
+      verified: "graph",
       badge: "Add-on",
       notes: ["Uses the Krea 2 Identity Edit LoRA and its nodes. Turbo at CFG 1 handles most edits; removals work better on RAW at CFG 3, ~20 steps."],
       fields: [
@@ -158,7 +168,9 @@ export default {
         const latent = g.add("EmptySD3LatentImage", { width: c.round(w * k, 16), height: c.round(h * k, 16), batch_size: 1 }, "Output canvas");
         m.model = g.add(
           "Krea2EditModelPatch",
-          { model: m.model, source_latent: c.encode(g, src, m.vae), source_latent_b: second && c.encode(g, second, m.vae, "Encode second image"), vae: m.vae, source_image: src, target_latent: latent, fit_mode: "fit", ref_boost: c.clamp(p.refBoost, 1, 0, 3) },
+          // With vae + source_image (the pixel path) the node replaces its source list with the
+          // images it is given, so the second image must also arrive as source_image_b.
+          { model: m.model, source_latent: c.encode(g, src, m.vae), source_latent_b: second && c.encode(g, second, m.vae, "Encode second image"), vae: m.vae, source_image: src, source_image_b: second, target_latent: latent, fit_mode: "fit", ref_boost: c.clamp(p.refBoost, 1, 0, 3) },
           "Inject source image",
         );
         const grounding = c.int(p.grounding, 768, 256, 2048);
@@ -168,6 +180,10 @@ export default {
       },
     },
     inpaint: {
+      status: "partial",
+      statusNote: "No Krea 2 inpaint model; differential diffusion + masked sampling",
+      evidence: "composed",
+      verified: "graph",
       fields: [field.image("image", "Image"), field.mask(), field.prompt({ placeholder: "What should appear in the painted area" }), field.slider("denoise", "Redraw strength", 0.1, 1, 0.01, 0.9), ...common, ...advanced],
       needs: (ctx) => [...baseNeeds(ctx), need.node(ctx, "DifferentialDiffusion", PACKS.core, "Soft-mask blending", "recommended")],
       build(g, p, ctx) {
@@ -180,6 +196,10 @@ export default {
       },
     },
     outpaint: {
+      status: "partial",
+      statusNote: "No Krea 2 inpaint model; differential diffusion + masked sampling",
+      evidence: "composed",
+      verified: "graph",
       fields: [field.image("image", "Image"), field.edges(), field.prompt({ placeholder: "Describe the scenery to add (avoid repeating the subject)" }), field.select("fill", "Pre-fill", [choice("navier-stokes", "Smooth (recommended)"), choice("telea", "Telea"), choice("none", "None")], "navier-stokes", { advanced: true }), field.slider("denoise", "Redraw strength", 0.5, 1, 0.01, 1, { advanced: true }), ...common, ...advanced],
       needs: (ctx) => [...baseNeeds(ctx), ...outpaintNeeds(ctx)],
       build(g, p, ctx) {
@@ -192,6 +212,8 @@ export default {
       },
     },
     face: {
+      evidence: "community",
+      verified: "graph",
       fields: [field.image("image", "Image"), field.select("target", "Fix", [choice("face", "Whole face"), choice("eyes", "Eyes"), choice("lips", "Lips")], "face"), field.prompt({ optional: true, placeholder: "Optional: describe the face" }), field.slider("denoise", "Strength", 0.1, 0.9, 0.01, 0.35), field.slider("threshold", "Detection sensitivity", 0.1, 0.9, 0.01, 0.35, { advanced: true }), ...common, ...advanced],
       needs: (ctx) => [...baseNeeds(ctx), ...detailerNeeds(ctx, "face")],
       build(g, p, ctx) {
@@ -201,6 +223,8 @@ export default {
       },
     },
     hands: {
+      evidence: "community",
+      verified: "graph",
       fields: [field.image("image", "Image"), field.prompt({ optional: true, placeholder: "Optional: e.g. relaxed hands, five fingers" }), field.slider("denoise", "Strength", 0.1, 0.9, 0.01, 0.45), field.slider("threshold", "Detection sensitivity", 0.1, 0.9, 0.01, 0.45, { advanced: true }), ...common, ...advanced],
       needs: (ctx) => [...baseNeeds(ctx), ...detailerNeeds(ctx, "hand")],
       build(g, p, ctx) {
@@ -210,6 +234,8 @@ export default {
       },
     },
     faceswap: {
+      evidence: "community",
+      verified: "graph",
       fields: [
         field.image("image", "Target image", { hint: "The picture whose face is replaced" }),
         field.image("face", "Face photo", { hint: "A clear, front-facing photo of the new face" }),
@@ -231,6 +257,10 @@ export default {
       },
     },
     pose: {
+      status: "experimental",
+      statusNote: "Pose carried through a depth map (no pose model was used)",
+      evidence: "composed",
+      verified: "graph",
       badge: "Experimental",
       notes: ["No pose model exists for Krea 2 yet. This copies the pose through a depth map of the reference, so body shape and silhouette carry over too."],
       fields: [
@@ -253,9 +283,13 @@ export default {
       },
     },
     control: {
+      status: "partial",
+      statusNote: "Only a depth Control-LoRA is public",
+      evidence: "community",
+      verified: "graph",
       notes: ["Krea 2 currently has one public control model: depth (Patil/Krea-2-depth-controlnet)."],
       fields: [
-        field.select("kind", "Control type", [choice("depth", "Depth")], "depth"),
+        field.select("kind", "Control type", [{ ...choice("depth", "Depth"), status: "ready" }], "depth"),
         field.image("image", "Control image", { hint: "A picture to take the depth from, or a ready depth map" }),
         field.toggle("isMap", "Image is already a depth map", false),
         field.prompt({ placeholder: "Describe the new picture" }),
@@ -275,6 +309,8 @@ export default {
       },
     },
     upscale: {
+      evidence: "composed",
+      verified: "graph",
       fields: [field.image("image", "Image"), field.select("scale", "Scale", [choice(1.5, "1.5×"), choice(2, "2×"), choice(3, "3×"), choice(4, "4×")], 2), field.toggle("refine", "Add detail with Krea 2", true), field.slider("refineDenoise", "Detail strength", 0.05, 0.6, 0.01, 0.3, { when: "refine" }), field.prompt({ optional: true, when: "refine", placeholder: "Optional: describe the picture for the detail pass" }), field.model({ when: "refine" }), field.select("upscaler", "Upscale model", "upscalers", "", { advanced: true }), field.slider("refineSteps", "Detail steps", 3, 40, 1, 8, { advanced: true, when: "refine" }), field.seed()],
       needs: (ctx) => [...upscaleNeeds(ctx), ...baseNeeds(ctx).map((n) => ({ ...n, level: "recommended", why: "Only for the detail pass" }))],
       build(g, p, ctx) {

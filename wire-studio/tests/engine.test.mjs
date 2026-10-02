@@ -123,6 +123,7 @@ test("inventory sorts every model into exactly one family", () => {
   assert.ok(ctx.inv.otherModels.includes("flux1-krea-dev.safetensors") && ctx.inv.otherModels.includes("sd15/dreamshaper_8.safetensors"));
   assert.deepEqual(f.sdxl.controlnets, ["SDXL/controlnet-union-sdxl-1.0-promax.safetensors", "sdxl/diffusers_xl_canny_full.safetensors"]);
   assert.equal(classify("animagine-xl-4.0.safetensors"), "sdxl", "Animagine is SDXL, not Anima");
+  for (const n of ["sam3.1_multiplex_fp16.safetensors", "sam3.safetensors", "depth_anything_3_mono_large.safetensors", "birefnet.safetensors"]) assert.equal(classify(n), "other", `${n} is not an SDXL checkpoint`);
   assert.equal(classify("detail_slider.safetensors", { "detail_slider.safetensors": "sdxl" }), "sdxl", "Library assignment wins");
 });
 
@@ -224,6 +225,20 @@ test("Krea 2: official turbo settings, RAW defaults, style reference and depth c
   assert.ok(types(inpaint).includes("DifferentialDiffusion"));
   const edit = buildWorkflow("krea2", "edit", sampleParams("edit"), ctx).prompt;
   assert.ok(types(edit).includes("Krea2EditModelPatch") && types(edit).includes("Krea2EditGroundedEncode"));
+});
+
+test("Krea 2 Smart Edit: a second image reaches both the appearance path and the encoder", () => {
+  // comfyui-krea2edit's pixel path (vae + source_image) rebuilds its source list from
+  // source_image / source_image_b only, so source_latent_b alone would be silently ignored.
+  const { prompt } = buildWorkflow("krea2", "edit", { ...sampleParams("edit"), image2: "person.png" }, ctx);
+  const patch = nodesOf(prompt, "Krea2EditModelPatch")[0].inputs;
+  const loadOf = (link) => prompt[link[0]];
+  assert.equal(loadOf(patch.source_image).inputs.image, "example.png");
+  assert.equal(loadOf(patch.source_image_b).inputs.image, "person.png");
+  assert.ok(patch.source_latent_b, "latent path kept for the crop (legacy) geometry");
+  assert.equal(loadOf(nodesOf(prompt, "Krea2EditGroundedEncode")[0].inputs.image_b).inputs.image, "person.png");
+  const single = buildWorkflow("krea2", "edit", sampleParams("edit"), ctx).prompt;
+  assert.ok(!("source_image_b" in nodesOf(single, "Krea2EditModelPatch")[0].inputs));
 });
 
 test("face swap = ReActor, then a light face pass with the family's own model", () => {

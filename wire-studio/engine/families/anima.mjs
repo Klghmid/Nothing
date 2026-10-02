@@ -66,8 +66,14 @@ export default {
   preferModel: PREFER,
   presets: { turbo: { label: "Turbo model", ...TURBO }, regular: { label: "Standard", ...SAMPLE } },
   baseNeeds,
+  unsupported: {
+    style: "No IPAdapter or style-reference model exists for Anima, and Anima rejects area conditioning (Anima Studio live test).",
+    identity: "No identity-preserving edit or reference model exists for Anima.",
+  },
   tasks: {
     generate: {
+      evidence: "official",
+      verified: "inference",
       fields: [field.prompt({ placeholder: "masterpiece, best quality, score_7, 1girl, silver hair, night city, neon lights" }), ...common, field.size(), turboField, field.slider("batch", "Images", 1, 4, 1, 1), ...advanced],
       needs: (ctx) => [...baseNeeds(ctx), need.model(fam(ctx).turboLora, MODELS.animaTurbo, "Anima Turbo LoRA", "Optional 8-step mode", "recommended")],
       build(g, p, ctx) {
@@ -78,6 +84,8 @@ export default {
       },
     },
     img2img: {
+      evidence: "composed",
+      verified: "inference",
       fields: [field.image("image", "Source image"), field.prompt({ placeholder: "Describe the whole picture as it should look" }), field.slider("denoise", "Change strength", 0.05, 1, 0.01, 0.55, { hint: "Low keeps the picture, high redraws it" }), ...common, turboField, field.slider("batch", "Variations", 1, 4, 1, 1), ...advanced],
       needs: baseNeeds,
       build(g, p, ctx) {
@@ -88,6 +96,8 @@ export default {
       },
     },
     inpaint: {
+      evidence: "official",
+      verified: "inference",
       fields: [field.image("image", "Image"), field.mask(), field.prompt({ placeholder: "What should appear in the painted area" }), field.slider("denoise", "Redraw strength", 0.1, 1, 0.01, 1, { hint: "1.0 replaces the area; 0.5 changes it gently" }), field.slider("context", "Match surroundings", 0, 1.5, 0.05, 1, { advanced: true, hint: "Strength of the Anima LLLite inpaint patch" }), ...common, ...advanced],
       needs: (ctx) => [...baseNeeds(ctx), need.node(ctx, "AnimaLLLiteApply", PACKS.core, "Applies the inpaint patch", "recommended"), need.model(patchFor(ctx, /inpainting/i), MODELS.animaInpaint, "Anima LLLite inpainting v2", "Makes the fill match its surroundings", "recommended")],
       build(g, p, ctx) {
@@ -104,6 +114,8 @@ export default {
       },
     },
     outpaint: {
+      evidence: "composed",
+      verified: "inference",
       fields: [field.image("image", "Image"), field.edges(), field.prompt({ placeholder: "Describe the scenery to add (avoid repeating the subject)" }), field.select("fill", "Pre-fill", [choice("navier-stokes", "Smooth (recommended)"), choice("telea", "Telea"), choice("none", "None")], "navier-stokes", { advanced: true }), field.slider("denoise", "Redraw strength", 0.5, 1, 0.01, 1, { advanced: true }), ...common, ...advanced],
       needs: (ctx) => [...baseNeeds(ctx), need.model(patchFor(ctx, /inpainting/i), MODELS.animaInpaint, "Anima LLLite inpainting v2", "Continues the picture coherently", "recommended"), ...outpaintNeeds(ctx)],
       build(g, p, ctx) {
@@ -120,6 +132,8 @@ export default {
       },
     },
     face: {
+      evidence: "community",
+      verified: "inference",
       fields: [field.image("image", "Image"), field.select("target", "Fix", [choice("face", "Whole face"), choice("eyes", "Eyes"), choice("lips", "Lips")], "face"), field.prompt({ optional: true, placeholder: "Optional: describe the face (e.g. blue eyes, smile)" }), field.slider("denoise", "Strength", 0.1, 0.9, 0.01, 0.4), field.slider("threshold", "Detection sensitivity", 0.1, 0.9, 0.01, 0.35, { advanced: true, hint: "Lower finds more (and smaller) faces" }), ...common, ...advanced],
       needs: (ctx) => [...baseNeeds(ctx), ...detailerNeeds(ctx, "face")],
       build(g, p, ctx) {
@@ -129,6 +143,8 @@ export default {
       },
     },
     hands: {
+      evidence: "community",
+      verified: "inference",
       fields: [field.image("image", "Image"), field.prompt({ optional: true, placeholder: "Optional: e.g. detailed hands, five fingers" }), field.slider("denoise", "Strength", 0.1, 0.9, 0.01, 0.45), field.slider("threshold", "Detection sensitivity", 0.1, 0.9, 0.01, 0.45, { advanced: true }), ...common, ...advanced],
       needs: (ctx) => [...baseNeeds(ctx), ...detailerNeeds(ctx, "hand")],
       build(g, p, ctx) {
@@ -143,6 +159,10 @@ export default {
     },
     pose: {
       badge: "Weak control",
+      status: "partial",
+      statusNote: "Legacy pose patch; its own card says it guides placement loosely",
+      evidence: "community",
+      verified: "graph",
       notes: ["Anima's pose patch is the legacy preview3 model; its own card says it guides placement loosely. For strict poses use Line art control on a sketch."],
       fields: [field.image("image", "Pose reference", { hint: "A photo or drawing of the pose, or a ready pose map" }), field.toggle("isMap", "Image is already a pose map", false), field.prompt({ placeholder: "Who is in the pose: 1girl, school uniform, park" }), field.size({ fromImage: true }), field.slider("strength", "Pose strength", 0.2, 2, 0.05, 1), ...common, ...advanced],
       needs: (ctx) => [...baseNeeds(ctx), need.node(ctx, "AnimaLLLiteApply", PACKS.core, "Applies the pose patch"), need.model(patchFor(ctx, /lllite-pose/i), MODELS.animaPose, "Anima LLLite pose", "Reads the skeleton"), ...mapNeeds(ctx, ["pose"])],
@@ -158,6 +178,8 @@ export default {
       },
     },
     control: {
+      evidence: "official",
+      verified: "graph",
       fields: [
         field.select("kind", "Control type", Object.entries(CONTROL).map(([k, v]) => choice(k, v.label)), "lineart"),
         field.image("image", "Control image", { hint: "A picture to take the structure from, or a ready map" }),
@@ -190,6 +212,8 @@ export default {
       },
     },
     upscale: {
+      evidence: "composed",
+      verified: "inference",
       fields: [field.image("image", "Image"), field.select("scale", "Scale", [choice(1.5, "1.5×"), choice(2, "2×"), choice(3, "3×"), choice(4, "4×")], 2), field.toggle("refine", "Add detail with Anima", true, { hint: "A light second pass with your Anima model" }), field.slider("refineDenoise", "Detail strength", 0.05, 0.6, 0.01, 0.3, { when: "refine" }), field.prompt({ optional: true, when: "refine", placeholder: "Optional: describe the picture for the detail pass" }), field.model({ when: "refine" }), field.select("upscaler", "Upscale model", "upscalers", "", { advanced: true }), field.slider("refineSteps", "Detail steps", 4, 40, 1, 12, { advanced: true, when: "refine" }), field.seed()],
       needs: (ctx) => [...upscaleNeeds(ctx), ...baseNeeds(ctx).map((n) => ({ ...n, level: "recommended", why: "Only for the detail pass" }))],
       build(g, p, ctx) {

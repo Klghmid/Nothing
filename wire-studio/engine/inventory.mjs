@@ -15,7 +15,9 @@ import { options } from "./graph.mjs";
 
 export const FAMILY_IDS = ["anima", "sdxl", "zimage", "krea2"];
 
-const OTHER = /(^|[^a-z])(sd[-_ ]?1[._-]?5|sd15|v1-5|sd[-_ ]?3|flux|sdpose|svd|cascade|hunyuan|wan2?|qwen|ltx|cosmos|kolors|lumina|hidream|chroma|aura)([^a-z]|$)|refiner/i;
+// Other families, and non-diffusion checkpoints official templates also put in checkpoints/
+// (SAM 3 segmentation, SDPose) — never offered as an SDXL model.
+const OTHER = /(^|[^a-z])(sd[-_ ]?1[._-]?5|sd15|v1-5|sd[-_ ]?3|flux|sdpose|svd|cascade|hunyuan|wan2?|qwen|ltx|cosmos|kolors|lumina|hidream|chroma|aura|sam\d+(?:\.\d+)?|depth[-_ ]?anything|birefnet)([^a-z]|$)|refiner/i;
 const tokens = (s) => s.split(/[^a-zA-Z0-9]+/).filter(Boolean);
 const parts = (name) => String(name).replaceAll("\\", "/").split("/");
 // "anima", "anima2", "AnimaLoRA", "anima_models", "anima-base…" — but not Animagine / animation / animal.
