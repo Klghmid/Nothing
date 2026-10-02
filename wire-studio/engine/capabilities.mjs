@@ -24,6 +24,7 @@ export const CAPABILITIES = [
   { id: "inpaint", label: "Inpaint", from: [{ task: "inpaint" }] },
   { id: "outpaint", label: "Outpaint", from: [{ task: "outpaint" }] },
   { id: "control", label: "Control", from: [{ task: "control" }] },
+  { id: "img2img-control", label: "Controlled Img2Img", from: [{ task: "img2img-control" }] },
   { id: "pose", label: "Pose", from: [{ task: "pose" }, { task: "control", kind: "pose" }] },
   { id: "depth", label: "Depth", from: [{ task: "control", kind: "depth" }] },
   { id: "canny", label: "Canny", from: [{ task: "control", kind: "canny" }] },

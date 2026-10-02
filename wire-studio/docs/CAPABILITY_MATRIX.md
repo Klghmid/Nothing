@@ -29,6 +29,7 @@ real hardware in this form (Anima Studio's live tests). See
 | Inpaint | READY | READY | READY † | PARTIAL † |
 | Outpaint | READY | READY | READY † | PARTIAL † |
 | Control | READY † | READY † | READY † | PARTIAL † |
+| Controlled Img2Img | READY † | MISSING | MISSING | MISSING |
 | Pose | PARTIAL † | READY † | READY † | EXPERIMENTAL † |
 | Depth | READY † | READY † | READY † | READY † |
 | Canny | READY † | READY † | READY † | MISSING |
@@ -49,6 +50,7 @@ real hardware in this form (Anima Studio's live tests). See
   - Inpaint: READY — task `inpaint`; official template / model author; run on a GPU
   - Outpaint: READY — task `outpaint`; Wire Studio composition of documented nodes; run on a GPU
   - Control: READY — task `control`; official template / model author; graph validated, not yet run on a GPU
+  - Controlled Img2Img: READY — task `img2img-control`; Wire Studio composition of documented nodes; graph validated, not yet run on a GPU
   - Pose: PARTIAL — task `pose`; community model or node pack; graph validated, not yet run on a GPU; Legacy pose patch; its own card says it guides placement loosely
   - Depth: READY — task `control` · type `depth`; official template / model author; graph validated, not yet run on a GPU
   - Canny: READY — task `control` · type `canny`; official template / model author; graph validated, not yet run on a GPU
@@ -66,6 +68,7 @@ real hardware in this form (Anima Studio's live tests). See
   - Inpaint: READY — task `inpaint`; community model or node pack; run on a GPU
   - Outpaint: READY — task `outpaint`; Wire Studio composition of documented nodes; run on a GPU
   - Control: READY — task `control`; community model or node pack; graph validated, not yet run on a GPU
+  - Controlled Img2Img: MISSING
   - Pose: READY — task `pose`; community model or node pack; graph validated, not yet run on a GPU
   - Depth: READY — task `control` · type `depth`; community model or node pack; graph validated, not yet run on a GPU
   - Canny: READY — task `control` · type `canny`; community model or node pack; graph validated, not yet run on a GPU
@@ -83,6 +86,7 @@ real hardware in this form (Anima Studio's live tests). See
   - Inpaint: READY — task `inpaint`; official template / model author; graph validated, not yet run on a GPU
   - Outpaint: READY — task `outpaint`; Wire Studio composition of documented nodes; graph validated, not yet run on a GPU
   - Control: READY — task `control`; official template / model author; graph validated, not yet run on a GPU
+  - Controlled Img2Img: MISSING
   - Pose: READY — task `pose`; official template / model author; graph validated, not yet run on a GPU
   - Depth: READY — task `control` · type `depth`; official template / model author; graph validated, not yet run on a GPU
   - Canny: READY — task `control` · type `canny`; official template / model author; graph validated, not yet run on a GPU
@@ -100,6 +104,7 @@ real hardware in this form (Anima Studio's live tests). See
   - Inpaint: PARTIAL — task `inpaint`; Wire Studio composition of documented nodes; graph validated, not yet run on a GPU; No Krea 2 inpaint model; differential diffusion + masked sampling
   - Outpaint: PARTIAL — task `outpaint`; Wire Studio composition of documented nodes; graph validated, not yet run on a GPU; No Krea 2 inpaint model; differential diffusion + masked sampling
   - Control: PARTIAL — task `control`; community model or node pack; graph validated, not yet run on a GPU; Only a depth Control-LoRA is public
+  - Controlled Img2Img: MISSING
   - Pose: EXPERIMENTAL — task `pose`; Wire Studio composition of documented nodes; graph validated, not yet run on a GPU; Pose carried through a depth map (no pose model was used)
   - Depth: READY — task `control` · type `depth`; community model or node pack; graph validated, not yet run on a GPU
   - Canny: MISSING — No public Krea 2 canny Control-LoRA.

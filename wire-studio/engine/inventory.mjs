@@ -91,6 +91,7 @@ export function readInventory(info = {}, overrides = {}) {
     samplers: options(info, "KSampler", "sampler_name"),
     schedulers: options(info, "KSampler", "scheduler"),
     upscalers: options(info, "UpscaleModelLoader", "model_name"),
+    da3Models: options(info, "LoadDA3Model", "model_name"),
     detectors: options(info, "UltralyticsDetectorProvider", "model_name"),
     swapModels: options(info, "ReActorFaceSwap", "swap_model"),
     restorers: options(info, "ReActorFaceSwap", "face_restore_model"),
@@ -108,6 +109,7 @@ export function readInventory(info = {}, overrides = {}) {
         clips: clips.filter((n) => /qwen_3_06b/i.test(n)),
         vaes: vaes.filter((n) => /qwen_image_vae/i.test(n)),
         patches: patches.filter((n) => /anima-lllite/i.test(n) || classify(n, overrides) === "anima"),
+        controlPatches: patches.filter((n) => (/anima-lllite/i.test(n) || classify(n, overrides) === "anima") && !/inpaint/i.test(n)),
       },
       sdxl: {
         // Checkpoints with no family hint are offered here too (flagged as unverified):

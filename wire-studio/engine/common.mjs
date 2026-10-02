@@ -1,6 +1,6 @@
 // Building blocks shared by the family modules. Nothing here loads a diffusion model:
 // families pass their own model / CLIP / VAE in, so every workflow stays family-pure.
-import { fail, out } from "./graph.mjs";
+import { fail, out, options } from "./graph.mjs";
 import { MODELS, PACKS } from "./catalog.mjs";
 
 export const clamp = (v, d, min, max) => {
@@ -121,26 +121,48 @@ export function edgeFill(g, image, mask, p) {
   return g.add("INPAINT_MaskedFill", { image, mask, fill: fill === "telea" ? "telea" : "navier-stokes", falloff: 0 }, "Pre-fill new area");
 }
 
-// Control map preprocessors, first installed alternative wins.
+// Control map preprocessors, first usable alternative wins. Native ComfyUI nodes come first
+// where they exist (Canny; Depth Anything 3 once its model is installed, as in the official
+// Anima depth template); comfyui_controlnet_aux covers the rest. An entry may be a chain of
+// nodes (`build`) and may need a model file (`ready`).
+const DA3_MODELS = (info) => options(info, "LoadDA3Model", "model_name");
 const PREPROCESSORS = {
-  canny: [{ node: "Canny", inputs: (p) => ({ low_threshold: clamp(p.cannyLow, 0.15, 0.01, 0.99), high_threshold: clamp(p.cannyHigh, 0.4, 0.01, 0.99) }) }],
+  canny: [{ node: "Canny", native: true, inputs: (p) => ({ low_threshold: clamp(p.cannyLow, 0.15, 0.01, 0.99), high_threshold: clamp(p.cannyHigh, 0.4, 0.01, 0.99) }) }],
   lineart: [
     { node: "LineArtPreprocessor", inputs: () => ({ coarse: "disable" }) },
     { node: "AnimeLineArtPreprocessor" },
-    { node: "Canny", inputs: () => ({ low_threshold: 0.15, high_threshold: 0.4 }) },
+    { node: "Canny", native: true, inputs: () => ({ low_threshold: 0.15, high_threshold: 0.4 }) },
   ],
   scribble: [{ node: "FakeScribblePreprocessor", inputs: () => ({ safe: "enable" }) }, { node: "PiDiNetPreprocessor", inputs: () => ({ safe: "enable" }) }, { node: "HEDPreprocessor", inputs: () => ({ safe: "enable" }) }],
   hed: [{ node: "HEDPreprocessor", inputs: () => ({ safe: "enable" }) }, { node: "PiDiNetPreprocessor", inputs: () => ({ safe: "enable" }) }],
-  depth: [{ node: "DepthAnythingV2Preprocessor" }],
+  depth: [
+    {
+      node: "DA3Render",
+      nodes: ["LoadDA3Model", "DA3Inference", "DA3Render"],
+      native: true,
+      ready: (info) => DA3_MODELS(info).length > 0,
+      build(g, image) {
+        const name = DA3_MODELS(g.info).find((n) => /mono/i.test(n)) || DA3_MODELS(g.info)[0];
+        const model = g.add("LoadDA3Model", { model_name: name, weight_dtype: "default" }, "Depth Anything 3");
+        const geo = g.add("DA3Inference", { da3_model: model, image, resolution: 504, resize_method: "upper_bound_resize", mode: "mono" }, "Estimate depth");
+        return g.add("DA3Render", { da3_geometry: geo, output: "depth", "output.normalization": "v2_style", "output.apply_sky_clip": false }, "Make depth map");
+      },
+    },
+    { node: "DepthAnythingV2Preprocessor" },
+  ],
   pose: [
     { node: "DWPreprocessor", inputs: () => ({ detect_hand: "enable", detect_body: "enable", detect_face: "enable" }) },
     { node: "OpenposePreprocessor", inputs: () => ({ detect_hand: "enable", detect_body: "enable", detect_face: "enable" }) },
   ],
   mlsd: [{ node: "M-LSDPreprocessor" }],
+  // Grayscale tone map (sd-webui-controlnet "recolor / luminance"): composition and lighting.
+  gray: [{ node: "ImageLuminanceDetector", inputs: () => ({ gamma_correction: 1 }) }, { node: "ImageIntensityDetector", inputs: () => ({ gamma_correction: 1 }) }],
 };
-export const preprocessorFor = (info, kind) => (PREPROCESSORS[kind] || []).find((x) => info?.[x.node]);
-export const preprocessorNames = (kind) => (PREPROCESSORS[kind] || []).map((x) => x.node);
-export const allPreprocessorNames = () => [...new Set(Object.values(PREPROCESSORS).flatMap((list) => list.map((x) => x.node)))];
+const usable = (info, x) => (x.nodes || [x.node]).every((n) => info?.[n]) && (!x.ready || x.ready(info));
+export const preprocessorFor = (info, kind) => (PREPROCESSORS[kind] || []).find((x) => usable(info, x));
+// Node names to suggest when nothing usable is installed (the custom-pack alternatives).
+export const preprocessorNames = (kind) => (PREPROCESSORS[kind] || []).filter((x) => !x.native).map((x) => x.node).concat((PREPROCESSORS[kind] || []).filter((x) => x.native && !x.ready).map((x) => x.node));
+export const allPreprocessorNames = () => [...new Set(Object.values(PREPROCESSORS).flatMap((list) => list.flatMap((x) => x.nodes || [x.node])))];
 
 export function controlMap(g, kind, image, p, { width, height, invert = false }) {
   let map = image;
@@ -151,7 +173,7 @@ export function controlMap(g, kind, image, p, { width, height, invert = false })
         missing: { nodes: [{ type: preprocessorNames(kind)[0], pack: PACKS.aux }] },
       });
     const resolution = Math.min(2048, round(Math.max(width, height), 64));
-    map = g.add(pre.node, { image, resolution, ...(pre.inputs ? pre.inputs(p) : {}) }, `Make ${kind} map`);
+    map = pre.build ? pre.build(g, image, p) : g.add(pre.node, { image, resolution, ...(pre.inputs ? pre.inputs(p) : {}) }, `Make ${kind} map`);
   }
   // `invert` describes generated maps (white lines on black → black on white); for an uploaded
   // map only the user's own "Invert map" switch applies.

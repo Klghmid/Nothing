@@ -219,7 +219,11 @@ test("Krea 2: official turbo settings, RAW defaults, style reference and depth c
   for (const t of ["TextEncodeQwenImageEditPlus", "FluxKontextMultiReferenceLatentMethod", "ModelSamplingFlux"]) assert.ok(types(style).includes(t), t);
   assert.ok(nodesOf(style, "LoraLoaderModelOnly").some((n) => n.inputs.lora_name === "krea2_style_reference.safetensors"));
   const control = buildWorkflow("krea2", "control", sampleParams("control"), ctx).prompt;
-  for (const t of ["Krea2ControlLoRALoader", "Krea2ControlImageEncode", "Krea2ControlApply", "DepthAnythingV2Preprocessor"]) assert.ok(types(control).includes(t), t);
+  for (const t of ["Krea2ControlLoRALoader", "Krea2ControlImageEncode", "Krea2ControlApply", "DA3Render"]) assert.ok(types(control).includes(t), t);
+  assert.ok(!types(control).includes("DepthAnythingV2Preprocessor"), "native Depth Anything 3 wins when its model is installed");
+  const noDa3 = objectInfo({ ...FILES, da3: [] });
+  const oldDepth = buildWorkflow("krea2", "control", sampleParams("control"), { info: noDa3, inv: readInventory(noDa3) }).prompt;
+  assert.ok(types(oldDepth).includes("DepthAnythingV2Preprocessor") && !types(oldDepth).includes("DA3Render"), "else comfyui_controlnet_aux");
   assert.equal(nodesOf(control, "Krea2ControlImageEncode")[0].inputs.channel_mode, "grayscale");
   const inpaint = buildWorkflow("krea2", "inpaint", sampleParams("inpaint"), ctx).prompt;
   assert.ok(types(inpaint).includes("DifferentialDiffusion"));
@@ -284,7 +288,8 @@ test("missing custom nodes are reported with the pack to install", () => {
   const lean = objectInfo(undefined, { without: CUSTOM_NODES });
   const leanCtx = { info: lean, inv: readInventory(lean) };
   assert.throws(() => buildWorkflow("sdxl", "face", sampleParams("face"), leanCtx), (e) => e.missing?.nodes?.[0]?.type === "FaceDetailer");
-  assert.throws(() => buildWorkflow("zimage", "control", sampleParams("control"), leanCtx), /comfyui_controlnet_aux/);
+  assert.throws(() => buildWorkflow("zimage", "control", { ...sampleParams("control"), kind: "hed" }, leanCtx), /comfyui_controlnet_aux/);
+  assert.ok(buildWorkflow("zimage", "control", sampleParams("control"), leanCtx).prompt, "depth maps work without the pack (native Depth Anything 3)");
   // An uploaded ready-made map needs no preprocessor.
   assert.ok(buildWorkflow("zimage", "control", { ...sampleParams("control"), isMap: true }, leanCtx).prompt);
   const r = readiness(leanCtx);
@@ -338,4 +343,64 @@ test("an incomplete workflow is refused before it is built, naming exactly what 
       return true;
     },
   );
+});
+
+test("Anima control: Base v1.0 any-test-like v2 is preferred over legacy patches, whatever the file order", () => {
+  const withPatches = (patches) => {
+    const i = objectInfo({ ...FILES, patches });
+    return { info: i, inv: readInventory(i) };
+  };
+  const patchOf = (prompt) => nodesOf(prompt, "ModelPatchLoader")[0].inputs.name;
+  const both = withPatches(["anima-lllite-any-test-like-1-step2000.safetensors", "anima-lllite-any-test-like-v2.safetensors", "anima-lllite-lineart-1.safetensors", "anima-lllite-scribble-1.safetensors"]);
+  for (const kind of ["lineart", "canny", "scribble", "gray"]) assert.equal(patchOf(buildWorkflow("anima", "control", { ...sampleParams("control"), kind }, both).prompt), "anima-lllite-any-test-like-v2.safetensors", kind);
+  const legacy = withPatches(["anima-lllite-any-test-like-1-step2000.safetensors", "anima-lllite-lineart-1.safetensors", "anima-lllite-scribble-1.safetensors"]);
+  assert.equal(patchOf(buildWorkflow("anima", "control", { ...sampleParams("control"), kind: "lineart" }, legacy).prompt), "anima-lllite-lineart-1.safetensors", "dedicated legacy line-art patch before legacy any-test");
+  assert.equal(patchOf(buildWorkflow("anima", "control", { ...sampleParams("control"), kind: "scribble" }, legacy).prompt), "anima-lllite-scribble-1.safetensors");
+  assert.throws(() => buildWorkflow("anima", "control", { ...sampleParams("control"), kind: "gray" }, legacy), /grayscale \(tones\) patch/, "grayscale is a mode of any-test-like v2 only");
+});
+
+test("Anima control: grayscale tone maps, patch override, and foreign patches refused", () => {
+  const gray = buildWorkflow("anima", "control", { ...sampleParams("control"), kind: "gray" }, ctx).prompt;
+  assert.ok(types(gray).includes("ImageLuminanceDetector"));
+  assert.ok(!types(gray).includes("ImageInvert"), "tone maps are not inverted (only line maps are)");
+  const any = buildWorkflow("anima", "control", { ...sampleParams("control"), kind: "any" }, ctx).prompt;
+  assert.equal(nodesOf(any, "ModelPatchLoader")[0].inputs.name, "anima-lllite-any-test-like-v2.safetensors");
+  assert.deepEqual(types(any).filter((t) => /Preprocessor|Detector|Canny|DA3/.test(t)), [], "Any: your own drawing is used as it is");
+  assert.ok(!schema().families.anima.tasks["img2img-control"].fields.find((f) => f.key === "kind").choices.some((c) => c.value === "any"), "never offered on a source photo");
+  const forced = buildWorkflow("anima", "control", { ...sampleParams("control"), kind: "lineart", patch: "anima-lllite-depth-1.safetensors" }, ctx).prompt;
+  assert.equal(nodesOf(forced, "ModelPatchLoader")[0].inputs.name, "anima-lllite-depth-1.safetensors", "Advanced → Control patch is honoured");
+  assert.throws(() => buildWorkflow("anima", "control", { ...sampleParams("control"), patch: "Z-Image-Turbo-Fun-Controlnet-Union.safetensors" }, ctx), /not installed for this family|control patch/);
+  assert.throws(() => buildWorkflow("anima", "control", { ...sampleParams("control"), patch: "anima-lllite-inpainting-v2.safetensors" }, ctx), /control patch/, "inpaint patches are not control patches");
+  assert.ok(!ctx.inv.families.anima.controlPatches.some((n) => /inpaint/.test(n)));
+});
+
+test("Anima Img2Img + Control: the source is encoded and also gives the map; a separate control image can replace it", () => {
+  const { prompt } = buildWorkflow("anima", "img2img-control", { ...sampleParams("img2img-control"), kind: "depth" }, ctx);
+  const ks = nodesOf(prompt, "KSampler")[0].inputs;
+  assert.equal(ks.denoise, 0.6);
+  const loads = nodesOf(prompt, "LoadImage");
+  assert.equal(loads.length, 1, "one image: source and control");
+  const lllite = nodesOf(prompt, "AnimaLLLiteApply")[0].inputs;
+  assert.equal(lllite.strength, 0.8);
+  assert.equal(nodesOf(prompt, "ModelPatchLoader")[0].inputs.name, "anima-lllite-depth-1.safetensors");
+  assert.equal(prompt[ks.latent_image[0]].class_type, "VAEEncode", "img2img latent, not an empty canvas");
+  assert.ok(types(prompt).includes("DA3Render"), "native depth map");
+  const sep = buildWorkflow("anima", "img2img-control", { ...sampleParams("img2img-control"), control: "sketch.png", isMap: true }, ctx).prompt;
+  const names = nodesOf(sep, "LoadImage").map((n) => n.inputs.image).sort();
+  assert.deepEqual(names, ["example.png", "sketch.png"]);
+  assert.ok(!types(sep).includes("LineArtPreprocessor"), "a ready-made map is used as is");
+  const own = buildWorkflow("anima", "img2img-control", { ...sampleParams("img2img-control"), isMap: true }, ctx).prompt;
+  assert.ok(types(own).includes("LineArtPreprocessor"), "the source photo itself is never treated as a map");
+  const pose = schema().families.anima.tasks["img2img-control"].fields.find((f) => f.key === "kind").choices.find((c) => c.value === "pose");
+  assert.equal(pose.status, "partial", "the legacy pose patch keeps its limitation");
+});
+
+test("dynamic-combo inputs of native nodes survive the conform step (Depth Anything 3)", () => {
+  const { prompt } = buildWorkflow("anima", "control", { ...sampleParams("control"), kind: "depth" }, ctx);
+  const render = nodesOf(prompt, "DA3Render")[0].inputs;
+  assert.equal(render.output, "depth");
+  assert.equal(render["output.normalization"], "v2_style", "the official template's Depth-Anything-V2-style normalisation");
+  assert.equal(render["output.apply_sky_clip"], false);
+  assert.equal(nodesOf(prompt, "DA3Inference")[0].inputs.mode, "mono");
+  assert.equal(nodesOf(prompt, "LoadDA3Model")[0].inputs.model_name, "depth_anything_3_mono_large.safetensors");
 });

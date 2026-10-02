@@ -22,7 +22,15 @@ and sources behind each one.
 | Anima | ControlNet (lineart) | [anima/control-lineart.json](anima/control-lineart.json) | UNETLoader, CLIPLoader, VAELoader, LineArtPreprocessor, ImageInvert, ImageScale, ModelPatchLoader, AnimaLLLiteApply, EmptyLatentImage, KSampler |
 | Anima | ControlNet (canny) | [anima/control-canny.json](anima/control-canny.json) | UNETLoader, CLIPLoader, VAELoader, Canny, ImageInvert, ImageScale, ModelPatchLoader, AnimaLLLiteApply, EmptyLatentImage, KSampler |
 | Anima | ControlNet (scribble) | [anima/control-scribble.json](anima/control-scribble.json) | UNETLoader, CLIPLoader, VAELoader, FakeScribblePreprocessor, ImageInvert, ImageScale, ModelPatchLoader, AnimaLLLiteApply, EmptyLatentImage, KSampler |
+| Anima | ControlNet (gray) | [anima/control-gray.json](anima/control-gray.json) | UNETLoader, CLIPLoader, VAELoader, ImageLuminanceDetector, ImageScale, ModelPatchLoader, AnimaLLLiteApply, EmptyLatentImage, KSampler |
+| Anima | ControlNet (any) | [anima/control-any.json](anima/control-any.json) | UNETLoader, CLIPLoader, VAELoader, ImageScale, ModelPatchLoader, AnimaLLLiteApply, EmptyLatentImage, KSampler |
 | Anima | ControlNet (depth) | [anima/control-depth.json](anima/control-depth.json) | UNETLoader, CLIPLoader, VAELoader, DepthAnythingV2Preprocessor, ImageScale, ModelPatchLoader, AnimaLLLiteApply, EmptyLatentImage, KSampler |
+| Anima | Img2Img + Control (lineart) | [anima/img2img-control-lineart.json](anima/img2img-control-lineart.json) | UNETLoader, CLIPLoader, VAELoader, LineArtPreprocessor, ImageInvert, ImageScale, ModelPatchLoader, AnimaLLLiteApply, KSampler |
+| Anima | Img2Img + Control (canny) | [anima/img2img-control-canny.json](anima/img2img-control-canny.json) | UNETLoader, CLIPLoader, VAELoader, Canny, ImageInvert, ImageScale, ModelPatchLoader, AnimaLLLiteApply, KSampler |
+| Anima | Img2Img + Control (scribble) | [anima/img2img-control-scribble.json](anima/img2img-control-scribble.json) | UNETLoader, CLIPLoader, VAELoader, FakeScribblePreprocessor, ImageInvert, ImageScale, ModelPatchLoader, AnimaLLLiteApply, KSampler |
+| Anima | Img2Img + Control (gray) | [anima/img2img-control-gray.json](anima/img2img-control-gray.json) | UNETLoader, CLIPLoader, VAELoader, ImageLuminanceDetector, ImageScale, ModelPatchLoader, AnimaLLLiteApply, KSampler |
+| Anima | Img2Img + Control (depth) | [anima/img2img-control-depth.json](anima/img2img-control-depth.json) | UNETLoader, CLIPLoader, VAELoader, DepthAnythingV2Preprocessor, ImageScale, ModelPatchLoader, AnimaLLLiteApply, KSampler |
+| Anima | Img2Img + Control (pose) | [anima/img2img-control-pose.json](anima/img2img-control-pose.json) | UNETLoader, CLIPLoader, VAELoader, DWPreprocessor, ImageScale, ModelPatchLoader, AnimaLLLiteApply, KSampler |
 | Anima | Upscale | [anima/upscale.json](anima/upscale.json) | UNETLoader, CLIPLoader, VAELoader, UpscaleModelLoader, ImageUpscaleWithModel, ImageScale, KSampler |
 | SDXL | Text to Image | [sdxl/generate.json](sdxl/generate.json) | CheckpointLoaderSimple, EmptyLatentImage, KSampler |
 | SDXL | Image to Image | [sdxl/img2img.json](sdxl/img2img.json) | CheckpointLoaderSimple, KSampler |

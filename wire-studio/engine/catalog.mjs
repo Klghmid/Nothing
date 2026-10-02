@@ -27,6 +27,7 @@ export const CORE_NODES = [
   "ControlNetLoader", "ControlNetApplyAdvanced", "SetUnionControlNetType", "EmptyImage", "ModelPatchLoader",
   "AnimaLLLiteApply", "QwenImageDiffsynthControlnet", "ZImageFunControlnet", "ModelSamplingAuraFlow", "ModelSamplingFlux",
   "DifferentialDiffusion", "TextEncodeQwenImageEditPlus", "FluxKontextMultiReferenceLatentMethod",
+  "LoadDA3Model", "DA3Inference", "DA3Render",
 ];
 
 export const NODE_PACK = {
@@ -41,6 +42,8 @@ export const NODE_PACK = {
   PiDiNetPreprocessor: "aux",
   FakeScribblePreprocessor: "aux",
   "M-LSDPreprocessor": "aux",
+  ImageLuminanceDetector: "aux",
+  ImageIntensityDetector: "aux",
   ReActorFaceSwap: "reactor",
   BiRefNetRMBG: "rmbg",
   RMBG: "rmbg",
@@ -72,6 +75,7 @@ export const TASKS = {
   faceswap: { label: "Face Swap", group: "Fix", icon: "swap", run: "Swap face", about: "Put a face from a photo onto an image, then blend it in with this model." },
   pose: { label: "Pose", group: "Control", icon: "pose", run: "Generate in pose", about: "Make a new image that copies the pose of a reference." },
   control: { label: "ControlNet", group: "Control", icon: "grid", run: "Generate", about: "Guide a new image with edges, line art, depth or a pose map." },
+  "img2img-control": { label: "Img2Img + Control", group: "Control", icon: "layers", run: "Redraw", about: "Redraw an image while a control map keeps its structure (lines, depth, pose…)." },
   upscale: { label: "Upscale", group: "Finish", icon: "zoom", run: "Upscale", about: "Enlarge with an upscale model and optionally re-add detail." },
 };
 
@@ -94,4 +98,5 @@ export const CONTROL_KINDS = {
   depth: "Depth",
   pose: "Pose (skeleton)",
   mlsd: "Straight lines (M-LSD)",
+  gray: "Grayscale (tones)",
 };

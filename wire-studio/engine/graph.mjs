@@ -15,16 +15,34 @@ export const fail = (message, extra) => new BuildError(message, extra);
 export const isLink = (v) => Array.isArray(v) && v.length === 2 && typeof v[0] === "string" && Number.isInteger(v[1]);
 export const out = (ref, index) => [ref[0], index];
 
+const DYNAMIC = "COMFY_DYNAMICCOMBO_V3";
 export function comboOptions(spec) {
   if (!Array.isArray(spec)) return null;
   if (Array.isArray(spec[0])) return spec[0];
   if (spec[0] === "COMBO" && Array.isArray(spec[1]?.options)) return spec[1].options;
+  if (spec[0] === DYNAMIC && Array.isArray(spec[1]?.options)) return spec[1].options.map((o) => o.key);
   return null;
 }
 
-export function nodeInputs(info, type) {
+// A node's inputs for the given values. Dynamic combos (newer core nodes, e.g. DA3Render
+// "output") add the inputs of the chosen option under "<combo>.<input>", the way ComfyUI
+// expands them (comfy_api/latest/_io.py DynamicCombo); unset combos use their first option.
+export function nodeInputs(info, type, values = {}) {
   const input = info?.[type]?.input || {};
-  return { required: input.required || {}, optional: input.optional || {} };
+  const out = { required: { ...(input.required || {}) }, optional: { ...(input.optional || {}) } };
+  const queue = [...Object.entries(out.required), ...Object.entries(out.optional)];
+  while (queue.length) {
+    const [id, def] = queue.shift();
+    if (def?.[0] !== DYNAMIC) continue;
+    const opts = def[1]?.options || [];
+    const chosen = opts.find((o) => o.key === (values[id] ?? opts[0]?.key));
+    for (const part of ["required", "optional"])
+      for (const [sub, subDef] of Object.entries(chosen?.inputs?.[part] || {})) {
+        out[part][`${id}.${sub}`] = subDef;
+        queue.push([`${id}.${sub}`, subDef]);
+      }
+  }
+  return out;
 }
 
 // Link type check as ComfyUI does it (comfy_execution/validation.py validate_node_input):
@@ -82,7 +100,10 @@ export function finalize(g, packOf = () => null) {
       missingNodes.add(node.class_type);
       continue;
     }
-    const { required, optional } = nodeInputs(g.info, node.class_type);
+    // Unset dynamic combos take their first option before the inputs are expanded.
+    for (const [key, def] of Object.entries(nodeInputs(g.info, node.class_type).required))
+      if (def?.[0] === DYNAMIC && !(key in node.inputs)) node.inputs[key] = def[1]?.options?.[0]?.key;
+    const { required, optional } = nodeInputs(g.info, node.class_type, node.inputs);
     const title = node._meta?.title || node.class_type;
     for (const key of Object.keys(node.inputs)) {
       if (node.inputs[key] === undefined || node.inputs[key] === null) delete node.inputs[key];

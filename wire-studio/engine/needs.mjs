@@ -2,7 +2,7 @@
 // each family lists its own diffusion models itself).
 import { need } from "./fields.mjs";
 import { MODELS, PACKS } from "./catalog.mjs";
-import { DETECTORS, preprocessorNames } from "./common.mjs";
+import { DETECTORS, preprocessorNames, preprocessorFor } from "./common.mjs";
 
 export const detailerNeeds = (ctx, target) => [
   need.node(ctx, "FaceDetailer", PACKS.impact, "Redraws the detected area"),
@@ -16,8 +16,9 @@ export const swapNeeds = (ctx) => [
   ...detailerNeeds(ctx, "face").map((n) => ({ ...n, level: "recommended", why: "Blends the new face in with this family's model" })),
 ];
 
+// A map maker is "installed" only when the builder could really use it (node + its model).
 export const mapNeeds = (ctx, kinds) =>
-  kinds.map((kind) => need.anyNode(ctx, preprocessorNames(kind), PACKS.aux, `Makes ${kind} maps from photos (skip by uploading a ready map)`, "recommended"));
+  kinds.map((kind) => ({ ...need.anyNode(ctx, preprocessorNames(kind), PACKS.aux, `Makes ${kind} maps from photos (skip by uploading a ready map)`, "recommended"), ok: !!preprocessorFor(ctx.info, kind) }));
 
 export const upscaleNeeds = (ctx) => [
   need.model(ctx.inv.upscalers || [], MODELS.upscaler, "Upscale model", "Enlarges the image"),

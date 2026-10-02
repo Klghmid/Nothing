@@ -2,7 +2,7 @@
 // exist, required inputs are present, links point at existing nodes and valid output slots of
 // the right type, combo values are allowed and numbers are within range. (The real rules are in
 // ComfyUI's execution.py validate_inputs and comfy_execution/validation.py.)
-import { comboOptions, typeMatches } from "../engine/graph.mjs";
+import { comboOptions, typeMatches, nodeInputs } from "../engine/graph.mjs";
 
 export function validatePrompt(prompt, info, { images } = {}) {
   const errors = [];
@@ -13,7 +13,7 @@ export function validatePrompt(prompt, info, { images } = {}) {
       add(id, `node type ${n.class_type} not found`);
       continue;
     }
-    const req = spec.input?.required || {}, opt = spec.input?.optional || {};
+    const { required: req, optional: opt } = nodeInputs(info, n.class_type, n.inputs || {});
     for (const [k, def] of Object.entries({ ...opt, ...req })) {
       const v = n.inputs?.[k];
       if (v === undefined) {

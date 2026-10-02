@@ -93,6 +93,8 @@ ComfyUI/models/
 │   ├── anima-lllite-any-test-like-v2.safetensors         Anima · LLLite control patch · recommended
 │   ├── anima-lllite-depth-1.safetensors                  Anima · LLLite depth patch · optional
 │   ├── anima-lllite-pose-1.safetensors                   Anima · LLLite pose patch · optional
+│   ├── anima-lllite-lineart-1.safetensors                Anima · LLLite line-art patch (legacy, Preview3) · alternative
+│   ├── anima-lllite-scribble-1.safetensors               Anima · LLLite scribble patch (legacy, Preview3) · alternative
 │   ├── Z-Image-Turbo-Fun-Controlnet-Union.safetensors    Z-Image · Fun ControlNet Union · recommended
 │   └── Z-Image-Turbo-Fun-Controlnet-Union-2.1-2601-8steps.safetensors  Z-Image · Fun ControlNet Union 2.1 · optional
 ├── controlnet/                                           ← SDXL ControlNets
@@ -110,6 +112,8 @@ ComfyUI/models/
 ├── facerestore_models/                                   ← face restore (ReActor)
 │   ├── codeformer-v0.1.0.pth                             Shared · Face restore (ReActor) · recommended
 │   └── GFPGANv1.4.pth                                    Shared · Face restore (ReActor) · optional
+├── geometry_estimation/                                  ← native depth maps (Depth Anything 3)
+│   └── depth_anything_3_mono_large.safetensors           Shared · Depth Anything 3 (native depth maps) · optional
 ├── unet/                                                 ← older name for diffusion_models (also read)
 ├── clip/                                                 ← older name for text_encoders (also read)
 ├── clip_vision/                                          ← not used by Wire Studio
@@ -150,7 +154,9 @@ page* links go to the model's own page where a direct link could not be verified
 | `anima-lllite-inpainting-v2.safetensors` | `model_patches/` | LLLite inpaint patch: Inpaint, Outpaint | Recommended | [Download](https://huggingface.co/Comfy-Org/Anima-LLLite/resolve/main/model_patches/anima-lllite-inpainting-v2.safetensors) |
 | `anima-lllite-any-test-like-v2.safetensors` | `model_patches/` | LLLite control patch: ControlNet: line art, canny, scribble | Recommended | [Download](https://huggingface.co/Comfy-Org/Anima-LLLite/resolve/main/model_patches/anima-lllite-any-test-like-v2.safetensors) |
 | `anima-lllite-depth-1.safetensors` | `model_patches/` | LLLite depth patch: ControlNet: depth | Optional | [Download](https://huggingface.co/Comfy-Org/Anima-LLLite/resolve/main/model_patches/anima-lllite-depth-1.safetensors) |
-| `anima-lllite-pose-1.safetensors` | `model_patches/` | LLLite pose patch: Pose | Optional | [Download](https://huggingface.co/kohya-ss/Anima-LLLite/resolve/main/anima-lllite-pose-1.safetensors) |
+| `anima-lllite-pose-1.safetensors` | `model_patches/` | LLLite pose patch: Pose, Img2Img + Control (pose) | Optional | [Download](https://huggingface.co/kohya-ss/Anima-LLLite/resolve/main/anima-lllite-pose-1.safetensors) |
+| `anima-lllite-lineart-1.safetensors` | `model_patches/` | LLLite line-art patch (legacy, Preview3): Line art when any-test-like v2 is not installed | Alternative | [Download](https://huggingface.co/kohya-ss/Anima-LLLite/resolve/main/anima-lllite-lineart-1.safetensors) |
+| `anima-lllite-scribble-1.safetensors` | `model_patches/` | LLLite scribble patch (legacy, Preview3): Scribble when any-test-like v2 is not installed | Alternative | [Download](https://huggingface.co/kohya-ss/Anima-LLLite/resolve/main/anima-lllite-scribble-1.safetensors) |
 
 ### SDXL
 
@@ -194,6 +200,7 @@ page* links go to the model's own page where a direct link could not be verified
 
 | File | Folder (inside models/) | Used for | Need | Get it |
 |---|---|---|---|---|
+| `depth_anything_3_mono_large.safetensors` | `geometry_estimation/` | Depth Anything 3 (native depth maps): Depth maps without comfyui_controlnet_aux (official Anima depth template) | Optional | [Download](https://huggingface.co/Comfy-Org/Depth-Anything-3/resolve/main/geometry_estimation/depth_anything_3_mono_large.safetensors) |
 | `RealESRGAN_x4plus.safetensors` | `upscale_models/` | Upscale model: Upscale (all families) | Required | [Download](https://huggingface.co/Comfy-Org/Real-ESRGAN_repackaged/resolve/main/RealESRGAN_x4plus.safetensors) |
 | `face_yolov8m.pt` | `ultralytics/bbox/` | Face detector (Impact Subpack): Face Fix, Face Swap blend | Required | [Download](https://huggingface.co/Bingsu/adetailer/resolve/main/face_yolov8m.pt) |
 | `hand_yolov8s.pt` | `ultralytics/bbox/` | Hand detector (Impact Subpack): Hand Fix | Required | [Download](https://huggingface.co/Bingsu/adetailer/resolve/main/hand_yolov8s.pt) |
@@ -221,11 +228,14 @@ page* links go to the model's own page where a direct link could not be verified
 | `anima-lllite-any-test-like-v2.safetensors` | `models/model_patches/` | Anima |
 | `anima-lllite-depth-1.safetensors` | `models/model_patches/` | Anima |
 | `anima-lllite-inpainting-v2.safetensors` | `models/model_patches/` | Anima |
+| `anima-lllite-lineart-1.safetensors` | `models/model_patches/` | Anima |
 | `anima-lllite-pose-1.safetensors` | `models/model_patches/` | Anima |
+| `anima-lllite-scribble-1.safetensors` | `models/model_patches/` | Anima |
 | `anima-preview3-base.safetensors` | `models/diffusion_models/anima/regular/` | Anima |
 | `anima-turbo-lora-v0.2.safetensors` | `models/loras/anima/` | Anima |
 | `codeformer-v0.1.0.pth` | `models/facerestore_models/` | Shared |
 | `controlnet-union-sdxl-1.0-promax.safetensors` | `models/controlnet/SDXL/` | SDXL |
+| `depth_anything_3_mono_large.safetensors` | `models/geometry_estimation/` | Shared |
 | `face_yolov8m.pt` | `models/ultralytics/bbox/` | Shared |
 | `GFPGANv1.4.pth` | `models/facerestore_models/` | Shared |
 | `hand_yolov8s.pt` | `models/ultralytics/bbox/` | Shared |

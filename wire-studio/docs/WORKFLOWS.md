@@ -48,7 +48,8 @@ themselves live in code (`engine/families/*.mjs`) and as exported files (`../wor
 | Hand Fix | ✓ | ✓ | ✓ | ✓ |
 | Face Swap | **not offered** | ✓ ReActor + SDXL blend | ✓ ReActor + Z-Image blend | ✓ ReActor + Krea 2 blend |
 | Pose | ✓ LLLite pose (*weak*) | ✓ OpenPose / Union | ✓ Fun Union pose | *experimental*, depth-guided |
-| ControlNet | line art · canny · scribble · depth | canny · line art · scribble · depth · pose | canny · HED · depth · pose · M-LSD | depth |
+| ControlNet | line art · canny · scribble · grayscale · any · depth | canny · line art · scribble · depth · pose | canny · HED · depth · pose · M-LSD | depth |
+| Img2Img + Control | line art · canny · scribble · grayscale · depth · pose (weak) | — | — | — |
 | Upscale (+ detail) | ✓ | ✓ | ✓ (official 2K upscaler settings) | ✓ |
 
 ---
@@ -75,10 +76,18 @@ Reference templates: `image_anima_base_v1`, `image_anima_lllite_image_inpainting
 - **Outpaint**: `ImagePadForOutpaint` → Navier-Stokes pre-fill (`INPAINT_MaskedFill`, the cleanest
   seams in live tests) → the same LLLite path. The patch gets a *binary* mask (it was trained on
   binary masks); the feathered mask still drives noise and blending.
-- **ControlNet**: `any-test-like-v2` (the v1.0-era model, trained on line art / scribble /
-  grayscale) for line art, canny and scribble. Its input is **black lines on white**, so generated
-  maps are inverted, exactly like the official template's `Canny → ImageInvert`. Depth uses
-  `anima-lllite-depth-1` (white = near).
+- **ControlNet**: `any-test-like-v2` (the Base v1.0 model, trained on line art / scribble /
+  grayscale) for line art, canny, scribble, **grayscale** (a luminance map: tones and composition)
+  and **Any** (your own drawing or grayscale image, used as it is). Line input is **black lines on
+  white**, so generated line maps are inverted, exactly like the official template's
+  `Canny → ImageInvert`. Depth uses `anima-lllite-depth-1` (white = near) with a **native Depth
+  Anything 3** map (`v2_style`, as the official depth template) when its model is installed,
+  else comfyui_controlnet_aux's Depth Anything V2. Patch choice follows an explicit order
+  (v2 first, then the legacy `lineart-1` / `scribble-1`), and *Advanced → Control patch* can force
+  any installed Anima control patch.
+- **Img2Img + Control**: the source is encoded (`denoise` 0.6 by default) and an LLLite patch,
+  fed a map of the same source (or of a separate control image / ready map), keeps its structure:
+  line art, canny, scribble, grayscale, depth, or pose (weak, legacy patch).
 - **Pose**: `anima-lllite-pose-1` with a DWPose map. The model card says this pose model guides
   placement loosely, so it is labelled *Weak control* and Line art is suggested for strict poses.
 - **Face / Hand Fix**: Impact Pack `FaceDetailer` wired to Anima's own model, CLIP and VAE.
@@ -166,7 +175,7 @@ or a RAW file), `text_encoders/qwen3vl_4b_fp8_scaled.safetensors`, `vae/qwen_ima
 |---|---|---|
 | Face / hand detection | Impact Subpack `UltralyticsDetectorProvider` (`bbox/face_yolov8m.pt`, `bbox/hand_yolov8s.pt`, any eyes / lips bbox model) | The redraw itself always uses the calling family's model |
 | Face swap | ReActor `ReActorFaceSwap` (`inswapper_128.onnx`) | Pixel-level; followed by the family's own face pass |
-| Control maps | core `Canny`; `comfyui_controlnet_aux`: `DWPreprocessor`, `DepthAnythingV2Preprocessor`, `LineArtPreprocessor`, `HEDPreprocessor`, `FakeScribblePreprocessor`, `M-LSDPreprocessor` | Skippable: tick *Image is already a map* and upload your own |
+| Control maps | core `Canny`; core **Depth Anything 3** (`LoadDA3Model` → `DA3Inference` → `DA3Render`, used first when `models/geometry_estimation/` has a DA3 model); `comfyui_controlnet_aux`: `DWPreprocessor`, `DepthAnythingV2Preprocessor`, `LineArtPreprocessor`, `HEDPreprocessor`, `FakeScribblePreprocessor`, `M-LSDPreprocessor`, `ImageLuminanceDetector` (grayscale) | Skippable: tick *Image is already a map* and upload your own |
 | Outpaint pre-fill | `INPAINT_MaskedFill` (comfyui-inpaint-nodes), Navier-Stokes | Optional; plain grey padding otherwise |
 | Tiled refine | `UltimateSDUpscale` | Used automatically above 2304 px per side |
 | Background removal | ComfyUI-RMBG `BiRefNetRMBG` (or `RMBG`) | Tools → Remove background; no family involved |

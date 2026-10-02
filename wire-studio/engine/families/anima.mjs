@@ -39,6 +39,17 @@ function lllite(g, model, patch, image, p, mask, title) {
   return g.add("AnimaLLLiteApply", { model, model_patch: loader, image, mask, strength: c.clamp(p.strength ?? p.context, 1, 0, 2), start_percent: 0, end_percent: c.clamp(p.end, 1, 0.1, 1) }, "Apply " + title);
 }
 const patchFor = (ctx, re) => fam(ctx).patches.find((n) => re.test(n));
+// Ordered preference: the first pattern with an installed file wins (not the first file in
+// alphabetical order, which would pick legacy any-test-like-1 over v2).
+const preferPatch = (ctx, list) => {
+  for (const re of list) {
+    const hit = patchFor(ctx, re);
+    if (hit) return hit;
+  }
+  return null;
+};
+// Every installed Anima control patch (the inpaint patches are not control patches).
+const controlPatches = (ctx) => fam(ctx).patches.filter((n) => !/inpaint/i.test(n));
 const sampleAndDecode = (g, m, latent, p, denoise = 1) => c.decode(g, c.ksampler(g, { ...m, latent, sample: c.sampling(p, SAMPLE), denoise }), m.vae);
 
 const baseNeeds = (ctx) => [
@@ -50,12 +61,37 @@ const common = [field.model(), field.loras()];
 const advanced = [field.negative(NEGATIVE), field.seed(), field.sampling()];
 const turboField = field.toggle("turbo", "Turbo (8 steps)", false, { hint: "Uses the official Anima Turbo LoRA: 8 steps, CFG 1", preset: { on: { steps: 8, cfg: 1 }, off: { steps: 30, cfg: 4 } } });
 
+// Control types and the LLLite patch for each (kohya-ss Anima-LLLite: any-test-like-v2 is trained
+// on Anima Base v1.0 with line art, scribble and grayscale; the *-1 patches are legacy Preview3).
+// Line and scribble inputs are black on white, so generated maps are inverted (official template).
+const ANY = /any-test-like-v2/i;
 const CONTROL = {
-  lineart: { label: "Line art", patch: /any-test-like-v2|any-test-like|lineart/i, model: MODELS.animaAny, invert: true },
-  canny: { label: "Canny edges", patch: /any-test-like-v2|any-test-like|lineart/i, model: MODELS.animaAny, invert: true },
-  scribble: { label: "Scribble", patch: /scribble|any-test-like-v2|any-test-like/i, model: MODELS.animaAny, invert: true },
-  depth: { label: "Depth", patch: /lllite-depth/i, model: MODELS.animaDepth, invert: false },
+  lineart: { label: "Line art", patches: [ANY, /lllite-lineart/i, /any-test-like/i], model: MODELS.animaAny, invert: true },
+  canny: { label: "Canny edges", patches: [ANY, /lllite-lineart/i, /any-test-like/i], model: MODELS.animaAny, invert: true },
+  scribble: { label: "Scribble", patches: [ANY, /lllite-scribble/i, /any-test-like/i], model: MODELS.animaAny, invert: true },
+  gray: { label: "Grayscale (tones)", patches: [ANY], model: MODELS.animaAny, invert: false },
+  // Any-control: your own line drawing, scribble or grayscale image, used as it is.
+  any: { label: "Any (your own drawing)", patches: [ANY], model: MODELS.animaAny, invert: false, asIs: true },
+  depth: { label: "Depth", patches: [/lllite-depth/i], model: MODELS.animaDepth, invert: false },
 };
+const { any: _ownDrawing, ...CONTROL_FROM_PHOTO } = CONTROL;
+const CONTROL_IMG2IMG = { ...CONTROL_FROM_PHOTO, pose: { label: "Pose (weak)", patches: [/lllite-pose/i], model: MODELS.animaPose, invert: false, status: "partial" } };
+const kindChoices = (table) => Object.entries(table).map(([k, v]) => ({ ...choice(k, v.label), ...(v.status ? { status: v.status } : {}) }));
+// The patch for a control type, or the one picked under Advanced (any installed control patch).
+function controlPatch(ctx, spec, wanted) {
+  if (wanted) {
+    if (controlPatches(ctx).includes(wanted)) return wanted;
+    throw c.missing(`Anima control patch "${wanted}"`, spec.model);
+  }
+  const patch = preferPatch(ctx, spec.patches);
+  if (!patch) throw c.missing(`Anima LLLite ${spec.label.toLowerCase()} patch`, spec.model);
+  return patch;
+}
+const controlNeeds = (ctx) => [
+  need.node(ctx, "AnimaLLLiteApply", PACKS.core, "Applies the control patch"),
+  need.model(preferPatch(ctx, CONTROL.lineart.patches), MODELS.animaAny, "Anima LLLite any-test-like v2", "Line art / canny / scribble / grayscale control"),
+  need.model(preferPatch(ctx, CONTROL.depth.patches), MODELS.animaDepth, "Anima LLLite depth", "Depth control", "recommended"),
+];
 
 export default {
   id: "anima",
@@ -181,7 +217,7 @@ export default {
       evidence: "official",
       verified: "graph",
       fields: [
-        field.select("kind", "Control type", Object.entries(CONTROL).map(([k, v]) => choice(k, v.label)), "lineart"),
+        field.select("kind", "Control type", kindChoices(CONTROL), "lineart"),
         field.image("image", "Control image", { hint: "A picture to take the structure from, or a ready map" }),
         field.toggle("isMap", "Image is already a map", false),
         field.prompt({ placeholder: "Describe the new picture" }),
@@ -189,26 +225,58 @@ export default {
         field.slider("strength", "Control strength", 0.2, 2, 0.05, 1),
         field.slider("end", "Release control at", 0.3, 1, 0.05, 1, { advanced: true, hint: "Lower lets the model finish details freely" }),
         field.toggle("invertMap", "Invert map", false, { advanced: true, hint: "Anima line models expect black lines on white" }),
+        field.select("patch", "Control patch", "controlPatches", "", { advanced: true, hint: "Automatic picks the Base v1.0 any-test-like v2 patch for lines, scribble and grayscale" }),
         ...common,
         ...advanced,
       ],
-      needs: (ctx) => [
-        ...baseNeeds(ctx),
-        need.node(ctx, "AnimaLLLiteApply", PACKS.core, "Applies the control patch"),
-        need.model(patchFor(ctx, CONTROL.lineart.patch), MODELS.animaAny, "Anima LLLite any-test-like v2", "Line art / canny / scribble control"),
-        need.model(patchFor(ctx, CONTROL.depth.patch), MODELS.animaDepth, "Anima LLLite depth", "Depth control", "recommended"),
-        ...mapNeeds(ctx, ["lineart", "depth"]),
-      ],
+      needs: (ctx) => [...baseNeeds(ctx), ...controlNeeds(ctx), ...mapNeeds(ctx, ["lineart", "depth", "gray"])],
       build(g, p, ctx) {
         const spec = CONTROL[p.kind] || CONTROL.lineart;
-        const patch = patchFor(ctx, spec.patch);
-        if (!patch) throw c.missing(`Anima LLLite ${spec.label.toLowerCase()} patch`, spec.model);
+        const patch = controlPatch(ctx, spec, p.patch);
         const m = loaders(g, p, ctx);
         Object.assign(m, prompts(g, m, p));
         const { width, height, batch } = c.outputSize(p);
-        const map = c.controlMap(g, CONTROL[p.kind] ? p.kind : "lineart", c.loadImage(g, p.image, "Control image"), p, { width, height, invert: spec.invert });
+        const kind = CONTROL[p.kind] ? p.kind : "lineart";
+        const map = c.controlMap(g, kind, c.loadImage(g, p.image, "Control image"), { ...p, isMap: spec.asIs || p.isMap }, { width, height, invert: spec.invert });
         m.model = lllite(g, m.model, patch, map, p, undefined, spec.label.toLowerCase() + " control (LLLite)");
         return sampleAndDecode(g, m, g.add("EmptyLatentImage", { width, height, batch_size: batch }, "Empty canvas"), p);
+      },
+    },
+    "img2img-control": {
+      evidence: "composed",
+      verified: "graph",
+      notes: ["Redraws the source while an LLLite patch holds its structure. The map is made from the source unless you add a separate control image."],
+      fields: [
+        field.image("image", "Source image"),
+        field.select("kind", "Keep from the source", kindChoices(CONTROL_IMG2IMG), "lineart"),
+        field.prompt({ placeholder: "Describe the whole picture as it should look" }),
+        field.slider("denoise", "Change strength", 0.2, 1, 0.01, 0.6, { hint: "How much is redrawn; the control keeps the structure" }),
+        field.slider("strength", "Control strength", 0.2, 2, 0.05, 0.8),
+        field.image("control", "Separate control image", { optional: true, advanced: true, hint: "Optional: take the structure from another image (or a ready map)" }),
+        field.toggle("isMap", "Control image is already a map", false, { advanced: true, when: "control" }),
+        field.slider("end", "Release control at", 0.3, 1, 0.05, 1, { advanced: true }),
+        field.select("patch", "Control patch", "controlPatches", "", { advanced: true }),
+        ...common,
+        turboField,
+        ...advanced,
+      ],
+      needs: (ctx) => [...baseNeeds(ctx), ...controlNeeds(ctx), need.model(patchFor(ctx, /lllite-pose/i), MODELS.animaPose, "Anima LLLite pose", "Pose type", "recommended"), ...mapNeeds(ctx, ["lineart", "depth", "gray", "pose"])],
+      build(g, p, ctx) {
+        const kind = CONTROL_IMG2IMG[p.kind] ? p.kind : "lineart";
+        const spec = CONTROL_IMG2IMG[kind];
+        const patch = controlPatch(ctx, spec, p.patch);
+        const m = loaders(g, p, ctx);
+        Object.assign(m, prompts(g, m, p));
+        const src = c.loadImage(g, p.image, "Source image");
+        const { w, h } = c.sourceSize(p);
+        const width = c.round(w, 16), height = c.round(h, 16);
+        // The map comes from the source itself unless a separate control image is given; a
+        // ready-made map is only possible for that separate image.
+        const ref = p.control ? c.loadImage(g, p.control, "Control image") : src;
+        const map = c.controlMap(g, kind, ref, { ...p, isMap: !!(p.control && p.isMap) }, { width, height, invert: spec.invert });
+        m.model = lllite(g, m.model, patch, map, { ...p, strength: c.clamp(p.strength, 0.8, 0, 2) }, undefined, spec.label.toLowerCase() + " control (LLLite)");
+        const latent = c.encode(g, c.scaleImage(g, src, width, height, "disabled", "Fit source to /16"), m.vae);
+        return sampleAndDecode(g, m, latent, p, c.clamp(p.denoise, 0.6, 0.05, 1));
       },
     },
     upscale: {

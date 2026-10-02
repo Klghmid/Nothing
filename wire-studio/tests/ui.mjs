@@ -64,6 +64,16 @@ try {
     const kinds = await page.locator(".field:has(label:text-is('Control type')) option").allTextContents();
     assert.deepEqual(kinds, ["Depth"]);
   });
+  await check("Anima Img2Img + Control: control types and only control patches are offered", async () => {
+    await page.click(".family:has-text('Anima')");
+    await page.click(".task:has-text('Img2Img + Control')");
+    const kinds = await page.locator(".field:has(label:text-is('Keep from the source')) option").allTextContents();
+    assert.deepEqual(kinds, ["Line art", "Canny edges", "Scribble", "Grayscale (tones)", "Depth", "Pose (weak)"]);
+    await page.click("details.advanced summary:has-text('Advanced')");
+    const patches = await page.locator(".field:has(label:text-is('Control patch')) option").allTextContents();
+    assert.ok(patches.includes("anima-lllite-any-test-like-v2") && !patches.some((p) => /inpainting/.test(p)), patches.join());
+    await page.click("details.advanced summary:has-text('Advanced')");
+  });
   await check("generate shows live progress, then the result", async () => {
     await page.click(".family:has-text('Anima')");
     await page.click(".task:has-text('Text to Image')");

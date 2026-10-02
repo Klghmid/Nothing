@@ -91,3 +91,29 @@ See the generated [CAPABILITY_MATRIX.md](CAPABILITY_MATRIX.md); at baseline it r
 | Remove Background | READY † (shared) | READY † | READY † | READY † |
 | Style Reference | UNSUPPORTED | MISSING | MISSING | READY † |
 | Identity Editing | UNSUPPORTED | MISSING | MISSING | READY † (two-image defect, #1) |
+
+## Phase 1 — Anima LLLite expansion and controlled Img2Img
+
+Research: [WORKFLOW_RESEARCH.md § Phase 1](WORKFLOW_RESEARCH.md#phase-1--anima-lllite-control-and-controlled-img2img).
+
+| Workflow | Status | Required | Tests | Export |
+|---|---|---|---|---|
+| Anima · ControlNet · line art / canny / scribble | READY † (unchanged path; patch choice fixed) | `AnimaLLLiteApply` (core), `anima-lllite-any-test-like-v2` (or legacy `lineart-1` / `scribble-1`) | preference order, file order independence | `anima/control-{lineart,canny,scribble}.json` |
+| Anima · ControlNet · **grayscale** (new) | READY † | any-test-like-v2; `ImageLuminanceDetector` (comfyui_controlnet_aux) or an uploaded grayscale map | luminance map, no inversion, refused without v2 | `anima/control-gray.json` |
+| Anima · ControlNet · **any (your own drawing)** (new) | READY † | any-test-like-v2 | no preprocessor, never offered on a source photo | `anima/control-any.json` |
+| Anima · ControlNet · depth | READY † | `anima-lllite-depth-1`; **native Depth Anything 3** when installed, else Depth Anything V2 (aux) | native first, aux fallback, dynamic-combo inputs kept | `anima/control-depth.json` |
+| Anima · **Img2Img + Control** (new) | READY † (pose type PARTIAL) | as above + `anima-lllite-pose-1` for pose | encoded source latent, map from the source or a separate image, ready maps only for the separate image | `anima/img2img-control-*.json` |
+
+Engine changes made for this phase, each covered by tests: ordered patch preference (latent
+defect: alphabetical file order could select a legacy patch), the `controlPatches` inventory list
+and *Advanced → Control patch* picker (inpaint patches excluded, other families' patches refused),
+preprocessor entries that are native node chains with a model requirement (Depth Anything 3), and
+dynamic-combo support in `finalize()` and the validator.
+
+Results: `npm test` 156/156 · browser checks 13/13 · live ComfyUI 0.38.0 validator 68/68
+workflows (incl. the DA3 chain with a placeholder `depth_anything_3_mono_large.safetensors`).
+Not run on a GPU: every new Anima workflow (†).
+
+Not in this phase (later phases of the plan): Anima object remove / replace, background replace,
+regional edit, guided outpaint and reframe (Phases 7–8 build these on each family's own masked
+redraw), and the enhancement workflows (Phase 15).

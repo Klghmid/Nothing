@@ -55,3 +55,69 @@ Status of the method itself:
 | [cubiq/PuLID_ComfyUI](https://github.com/cubiq/PuLID_ComfyUI) `93e0c4c` | PuLID SDXL nodes (research only) |
 | [1038lab/ComfyUI-RMBG](https://github.com/1038lab/ComfyUI-RMBG) `229529e` | Text-prompted SAM 3 segmentation and clothing / face / body segmenters |
 | [Fannovel16/comfyui_controlnet_aux](https://github.com/Fannovel16/comfyui_controlnet_aux) `0cd2904` | Preprocessor node names and inputs |
+
+---
+
+## Phase 1 — Anima LLLite control and controlled Img2Img
+
+**Family:** Anima only. **Architecture:** Anima (Cosmos-Predict2 DiT, 2B) with kohya-ss
+ControlNet-LLLite patches applied to the model (`AnimaLLLiteApply`, ComfyUI core,
+`comfy_extras/nodes_model_patch.py`, added by Comfy-Org/ComfyUI PR #14954). LLLite does **not**
+use ControlNet conditioning: it patches the model, so it composes with any latent start
+(empty latent or an encoded image).
+
+| Item | Finding | Source |
+|---|---|---|
+| Diffusion model | `anima-base-v1.0.safetensors` (`UNETLoader`, `diffusion_models/`) | official templates |
+| Text encoder | `qwen_3_06b_base.safetensors`, `CLIPLoader` type `stable_diffusion` | official templates |
+| VAE | `qwen_image_vae.safetensors` | official templates |
+| LoRAs | model-only (`LoraLoaderModelOnly`); optional official Turbo LoRA (8 steps, CFG 1) | official templates (`ComfySwitchNode` Turbo switch) |
+| Control node | `ModelPatchLoader(name)` → `AnimaLLLiteApply(model, model_patch, image, strength, start_percent, end_percent, mask?)` → `MODEL` | live `/object_info`; templates |
+| Sampling | KSampler 30 steps · CFG 4 · euler / simple (Turbo: 8 · 1) | templates |
+| Patch defaults | strength 1, start 0, end 1 | templates |
+
+**Current patches** *(card, via search: kohya-ss/Anima-LLLite README)*:
+
+| Patch | Trained on | Input convention | Use |
+|---|---|---|---|
+| `anima-lllite-inpainting-v2` | Anima Base v1.0 | RGB + mask | inpaint / outpaint (existing) |
+| `anima-lllite-any-test-like-v2` | Anima Base v1.0 | mixed **line art, scribble and grayscale**, heavily augmented; lines black on white | line art, canny, scribble, **grayscale** (new) |
+| `anima-lllite-lineart-1` | Preview3 (legacy) | white background, black lines | line art fallback |
+| `anima-lllite-scribble-1` | Preview3 (legacy) | fake scribble (HED / PiDiNet) | scribble fallback |
+| `anima-lllite-depth-1` | Preview3 (legacy) | white = near, Depth Anything V2 | depth (only depth patch) |
+| `anima-lllite-pose-1` | Preview3 (legacy) | DWPose colored skeleton + face / hands | pose (only pose patch; loose) |
+| `anima-lllite-any-test-like-1-step*`, `inpainting-v1` | Preview3 (legacy) | — | superseded by the v2 files |
+
+**Preprocessors.** The official any-control template uses core `Canny(0.17, 0.45)` →
+`ImageInvert`; the official depth template uses **native Depth Anything 3**
+(`LoadDA3Model` → `DA3Inference(504, upper_bound_resize, mono)` → `DA3Render(output=depth,
+normalization=v2_style)`, model `geometry_estimation/depth_anything_3_mono_large.safetensors`),
+whose `v2_style` normalisation matches the Depth Anything V2 maps the depth patch was trained on.
+ComfyUI core has no line-art, scribble, HED, M-LSD or grayscale preprocessor (checked: core node
+list and `blueprints/`); those stay on `comfyui_controlnet_aux` (`LineArtPreprocessor`,
+`FakeScribblePreprocessor` / `PiDiNetPreprocessor` / `HEDPreprocessor`,
+`ImageLuminanceDetector` — the sd-webui-controlnet "recolor / luminance" map — for grayscale).
+Native pose (SDPose) loads its model through `CheckpointLoaderSimple`, which the family guard
+reserves for SDXL, so in-graph pose maps keep using DWPose; native SDPose is offered by the
+Control Map tool (Phase 9), whose maps can be uploaded as ready maps.
+
+DA3's `mode` / `output` inputs are *dynamic combos* (`COMFY_DYNAMICCOMBO_V3`): in API format the
+chosen option's inputs are sent as `output.normalization`, `output.apply_sky_clip`. The engine's
+conform step now expands them like ComfyUI (`_io.py` DynamicCombo).
+
+**Patch choice order** (fixes a latent defect: the old regex picked the *first installed file
+alphabetically*, so `any-test-like-1-step1000` beat `any-test-like-v2`): line art / canny →
+any-test-like-v2, lineart-1, any-test-like-1; scribble → any-test-like-v2, scribble-1,
+any-test-like-1; grayscale → any-test-like-v2 only; depth → depth-1; pose → pose-1. An advanced
+*Control patch* select lets you force any installed Anima control patch.
+
+**Controlled Img2Img** (*composed*): `VAEEncode(source)` as the latent with `denoise` < 1, plus
+the LLLite patch fed with a map made from the source (or from a separate control image).
+Each step is documented (img2img = existing, run on a GPU; LLLite = official); the combination
+is graph-validated only. Defaults: change strength 0.6, control strength 0.8, release at 1.0.
+Pose keeps the *Weak control* limitation of the legacy pose patch.
+
+**Status:** line art, canny, scribble, depth → READY (official patches / templates);
+grayscale → READY (documented mode of any-test-like-v2); pose → PARTIAL (legacy patch);
+Img2Img + Control → READY † (composed). **VRAM:** not measured here (no GPU); an LLLite patch is
+small next to the 2B model, and the map preprocessors load their own models once.

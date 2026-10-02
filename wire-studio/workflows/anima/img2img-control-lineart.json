@@ -1,0 +1,232 @@
+{
+  "1": {
+    "class_type": "UNETLoader",
+    "inputs": {
+      "unet_name": "anima-base-v1.0.safetensors",
+      "weight_dtype": "default"
+    },
+    "_meta": {
+      "title": "Anima model"
+    }
+  },
+  "2": {
+    "class_type": "CLIPLoader",
+    "inputs": {
+      "clip_name": "qwen_3_06b_base.safetensors",
+      "type": "stable_diffusion",
+      "device": "default"
+    },
+    "_meta": {
+      "title": "Text encoder (Qwen3 0.6B)"
+    }
+  },
+  "3": {
+    "class_type": "VAELoader",
+    "inputs": {
+      "vae_name": "qwen_image_vae.safetensors"
+    },
+    "_meta": {
+      "title": "Qwen Image VAE"
+    }
+  },
+  "4": {
+    "class_type": "CLIPTextEncode",
+    "inputs": {
+      "text": "Describe the whole picture as it should look",
+      "clip": [
+        "2",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "Prompt"
+    }
+  },
+  "5": {
+    "class_type": "CLIPTextEncode",
+    "inputs": {
+      "text": "worst quality, low quality, score_1, score_2, score_3, blurry, jpeg artifacts, sepia",
+      "clip": [
+        "2",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "Negative prompt"
+    }
+  },
+  "6": {
+    "class_type": "LoadImage",
+    "inputs": {
+      "image": "input.png"
+    },
+    "_meta": {
+      "title": "Source image"
+    }
+  },
+  "7": {
+    "class_type": "LineArtPreprocessor",
+    "inputs": {
+      "image": [
+        "6",
+        0
+      ],
+      "resolution": 1024,
+      "coarse": "disable"
+    },
+    "_meta": {
+      "title": "Make lineart map"
+    }
+  },
+  "8": {
+    "class_type": "ImageInvert",
+    "inputs": {
+      "image": [
+        "7",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "Invert map"
+    }
+  },
+  "9": {
+    "class_type": "ImageScale",
+    "inputs": {
+      "image": [
+        "8",
+        0
+      ],
+      "upscale_method": "lanczos",
+      "width": 1024,
+      "height": 1024,
+      "crop": "center"
+    },
+    "_meta": {
+      "title": "Fit map to output size"
+    }
+  },
+  "10": {
+    "class_type": "ModelPatchLoader",
+    "inputs": {
+      "name": "anima-lllite-any-test-like-v2.safetensors"
+    },
+    "_meta": {
+      "title": "line art control (LLLite) patch"
+    }
+  },
+  "11": {
+    "class_type": "AnimaLLLiteApply",
+    "inputs": {
+      "model": [
+        "1",
+        0
+      ],
+      "model_patch": [
+        "10",
+        0
+      ],
+      "image": [
+        "9",
+        0
+      ],
+      "strength": 0.8,
+      "start_percent": 0,
+      "end_percent": 1
+    },
+    "_meta": {
+      "title": "Apply line art control (LLLite)"
+    }
+  },
+  "12": {
+    "class_type": "ImageScale",
+    "inputs": {
+      "image": [
+        "6",
+        0
+      ],
+      "upscale_method": "lanczos",
+      "width": 1024,
+      "height": 1024,
+      "crop": "disabled"
+    },
+    "_meta": {
+      "title": "Fit source to /16"
+    }
+  },
+  "13": {
+    "class_type": "VAEEncode",
+    "inputs": {
+      "pixels": [
+        "12",
+        0
+      ],
+      "vae": [
+        "3",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "Encode image"
+    }
+  },
+  "14": {
+    "class_type": "KSampler",
+    "inputs": {
+      "model": [
+        "11",
+        0
+      ],
+      "positive": [
+        "4",
+        0
+      ],
+      "negative": [
+        "5",
+        0
+      ],
+      "latent_image": [
+        "13",
+        0
+      ],
+      "seed": 123456789,
+      "steps": 30,
+      "cfg": 4,
+      "sampler_name": "euler",
+      "scheduler": "simple",
+      "denoise": 0.6
+    },
+    "_meta": {
+      "title": "Sampler"
+    }
+  },
+  "15": {
+    "class_type": "VAEDecode",
+    "inputs": {
+      "samples": [
+        "14",
+        0
+      ],
+      "vae": [
+        "3",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "Decode"
+    }
+  },
+  "16": {
+    "class_type": "SaveImage",
+    "inputs": {
+      "images": [
+        "15",
+        0
+      ],
+      "filename_prefix": "WireStudio/anima-img2img-control"
+    },
+    "_meta": {
+      "title": "Save image"
+    }
+  }
+}

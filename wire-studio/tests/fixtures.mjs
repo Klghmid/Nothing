@@ -9,6 +9,11 @@ const S = (def = "", multiline = false) => ["STRING", { default: def, multiline 
 const C = (list, def) => [list, def === undefined ? {} : { default: def }];
 const N = (list) => ["COMBO", { options: list, default: list[0] }]; // newer combo format
 const node = (required, optional = {}, output = []) => ({ input: { required, optional }, output, output_name: output });
+// Nodes with dynamic-combo inputs are copied from the real snapshot (tests/live-object-info.json)
+// instead of being re-typed by hand.
+import fs from "node:fs";
+const LIVE = JSON.parse(fs.readFileSync(new URL("./live-object-info.json", import.meta.url), "utf8")).nodes;
+const live = (type) => structuredClone({ input: LIVE[type].input, output: LIVE[type].output, output_name: LIVE[type].output_name });
 
 export const FILES = {
   checkpoints: ["Illustrious-XL-v2.0.safetensors", "SDXL/juggernautXL_v9.safetensors", "noobaiXLNAIXL_vPred10.safetensors", "sdpose_wholebody_fp16.safetensors", "sd15/dreamshaper_8.safetensors", "mystery_mix_v3.safetensors", "sd_xl_refiner_1.0.safetensors", "SDXL/turbo/dreamshaperMix_v8.safetensors", "Z-Image/turbo/z_image_turbo_aio.safetensors"],
@@ -37,6 +42,7 @@ export const FILES = {
   controlnets: ["SDXL/controlnet-union-sdxl-1.0-promax.safetensors", "control_v11p_sd15_openpose.pth", "sdxl/diffusers_xl_canny_full.safetensors"],
   upscalers: ["RealESRGAN_x4plus.safetensors", "4x-AnimeSharp.pth"],
   detectors: ["bbox/face_yolov8m.pt", "bbox/hand_yolov8s.pt", "bbox/Eyes.pt", "segm/person_yolov8m-seg.pt"],
+  da3: ["depth_anything_3_mono_large.safetensors"],
   inputs: ["example.png"],
 };
 const SAMPLERS = ["euler", "euler_ancestral", "dpmpp_2m", "dpmpp_2m_sde", "res_multistep", "er_sde", "uni_pc"];
@@ -133,6 +139,12 @@ export function objectInfo(files = FILES, { without = [] } = {}) {
     PiDiNetPreprocessor: node({ image: L("IMAGE") }, { safe: C(ONOFF), resolution: I(512, 64) }, ["IMAGE"]),
     FakeScribblePreprocessor: node({ image: L("IMAGE") }, { safe: C(ONOFF), resolution: I(512, 64) }, ["IMAGE"]),
     "M-LSDPreprocessor": node({ image: L("IMAGE") }, { score_threshold: F(0.1, 0.01, 2), dist_threshold: F(0.1, 0.01, 20), resolution: I(512, 64) }, ["IMAGE"]),
+    ImageLuminanceDetector: node({ image: L("IMAGE") }, { gamma_correction: F(1, 0.1, 2), resolution: I(512, 64, 16384) }, ["IMAGE"]),
+    ImageIntensityDetector: node({ image: L("IMAGE") }, { gamma_correction: F(1, 0.1, 2), resolution: I(512, 64, 16384) }, ["IMAGE"]),
+    // Native Depth Anything 3 (ComfyUI core)
+    LoadDA3Model: node({ model_name: N(files.da3 || []), weight_dtype: N(["default", "fp16", "bf16", "fp32"]) }, {}, ["DA3_MODEL"]),
+    DA3Inference: live("DA3Inference"),
+    DA3Render: live("DA3Render"),
     // ComfyUI-RMBG
     BiRefNetRMBG: node({ image: L("IMAGE"), model: C(["BiRefNet-general", "BiRefNet-HR", "BiRefNet-portrait"]) }, { sensitivity: F(1, 0, 1), mask_blur: I(0, 0, 64), mask_offset: I(0, -20, 20), invert_output: B(false), refine_foreground: B(false), unload_model: B(false), background: C(["Alpha", "Color"]), background_color: ["COLORCODE", { default: "#222222" }] }, ["IMAGE", "MASK", "IMAGE"]),
     // comfyui-inpaint-nodes
@@ -170,7 +182,7 @@ export function objectInfo(files = FILES, { without = [] } = {}) {
   return info;
 }
 
-export const CUSTOM_NODES = ["UltralyticsDetectorProvider", "FaceDetailer", "ReActorFaceSwap", "DWPreprocessor", "DepthAnythingV2Preprocessor", "LineArtPreprocessor", "AnimeLineArtPreprocessor", "HEDPreprocessor", "PiDiNetPreprocessor", "FakeScribblePreprocessor", "M-LSDPreprocessor", "BiRefNetRMBG", "INPAINT_MaskedFill", "UltimateSDUpscale", "Krea2ControlLoRALoader", "Krea2ControlApply", "Krea2ControlImageEncode", "Krea2EditModelPatch", "Krea2EditGroundedEncode"];
+export const CUSTOM_NODES = ["UltralyticsDetectorProvider", "FaceDetailer", "ReActorFaceSwap", "DWPreprocessor", "DepthAnythingV2Preprocessor", "LineArtPreprocessor", "AnimeLineArtPreprocessor", "HEDPreprocessor", "PiDiNetPreprocessor", "FakeScribblePreprocessor", "M-LSDPreprocessor", "ImageLuminanceDetector", "ImageIntensityDetector", "BiRefNetRMBG", "INPAINT_MaskedFill", "UltimateSDUpscale", "Krea2ControlLoRALoader", "Krea2ControlApply", "Krea2ControlImageEncode", "Krea2EditModelPatch", "Krea2EditGroundedEncode"];
 
 // Parameters that make every task buildable (image names are just strings for LoadImage).
 export function sampleParams(task) {
@@ -185,6 +197,7 @@ export function sampleParams(task) {
     faceswap: { image: "example.png", face: "face.png" },
     pose: { image: "example.png" },
     control: { image: "example.png", kind: "depth" },
+    "img2img-control": { image: "example.png", kind: "lineart", denoise: 0.6 },
     upscale: { image: "example.png", scale: 2, refine: true },
   };
   return { ...base, ...(byTask[task] || {}) };
