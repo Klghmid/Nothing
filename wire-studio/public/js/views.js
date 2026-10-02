@@ -204,12 +204,25 @@ export function setup(focus = {}) {
     "div",
     { class: "card", id: "library" },
     h("h3", {}, icon("layers"), "Library"),
-    h("div", { class: "muted" }, "Files are sorted into families by folder or file name (e.g. loras/Anima/…, loras/sdxl/…). Anything unclear is listed here so it is never mixed into the wrong workflow."),
+    h("div", { class: "muted" }, "Files are sorted into families by their folder (loras/SDXL/…, diffusion_models/z-image/turbo/…, any depth), else by file name. A turbo/ or regular/ folder sets the sampling preset. Anything unclear is listed here so it is never mixed into the wrong workflow."),
+    h("div", { class: "chips" }, h("a", { class: "btn small", href: "/guide", target: "_blank", rel: "noreferrer" }, icon("info"), "ComfyUI folder guide")),
     inv
       ? h(
           "div",
           { class: "kv" },
-          families.map((f) => h("span", {}, famLabel(f), ": ", h("b", {}, `${inv.families[f]?.models?.length || 0} models`), ` · ${inv.families[f]?.loras?.length || 0} LoRAs`)),
+          families.map((f) => {
+            const fam = inv.families[f] || {};
+            const turbo = Object.values(fam.variants || {}).filter((x) => x === "turbo").length;
+            return h("span", {}, famLabel(f), ": ", h("b", {}, `${fam.models?.length || 0} models`), turbo ? ` (${turbo} turbo)` : "", ` · ${fam.loras?.length || 0} LoRAs`);
+          }),
+        )
+      : null,
+    inv?.misplaced?.length
+      ? h(
+          "div",
+          { class: "notice warn" },
+          icon("alert"),
+          h("div", {}, h("b", {}, "These files cannot be loaded where they are"), h("div", {}, "Anima, Z-Image and Krea 2 models are diffusion models; ComfyUI only loads them from models/diffusion_models (or models/unet)."), inv.misplaced.map((m) => h("div", { class: "mono" }, `models/${m.folder}/${m.name}  →  models/${m.should}/${m.name}`))),
         )
       : null,
     unsorted.length

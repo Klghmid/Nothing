@@ -12,6 +12,7 @@ import { createComfy, normalizeUrl } from "./lib/comfy.mjs";
 import { createProgress } from "./lib/progress.mjs";
 import { createJobs } from "./lib/jobs.mjs";
 import { buildWorkflow, buildUtility, readiness, readInventory, schema, FAMILIES } from "./engine/index.mjs";
+import { markdown, guidePage } from "./lib/markdown.mjs";
 
 const root = path.dirname(fileURLToPath(import.meta.url));
 const dataDir = path.resolve(process.env.WIRE_DATA || path.join(root, "data"));
@@ -308,6 +309,14 @@ async function route(req, res, url) {
     clients.add(res);
     req.on("close", () => clients.delete(res));
     return;
+  }
+
+  // Bundled guides rendered from docs/*.md (the same files as in the repository).
+  const GUIDES = { "/guide": "MODEL-FOLDERS.md", "/guide/workflows": "WORKFLOWS.md" };
+  if (GUIDES[p] && m === "GET") {
+    const text = await fsp.readFile(path.join(root, "docs", GUIDES[p]), "utf8");
+    res.writeHead(200, { "content-type": "text/html; charset=utf-8", "cache-control": "no-cache" });
+    return res.end(guidePage(text.match(/^# (.+)$/m)?.[1] || "Guide", markdown(text)));
   }
 
   if (p.startsWith("/api/")) return send(res, 404, { error: "Not found" });

@@ -39,16 +39,20 @@ expose it to the internet.
 and model files that workflow uses, which are missing, the folder each file goes in and a download
 link. **Re-check** after installing.
 
-Models are sorted into families by **folder** first, then by file name, so keep them apart:
+Models are sorted into families by **folder** first (at any depth), then by file name, and a
+`turbo/` or `regular/` folder picks the sampling preset:
 
 ```
-models/diffusion_models/   anima-base-v1.0, z_image_turbo_bf16, krea2_turbo_fp8_scaled …
-models/checkpoints/        your SDXL / Illustrious / NoobAI / Pony checkpoints
-models/loras/Anima/  models/loras/sdxl/  models/loras/zimage/  models/loras/krea2/
+models/checkpoints/SDXL/regular/        models/checkpoints/SDXL/turbo/
+models/diffusion_models/anima/…         models/diffusion_models/z-image/turbo/   …/krea2/regular/
+models/loras/anima/<any sub-folders>    models/loras/SDXL/…   models/loras/z-image/…   models/loras/krea2/…
 ```
 
-A file whose family cannot be told (e.g. `my_style.safetensors` in the root folder) appears under
-**Setup → Library**; assign it to a family once and it is remembered.
+The full layout, every file and where it goes, is in the **ComfyUI folder guide**:
+[docs/MODEL-FOLDERS.md](docs/MODEL-FOLDERS.md), also at http://127.0.0.1:5180/guide and from
+**Setup → Library**. A file whose family cannot be told appears under **Setup → Library**;
+assign it to a family once and it is remembered. Files in a folder ComfyUI cannot load them from
+(for example a Z-Image model under `checkpoints/`) are listed there with where to move them.
 
 Custom node packs used by some tasks (each task tells you if it needs one):
 [Impact Pack](https://github.com/ltdrdata/ComfyUI-Impact-Pack) + [Subpack](https://github.com/ltdrdata/ComfyUI-Impact-Subpack) (face / hand fix),

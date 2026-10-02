@@ -117,15 +117,35 @@ const R = {
     const inv = famInventory();
     const models = inv.models || [];
     const unverified = new Set(inv.unverified || []);
-    const sel = h("select", { onchange: (e) => onModel(e.target.value) });
-    sel.append(h("option", { value: "" }, models.length ? "Automatic (recommended)" : "No models found"));
-    const known = models.filter((m) => !unverified.has(m));
+    const variants = inv.variants || {};
+    const presets = famSchema().presets || {};
+    const label = (m) => `${shortName(m)}  ·  ${presets[variants[m]]?.label || (variants[m] === "turbo" ? "Turbo" : "Regular")}`;
+    const sel = h("select", { "aria-label": fld.label, onchange: (e) => onModel(e.target.value) });
+    if (!models.length) sel.append(h("option", { value: "" }, "No models found"));
+    // Options grouped by folder, so subfolders (e.g. z-image/turbo, SDXL/regular) stay visible.
+    const groups = new Map();
+    for (const m of models.filter((x) => !unverified.has(x))) {
+      const g = folderOf(m) || "Top folder";
+      if (!groups.has(g)) groups.set(g, []);
+      groups.get(g).push(m);
+    }
+    for (const [g, list] of groups) {
+      const opts = list.map((m) => h("option", { value: m }, label(m)));
+      if (groups.size > 1 || g !== "Top folder") sel.append(h("optgroup", { label: g }, opts));
+      else sel.append(...opts);
+    }
     const odd = models.filter((m) => unverified.has(m));
-    for (const m of known) sel.append(h("option", { value: m }, shortName(m)));
-    if (odd.length) sel.append(h("optgroup", { label: "Unrecognized names (assign in Setup)" }, odd.map((m) => h("option", { value: m }, shortName(m)))));
+    if (odd.length) sel.append(h("optgroup", { label: "Unrecognized names (assign in Setup)" }, odd.map((m) => h("option", { value: m }, label(m)))));
     if (v.model && !models.includes(v.model)) sel.append(h("option", { value: v.model }, shortName(v.model) + " (missing)"));
     sel.value = v.model || "";
-    return h("div", { class: "field" }, h("label", {}, fld.label, v.model ? h("span", { class: "hint mono", title: v.model }, folderOf(v.model)) : null), sel);
+    const variant = variants[v.model];
+    return h(
+      "div",
+      { class: "field" },
+      h("label", {}, fld.label, v.model ? h("span", { class: "hint mono", title: v.model }, folderOf(v.model)) : null),
+      sel,
+      variant ? h("div", { class: "hint" }, `${presets[variant]?.label || variant} settings applied automatically (change them under Advanced).`) : null,
+    );
   },
   loras(fld, v) {
     const list = v.loras || [];
@@ -244,17 +264,31 @@ const R = {
 };
 const folderOf = (n) => (String(n).includes("/") ? String(n).split("/").slice(0, -1).join("/") : "");
 
+// Choosing a model applies its variant's preset (Turbo / Regular, from the inventory, which
+// reads turbo/ and regular/ folders or the file name).
+function applyPreset(v, name) {
+  const variant = famInventory().variants?.[name];
+  const preset = variant && famSchema().presets?.[variant];
+  if (!preset) return null;
+  const changed = ["steps", "cfg", "sampler", "scheduler"].some((k) => v[k] !== preset[k]);
+  Object.assign(v, { steps: preset.steps, cfg: preset.cfg, sampler: preset.sampler, scheduler: preset.scheduler });
+  return changed ? preset : null;
+}
 function onModel(name) {
   const v = values();
   v.model = name;
-  // Variant presets (Z-Image Turbo / Base, Krea 2 Turbo / RAW) follow the chosen file.
-  const preset = name && famSchema().presets.find((p) => new RegExp(p.match, "i").test(shortName(name)));
-  if (preset) {
-    const changed = ["steps", "cfg", "sampler", "scheduler"].some((k) => v[k] !== preset[k]);
-    Object.assign(v, { steps: preset.steps, cfg: preset.cfg, sampler: preset.sampler, scheduler: preset.scheduler });
-    if (changed) toast(`${preset.label} settings: ${preset.steps} steps · CFG ${preset.cfg} · ${preset.sampler}`, "", 2600);
-  }
+  const preset = applyPreset(v, name);
+  if (preset) toast(`${preset.label} settings: ${preset.steps} steps · CFG ${preset.cfg} · ${preset.sampler}`, "", 2600);
   setValue("model", name);
+}
+// A form without a model starts on the family's automatic pick, with its preset.
+function ensureModel(v, t) {
+  if (v.model || !(t.fields || []).some((f) => f.type === "model")) return;
+  const auto = famInventory().auto;
+  if (!auto) return;
+  v.model = auto;
+  applyPreset(v, auto);
+  setValue("model", auto, { silent: true });
 }
 
 function loraPicker(anchor, list) {
@@ -270,7 +304,7 @@ function loraPicker(anchor, list) {
       ...all
         .filter((n) => !used.has(n) && n.toLowerCase().includes(search.value.toLowerCase()))
         .slice(0, 80)
-        .map((n) => h("button", { title: n, onclick: () => (list.push({ name: n, strength: 1, on: true }), box.remove(), setValue("loras", list)) }, icon("plus"), shortName(n))),
+        .map((n) => h("button", { title: n, onclick: () => (list.push({ name: n, strength: 1, on: true }), box.remove(), setValue("loras", list)) }, icon("plus"), h("span", {}, shortName(n), folderOf(n) ? h("span", { class: "hint" }, "  " + folderOf(n)) : null))),
     );
   };
   search.oninput = draw;
@@ -315,6 +349,7 @@ export function renderPanel() {
   const meta = taskMeta();
   const v = values();
   const r = readiness();
+  if (!t.unavailable) ensureModel(v, t);
   const head = h("div", { class: "panel-head" }, h("h1", {}, meta.label, t.badge ? h("span", { class: "badge" + (/experimental|weak/i.test(t.badge) ? " warn" : "") }, t.badge) : null), h("p", {}, meta.about));
 
   if (t.unavailable) {

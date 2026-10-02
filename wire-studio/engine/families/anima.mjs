@@ -9,12 +9,15 @@ import * as c from "../common.mjs";
 import { detailerNeeds, mapNeeds, upscaleNeeds, outpaintNeeds } from "../needs.mjs";
 
 const SAMPLE = { steps: 30, cfg: 4, sampler: "euler", scheduler: "simple" };
+// Turbo / distilled Anima models: CFG 1, 8–12 steps (Anima Turbo model card; 10 tested live in Anima Studio).
+const TURBO = { steps: 10, cfg: 1, sampler: "euler", scheduler: "simple" };
+const PREFER = /anima-base-v1|anima_base/i;
 const NEGATIVE = "worst quality, low quality, score_1, score_2, score_3, blurry, jpeg artifacts, sepia";
 const fam = (ctx) => ctx.inv.families.anima;
 
 function loaders(g, p, ctx) {
   const f = fam(ctx);
-  const unet = c.pick(f.models, p.model, /anima-base-v1|anima_base/i, "Anima model", MODELS.animaBase);
+  const unet = c.pick(f.models, p.model, PREFER, "Anima model", MODELS.animaBase);
   let model = g.add("UNETLoader", { unet_name: unet, weight_dtype: "default" }, "Anima model");
   const clip = g.add("CLIPLoader", { clip_name: c.pick(f.clips, null, /qwen_3_06b_base/i, "Anima text encoder", MODELS.animaClip), type: "stable_diffusion", device: "default" }, "Text encoder (Qwen3 0.6B)");
   const vae = g.add("VAELoader", { vae_name: c.pick(f.vaes, null, /qwen_image_vae/i, "Qwen Image VAE", MODELS.qwenImageVae) }, "Qwen Image VAE");
@@ -60,6 +63,8 @@ export default {
   tagline: "Anime & illustration · 2B",
   promptStyle: "Tags work best: masterpiece, best quality, score_7, 1girl, …",
   defaults: { ...SAMPLE, negative: NEGATIVE, width: 1024, height: 1024 },
+  preferModel: PREFER,
+  presets: { turbo: { label: "Turbo model", ...TURBO }, regular: { label: "Standard", ...SAMPLE } },
   baseNeeds,
   tasks: {
     generate: {

@@ -7,6 +7,25 @@ import { imageSrc, withUpload, pickFile } from "./form.js";
 const primaryField = () => (taskSchema().fields || []).find((f) => f.type === "image");
 const stageView = () => (S.view[key()] ||= { jobId: null, index: 0, mode: "input" });
 
+// ---------- fitting images to the canvas ----------
+// Every stage image is sized in pixels to the canvas box (scaled up to 4× for small previews),
+// which renders the same in Safari, Chrome and Firefox.
+function fit(el) {
+  const frame = el.closest(".frame");
+  const w = Number(el.dataset.w) || el.naturalWidth, hgt = Number(el.dataset.h) || el.naturalHeight;
+  if (!frame || !w || !hgt || !frame.clientWidth || !frame.clientHeight) return;
+  const k = Math.min(frame.clientWidth / w, frame.clientHeight / hgt, 4);
+  el.style.width = Math.max(1, Math.floor(w * k)) + "px";
+  el.style.height = Math.max(1, Math.floor(hgt * k)) + "px";
+  if (el.classList.contains("outpaint-frame")) {
+    const inner = el.firstElementChild;
+    Object.assign(inner.style, { left: el.dataset.l * k + "px", top: el.dataset.t * k + "px", width: el.dataset.iw * k + "px", height: el.dataset.ih * k + "px" });
+  }
+}
+const fitAll = () => document.querySelectorAll("#stage .fit").forEach(fit);
+const fitImg = (attrs) => h("img", { ...attrs, class: ((attrs.class || "") + " fit").trim(), onload: (e) => (attrs.onload?.(e), fit(e.target)) });
+if (typeof ResizeObserver !== "undefined") new ResizeObserver(fitAll).observe(document.getElementById("stage"));
+
 // ---------- mask painter ----------
 function maskFor(img) {
   let m = S.masks.get(img.name);
@@ -51,7 +70,7 @@ function painted(m) {
 function painter(img) {
   const m = maskFor(img);
   const accent = getComputedStyle(document.documentElement).getPropertyValue("--accent").trim() || "#a78bfa";
-  const base = h("img", { src: imageSrc(img), alt: "Image to inpaint", draggable: "false" });
+  const base = fitImg({ src: imageSrc(img), alt: "Image to inpaint", draggable: "false" });
   const wrap = h("div", { class: "painter checker" }, base, m.canvas);
   m.canvas.className = "mask";
   const cursor = h("div", { class: "cursor", hidden: true });
@@ -152,17 +171,14 @@ export function undoMask() {
 // ---------- outpaint preview ----------
 function outpaintPreview(img, v) {
   const W = img.w + (v.left || 0) + (v.right || 0), H = img.h + (v.top || 0) + (v.bottom || 0);
-  const box = h("div", { class: "outpaint-frame" });
-  const maxW = Math.max(200, document.getElementById("stage").clientWidth - 60), maxH = Math.max(200, document.getElementById("stage").clientHeight - 200);
-  const k = Math.min(maxW / W, maxH / H, 1);
-  Object.assign(box.style, { width: W * k + "px", height: H * k + "px" });
-  box.append(h("img", { src: imageSrc(img), alt: "Image to extend", style: { left: (v.left || 0) * k + "px", top: (v.top || 0) * k + "px", width: img.w * k + "px", height: img.h * k + "px" } }));
+  const box = h("div", { class: "outpaint-frame fit", "data-w": W, "data-h": H, "data-l": v.left || 0, "data-t": v.top || 0, "data-iw": img.w, "data-ih": img.h });
+  box.append(h("img", { src: imageSrc(img), alt: "Image to extend" }));
   return box;
 }
 
 // ---------- compare / results ----------
 function compare(before, after) {
-  const el = h("div", { class: "compare checker" }, h("img", { src: before, alt: "Before" }), h("img", { class: "after", src: after, alt: "After" }), h("div", { class: "handle" }), h("span", { class: "tag", style: { left: "8px" } }, "Before"), h("span", { class: "tag", style: { right: "8px" } }, "After"));
+  const el = h("div", { class: "compare checker" }, fitImg({ src: before, alt: "Before" }), h("img", { class: "after", src: after, alt: "After" }), h("div", { class: "handle" }), h("span", { class: "tag", style: { left: "8px" } }, "Before"), h("span", { class: "tag", style: { right: "8px" } }, "After"));
   const move = (e) => {
     const r = el.getBoundingClientRect();
     el.style.setProperty("--cut", Math.max(0, Math.min(100, ((e.clientX - r.left) / r.width) * 100)) + "%");
@@ -209,13 +225,17 @@ function resultView(job, v) {
   if (job.status === "cancelled") return h("div", { class: "empty" }, h("div", { class: "big" }, icon("x")), h("h3", {}, "Cancelled"));
   const images = job.images || [];
   if (images.length > 1)
-    return h("div", { class: "result-grid" }, images.map((im, i) => h("img", { src: viewUrl(im), alt: `Result ${i + 1}`, class: "checker", onclick: () => emit("lightbox", { job, index: i }) })));
+    return h(
+      "div",
+      { class: "result-grid", style: { gridTemplateRows: `repeat(${Math.ceil(images.length / 2)}, minmax(0, 1fr))` } },
+      images.map((im, i) => h("div", { class: "cell" }, h("img", { src: viewUrl(im), alt: `Result ${i + 1}`, onclick: () => emit("lightbox", { job, index: i }) }))),
+    );
   const im = images[0];
   if (!im) return h("div", { class: "empty" }, h("h3", {}, "No image was saved"));
   const before = inputOf(job);
   const src = viewUrl(im);
   if (before && ["img2img", "inpaint", "face", "hands", "faceswap", "edit", "upscale"].includes(job.task)) return compare(before, src);
-  return h("img", { src, alt: "Result", class: "checker", style: { cursor: "zoom-in" }, onclick: () => emit("lightbox", { job, index: 0 }) });
+  return fitImg({ src, alt: "Result", class: "checker", style: { cursor: "zoom-in" }, onclick: () => emit("lightbox", { job, index: 0 }) });
 }
 
 function emptyState(fld) {
@@ -316,17 +336,18 @@ export function renderStage() {
   if (showResult && !isActive(job)) content = resultView(job, v);
   else if (showResult && isActive(job)) {
     const base = inputOf(job);
-    content = h("div", { class: "frame" }, base ? h("img", { src: base, alt: "", style: { opacity: 0.35 } }) : h("div", { class: "empty" }, h("div", { class: "big" }, icon(meta.icon)), h("h3", {}, "Generating")));
+    content = base ? fitImg({ src: base, alt: "", style: { opacity: 0.35 } }) : h("div", { class: "empty" }, h("div", { class: "big" }, icon(meta.icon)), h("h3", {}, "Generating"));
     canvas.append(
       h("div", { class: "live-preview" }, h("img", { "data-preview": job.id, alt: "", onerror: (e) => (e.target.style.visibility = "hidden"), onload: (e) => ((e.target.style.visibility = "visible"), canvas.classList.add("has-preview")), style: { visibility: "hidden" } })),
       progressCard(job),
     );
   } else if (img && S.task === "inpaint") content = painter(img);
   else if (img && S.task === "outpaint") content = outpaintPreview(img, v);
-  else if (img) content = h("img", { src: imageSrc(img), alt: fld.label, class: "checker" });
+  else if (img) content = fitImg({ src: imageSrc(img), alt: fld.label, class: "checker" });
   else content = emptyState(fld && !fld.optional ? fld : null);
   canvas.prepend(h("div", { class: "frame" }, content));
   put(stage, head, canvas, filmstrip());
+  requestAnimationFrame(fitAll);
   if (showResult && isActive(job) && job.hasPreview) updatePreview(job.id);
 }
 

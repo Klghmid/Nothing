@@ -77,7 +77,7 @@ function parseMultipart(body, contentType) {
   return parts;
 }
 
-export function startMockComfy({ port = 0, info = objectInfo(), stepMs = 40, steps = 5, version = "0.27.0" } = {}) {
+export function startMockComfy({ port = 0, info = objectInfo(), stepMs = 40, steps = 5, version = "0.27.0", previewSize = 64 } = {}) {
   const inputs = new Map(FILES.inputs.map((n) => [n, makePNG(640, 960, 3)]));
   const outputs = new Map();
   const history = {};
@@ -182,7 +182,7 @@ export function startMockComfy({ port = 0, info = objectInfo(), stepMs = 40, ste
         const head = Buffer.alloc(8);
         head.writeUInt32BE(1, 0);
         head.writeUInt32BE(2, 4);
-        broadcastBinary(job.clientId, Buffer.concat([head, makePNG(64, 64, 9)]));
+        broadcastBinary(job.clientId, Buffer.concat([head, makePNG(previewSize, previewSize, 9)]));
       }
       if (job.step >= steps) return finish(job, false);
       setTimeout(tick, stepMs);

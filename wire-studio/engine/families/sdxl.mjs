@@ -10,12 +10,16 @@ import * as c from "../common.mjs";
 import { detailerNeeds, swapNeeds, mapNeeds, upscaleNeeds, outpaintNeeds } from "../needs.mjs";
 
 const SAMPLE = { steps: 28, cfg: 6, sampler: "euler_ancestral", scheduler: "normal" };
+// Few-step SDXL models (Turbo / Lightning / Hyper / DMD2): low CFG, euler + sgm_uniform as in the
+// SDXL-Lightning reference; exact step counts vary per model, so check its page.
+const TURBO = { steps: 8, cfg: 1.5, sampler: "euler", scheduler: "sgm_uniform" };
+const PREFER = /illustrious|noob|sdxl|xl/i;
 const NEGATIVE = "lowres, worst quality, low quality, bad anatomy, bad hands, extra fingers, text, watermark, jpeg artifacts, blurry";
 const fam = (ctx) => ctx.inv.families.sdxl;
 
 function loaders(g, p, ctx) {
   const f = fam(ctx);
-  const ckpt = c.pick(f.models, p.model, /illustrious|noob|sdxl|xl/i, "SDXL checkpoint", MODELS.sdxlBase);
+  const ckpt = c.pick(f.models, p.model, PREFER, "SDXL checkpoint", MODELS.sdxlBase);
   const loader = g.add("CheckpointLoaderSimple", { ckpt_name: ckpt }, "SDXL checkpoint");
   const { model, clip } = c.applyLoras(g, { model: loader, clip: out(loader, 1) }, p.loras, f.loras, "SDXL LoRA", true);
   return { model, clip, vae: out(loader, 2), ckpt };
@@ -82,6 +86,8 @@ export default {
   tagline: "SDXL · Illustrious · NoobAI · Pony",
   promptStyle: "Illustrious / NoobAI / Pony like tags; SDXL base and photo models like short sentences.",
   defaults: { ...SAMPLE, negative: NEGATIVE, width: 1024, height: 1024 },
+  preferModel: PREFER,
+  presets: { turbo: { label: "Turbo / Lightning", ...TURBO }, regular: { label: "Standard", ...SAMPLE } },
   baseNeeds,
   tasks: {
     generate: {

@@ -1,7 +1,7 @@
 // Engine entry: build a family's task workflow, check family purity, report readiness.
 import { Graph, finalize, fail } from "./graph.mjs";
 import { packOf, TASKS, TASK_GROUPS, ASPECTS, PACKS } from "./catalog.mjs";
-import { readInventory, FAMILY_IDS } from "./inventory.mjs";
+import { readInventory as readFiles, FAMILY_IDS, classify, variantOf } from "./inventory.mjs";
 import * as c from "./common.mjs";
 import anima from "./families/anima.mjs";
 import sdxl from "./families/sdxl.mjs";
@@ -9,7 +9,18 @@ import zimage from "./families/zimage.mjs";
 import krea2 from "./families/krea2.mjs";
 
 export const FAMILIES = { anima, sdxl, zimage, krea2 };
-export { readInventory, FAMILY_IDS };
+export { FAMILY_IDS, classify, variantOf };
+
+// Installed files sorted by family, plus the model each family uses when none is chosen
+// (the same preference its loader applies), so the form can show it and its preset.
+export function readInventory(info, overrides) {
+  const inv = readFiles(info, overrides);
+  for (const [id, fam] of Object.entries(FAMILIES)) {
+    const models = inv.families[id].models || [];
+    inv.families[id].auto = models.find((n) => fam.preferModel?.test(n)) || models[0] || null;
+  }
+  return inv;
+}
 
 // Nodes only one family may contain, and the CLIPLoader type each UNET family uses.
 const EXCLUSIVE = {
@@ -113,7 +124,7 @@ export function schema() {
       tagline: fam.tagline,
       promptStyle: fam.promptStyle,
       defaults: fam.defaults,
-      presets: fam.presets || [],
+      presets: fam.presets || {},
       tasks: Object.fromEntries(
         Object.entries(fam.tasks).map(([taskId, t]) => [taskId, t.unavailable ? { unavailable: t.unavailable } : { fields: t.fields, notes: t.notes || [], badge: t.badge || "" }]),
       ),

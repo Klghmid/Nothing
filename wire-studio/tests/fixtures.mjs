@@ -11,8 +11,8 @@ const N = (list) => ["COMBO", { options: list, default: list[0] }]; // newer com
 const node = (required, optional = {}, output = []) => ({ input: { required, optional }, output, output_name: output });
 
 export const FILES = {
-  checkpoints: ["Illustrious-XL-v2.0.safetensors", "SDXL/juggernautXL_v9.safetensors", "noobaiXLNAIXL_vPred10.safetensors", "sdpose_wholebody_fp16.safetensors", "sd15/dreamshaper_8.safetensors", "mystery_mix_v3.safetensors", "sd_xl_refiner_1.0.safetensors"],
-  unets: ["anima-base-v1.0.safetensors", "Anima/anima_turbo_int8.safetensors", "z_image_turbo_bf16.safetensors", "z_image_bf16.safetensors", "krea2_turbo_fp8_scaled.safetensors", "krea2_raw_bf16.safetensors", "flux1-krea-dev.safetensors", "wan2.2_t2v_14B.safetensors"],
+  checkpoints: ["Illustrious-XL-v2.0.safetensors", "SDXL/juggernautXL_v9.safetensors", "noobaiXLNAIXL_vPred10.safetensors", "sdpose_wholebody_fp16.safetensors", "sd15/dreamshaper_8.safetensors", "mystery_mix_v3.safetensors", "sd_xl_refiner_1.0.safetensors", "SDXL/turbo/dreamshaperMix_v8.safetensors", "Z-Image/turbo/z_image_turbo_aio.safetensors"],
+  unets: ["anima-base-v1.0.safetensors", "Anima/anima_turbo_int8.safetensors", "z_image_turbo_bf16.safetensors", "z_image_bf16.safetensors", "krea2_turbo_fp8_scaled.safetensors", "krea2_raw_bf16.safetensors", "flux1-krea-dev.safetensors", "wan2.2_t2v_14B.safetensors", "z-image/regular/my_finetune.safetensors", "Anima_Turbo/terraRisingUnity_v301.safetensors"],
   loras: [
     "anima-turbo-lora-v0.2.safetensors",
     "Anima/ANIMA_DETAILER_zoda_anima_v2.safetensors",
@@ -24,6 +24,10 @@ export const FILES = {
     "krea2/krea2_depth_control_lora.safetensors",
     "krea2_identity_edit_v1_2.safetensors",
     "detail_slider.safetensors",
+    "anima/characters/miku_v3.safetensors",
+    "AnimaLoRA/style_x.safetensors",
+    "SDXL/styles/watercolor.safetensors",
+    "z-image/people/portrait_v2.safetensors",
   ],
   clips: ["qwen_3_06b_base.safetensors", "qwen_3_4b.safetensors", "qwen3vl_4b_fp8_scaled.safetensors", "clip_l.safetensors", "t5xxl_fp8_e4m3fn.safetensors"],
   vaes: ["qwen_image_vae.safetensors", "ae.safetensors", "sdxl_vae.safetensors"],

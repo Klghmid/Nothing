@@ -70,8 +70,11 @@ export function icon(name, cls = "") {
 }
 
 export function toast(message, kind = "", ms = 3800) {
-  const el = h("div", { class: "toast " + kind }, icon(kind === "bad" ? "alert" : kind === "ok" ? "check" : "info"), h("span", {}, message));
-  document.getElementById("toasts").append(el);
+  const box = document.getElementById("toasts");
+  for (const t of box.children) if (t.dataset.msg === message) t.remove();
+  while (box.children.length >= 3) box.firstElementChild.remove();
+  const el = h("div", { class: "toast " + kind, "data-msg": message }, icon(kind === "bad" ? "alert" : kind === "ok" ? "check" : "info"), h("span", {}, message));
+  box.append(el);
   setTimeout(() => el.remove(), ms);
   return el;
 }

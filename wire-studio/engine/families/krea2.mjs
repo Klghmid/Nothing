@@ -15,16 +15,18 @@ const TURBO = { steps: 8, cfg: 1, sampler: "euler", scheduler: "simple" };
 const RAW = { steps: 52, cfg: 4, sampler: "euler", scheduler: "simple" };
 const NEGATIVE = "blurry, low quality, deformed, watermark, text";
 const fam = (ctx) => ctx.inv.families.krea2;
-const defaultsFor = (name) => (/raw/i.test(name || "") ? RAW : TURBO);
+// Turbo vs RAW comes from the inventory (a turbo/ or regular/ folder, else the file name).
+const PREFER = /krea2_turbo|turbo/i;
+const defaultsFor = (ctx, name) => (fam(ctx).variants?.[name] === "regular" ? RAW : TURBO);
 
 function loaders(g, p, ctx, { userLoras = true } = {}) {
   const f = fam(ctx);
-  const unet = c.pick(f.models, p.model, /krea2_turbo/i, "Krea 2 model", MODELS.krea2Turbo);
+  const unet = c.pick(f.models, p.model, PREFER, "Krea 2 model", MODELS.krea2Turbo);
   let model = g.add("UNETLoader", { unet_name: unet, weight_dtype: "default" }, "Krea 2 model");
   const clip = g.add("CLIPLoader", { clip_name: c.pick(f.clips, null, /qwen3vl_4b/i, "Krea 2 text encoder (Qwen3-VL 4B)", MODELS.krea2Clip), type: "krea2", device: "default" }, "Text encoder (Qwen3-VL 4B)");
   const vae = g.add("VAELoader", { vae_name: c.pick(f.vaes, null, /qwen_image_vae/i, "Qwen Image VAE", MODELS.qwenImageVae) }, "Qwen Image VAE");
   if (userLoras) ({ model } = c.applyLoras(g, { model, clip }, p.loras, f.loras, "Krea 2 LoRA", false));
-  return { model, clip, vae, sample: c.sampling(p, defaultsFor(unet)) };
+  return { model, clip, vae, sample: c.sampling(p, defaultsFor(ctx, unet)) };
 }
 function negativeFor(g, m, p, positive) {
   return m.sample.cfg > 1.01 ? g.add("CLIPTextEncode", { text: String(p.negative ?? NEGATIVE), clip: m.clip }, "Negative prompt") : g.add("ConditioningZeroOut", { conditioning: positive }, "No negative (CFG 1)");
@@ -72,10 +74,8 @@ export default {
   tagline: "Aesthetic & artistic · 12B",
   promptStyle: "Rich natural-language descriptions of subject, medium, style and light.",
   defaults: { ...TURBO, negative: NEGATIVE, width: 1024, height: 1024 },
-  presets: [
-    { match: "raw", label: "RAW", ...RAW },
-    { match: ".", label: "Turbo", ...TURBO },
-  ],
+  preferModel: PREFER,
+  presets: { turbo: { label: "Turbo", ...TURBO }, regular: { label: "RAW", ...RAW } },
   baseNeeds,
   tasks: {
     generate: {

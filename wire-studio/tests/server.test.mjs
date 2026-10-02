@@ -87,7 +87,8 @@ test("server end to end against a mock ComfyUI", async (t) => {
     assert.equal(data.stale, false);
     assert.ok(data.schema.families.krea2.tasks.generate.fields.length);
     assert.equal(data.readiness.sdxl.generate.state, "ready");
-    assert.deepEqual(data.inventory.families.anima.models, ["anima-base-v1.0.safetensors", "Anima/anima_turbo_int8.safetensors"]);
+    assert.deepEqual(data.inventory.families.anima.models, ["anima-base-v1.0.safetensors", "Anima/anima_turbo_int8.safetensors", "Anima_Turbo/terraRisingUnity_v301.safetensors"]);
+    assert.equal(data.inventory.families.anima.variants["Anima_Turbo/terraRisingUnity_v301.safetensors"], "turbo");
   });
 
   let job;
@@ -171,6 +172,16 @@ test("server end to end against a mock ComfyUI", async (t) => {
     const r = await s.api("/api/assign", { method: "PUT", json: { name: "detail_slider.safetensors", family: "sdxl" } });
     assert.ok(r.data.inventory.families.sdxl.loras.includes("detail_slider.safetensors"));
     assert.ok(!r.data.inventory.unsortedLoras.includes("detail_slider.safetensors"));
+  });
+
+  await t.test("the ComfyUI folder guide is served as a page", async () => {
+    const r = await fetch(s.base + "/guide");
+    const html = await r.text();
+    assert.equal(r.status, 200);
+    assert.match(html, /<h1[^>]*>ComfyUI folder guide<\/h1>/);
+    assert.match(html, /<table>/);
+    assert.match(html, /<pre><code>ComfyUI\/models\//);
+    assert.ok(!/<script>alert/.test(html));
   });
 
   await t.test("unicode file names are kept", async () => {

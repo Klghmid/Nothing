@@ -1,17 +1,29 @@
 // Reads what is installed on the connected ComfyUI and sorts every model and LoRA into
 // exactly one family, so a family's workflows can never load another family's weights.
-// Order of evidence: your own assignment in the Library > folder name > file name.
+//
+// Family — order of evidence: your own assignment in the Library > the first folder (at any
+// depth) named after a family > the file name. So `loras/SDXL/characters/x.safetensors`,
+// `loras/anima/styles/2025/x.safetensors` and `diffusion_models/z-image/turbo/x.safetensors`
+// are sorted by their family folder, whatever the file is called.
+//
+// Variant — a `turbo/` (lightning, hyper, dmd2, lcm, distilled) or `regular/` (base, raw,
+// standard, full) folder anywhere in the path decides; otherwise the file name does
+// ("turbo", "lightning"… → turbo, else regular). The variant picks the sampling preset.
+// See docs/MODEL-FOLDERS.md for the recommended ComfyUI directory layout.
 import { options } from "./graph.mjs";
 
 export const FAMILY_IDS = ["anima", "sdxl", "zimage", "krea2"];
 
 const OTHER = /(^|[^a-z])(sd[-_ ]?1[._-]?5|sd15|v1-5|sd[-_ ]?3|flux|sdpose|svd|cascade|hunyuan|wan2?|qwen|ltx|cosmos|kolors|lumina|hidream|chroma|aura)([^a-z]|$)|refiner/i;
 const tokens = (s) => s.split(/[^a-zA-Z0-9]+/).filter(Boolean);
+const parts = (name) => String(name).replaceAll("\\", "/").split("/");
+// "anima", "anima2", "AnimaLoRA", "anima_models", "anima-base…" — but not Animagine / animation / animal.
+const ANIMA_TOKEN = /^anima(\d|$|loras?$|models?$|base|turbo|preview|lllite|v\d)/i;
 
 function byName(text) {
   if (/krea[-_ ]?2/i.test(text) && !/flux/i.test(text)) return "krea2";
   if (/z[-_ ]?image|zimage|(^|[^a-z])zit[-_]/i.test(text)) return "zimage";
-  if (tokens(text).some((t) => /^anima(\d|$)/i.test(t))) return "anima";
+  if (tokens(text).some((t) => ANIMA_TOKEN.test(t))) return "anima";
   if (/xl|illustrious|noob|pony|animagine/i.test(text) && !OTHER.test(text)) return "sdxl";
   if (OTHER.test(text)) return "other";
   return null;
@@ -19,15 +31,31 @@ function byName(text) {
 
 export function classify(name, overrides = {}) {
   if (overrides[name]) return overrides[name];
-  const parts = String(name).replaceAll("\\", "/").split("/");
-  for (const folder of parts.slice(0, -1)) {
+  const p = parts(name);
+  for (const folder of p.slice(0, -1)) {
     const f = byName(folder);
     if (f) return f;
   }
-  return byName(parts.at(-1)) || "unknown";
+  return byName(p.at(-1)) || "unknown";
+}
+
+const TURBO_WORD = /^(turbo|lightning|hyper|dmd2?|lcm|distill(ed)?|fast|few[-_ ]?steps?|schnell)$/i;
+const REGULAR_WORD = /^(regular|base|raw|standard|normal|full|non[-_ ]?turbo|undistilled|dev)$/i;
+export function variantOf(name) {
+  const p = parts(name);
+  // The deepest turbo/regular folder wins (whole name or a word of it: "turbo", "Anima_Turbo",
+  // "SDXL-Lightning", "z-image base"), then the file name.
+  for (const folder of p.slice(0, -1).reverse()) {
+    const words = [folder, ...tokens(folder)];
+    if (words.some((w) => TURBO_WORD.test(w))) return "turbo";
+    if (words.some((w) => REGULAR_WORD.test(w))) return "regular";
+  }
+  return /turbo|lightning|hyper[-_ ]?sd|hyper|dmd2|(^|[^a-z])lcm([^a-z]|$)|distill/i.test(p.at(-1)) ? "turbo" : "regular";
 }
 
 const SDXL_NET_EXCLUDE = /sd15|sd1[._-]?5|v11[pfe]|control_v1|flux|qwen|z[-_]?image|anima|krea|wan|sd3/i;
+const UNET_FAMILIES = ["anima", "zimage", "krea2"];
+const variants = (list) => Object.fromEntries(list.map((n) => [n, variantOf(n)]));
 
 export function readInventory(info = {}, overrides = {}) {
   const ckpts = options(info, "CheckpointLoaderSimple", "ckpt_name");
@@ -39,7 +67,14 @@ export function readInventory(info = {}, overrides = {}) {
   const fam = (list, id) => list.filter((n) => classify(n, overrides) === id);
   const unsortedLoras = loras.filter((n) => ["unknown", "other"].includes(classify(n, overrides)));
   const krea2Loras = fam(loras, "krea2");
-  const isControlLora = (n) => /depth|control|canny|pose/i.test(n.split(/[\\/]/).pop()) && !/style|edit/i.test(n);
+  const isControlLora = (n) => (/depth|control|canny|pose/i.test(parts(n).pop()) || parts(n).slice(0, -1).some((f) => /^control(net)?s?$/i.test(f))) && !/style|edit/i.test(n);
+  const sdxlModels = ckpts.filter((n) => ["sdxl", "unknown"].includes(classify(n, overrides)) && !/sdpose|inpaint.*sd15/i.test(n));
+  const unetModels = Object.fromEntries(UNET_FAMILIES.map((id) => [id, fam(unets, id)]));
+  // Anima / Z-Image / Krea 2 files are diffusion models (UNETLoader reads models/diffusion_models
+  // and models/unet). Found only under checkpoints/, they cannot be loaded: report them.
+  const misplaced = ckpts
+    .filter((n) => UNET_FAMILIES.includes(classify(n, overrides)) && !unets.includes(n))
+    .map((n) => ({ name: n, family: classify(n, overrides), folder: "checkpoints", should: "diffusion_models" }));
   return {
     samplers: options(info, "KSampler", "sampler_name"),
     schedulers: options(info, "KSampler", "scheduler"),
@@ -49,32 +84,37 @@ export function readInventory(info = {}, overrides = {}) {
     restorers: options(info, "ReActorFaceSwap", "face_restore_model"),
     unsortedLoras,
     unsortedModels: [...ckpts, ...unets].filter((n) => classify(n, overrides) === "unknown" && !/sdpose/i.test(n)),
+    misplaced,
     families: {
       anima: {
-        models: fam(unets, "anima"),
+        models: unetModels.anima,
+        variants: variants(unetModels.anima),
         loras: fam(loras, "anima").filter((n) => !/turbo-lora/i.test(n)),
         turboLora: loras.find((n) => /anima-turbo-lora/i.test(n)) || null,
         clips: clips.filter((n) => /qwen_3_06b/i.test(n)),
         vaes: vaes.filter((n) => /qwen_image_vae/i.test(n)),
-        patches: patches.filter((n) => /anima-lllite/i.test(n)),
+        patches: patches.filter((n) => /anima-lllite/i.test(n) || classify(n, overrides) === "anima"),
       },
       sdxl: {
         // Checkpoints with no family hint are offered here too (flagged as unverified):
         // CheckpointLoaderSimple checkpoints are overwhelmingly SDXL-based today.
-        models: ckpts.filter((n) => ["sdxl", "unknown"].includes(classify(n, overrides)) && !/sdpose|inpaint.*sd15/i.test(n)),
+        models: sdxlModels,
+        variants: variants(sdxlModels),
         unverified: ckpts.filter((n) => classify(n, overrides) === "unknown" && !/sdpose/i.test(n)),
         loras: fam(loras, "sdxl"),
         controlnets: options(info, "ControlNetLoader", "control_net_name").filter((n) => !SDXL_NET_EXCLUDE.test(n)),
       },
       zimage: {
-        models: fam(unets, "zimage"),
+        models: unetModels.zimage,
+        variants: variants(unetModels.zimage),
         loras: fam(loras, "zimage"),
         clips: clips.filter((n) => /qwen_3_4b/i.test(n)),
         vaes: vaes.filter((n) => /(^|[\\/])ae\.safetensors$/i.test(n)),
-        patches: patches.filter((n) => /z[-_]?image.*control/i.test(n)),
+        patches: patches.filter((n) => /z[-_]?image.*control/i.test(n) || classify(n, overrides) === "zimage"),
       },
       krea2: {
-        models: fam(unets, "krea2"),
+        models: unetModels.krea2,
+        variants: variants(unetModels.krea2),
         loras: krea2Loras.filter((n) => !isControlLora(n) && !/identity[-_]?edit|style[-_]?reference/i.test(n)),
         controlLoras: krea2Loras.filter((n) => isControlLora(n)),
         styleLora: loras.find((n) => /krea2[-_]?style[-_]?reference/i.test(n)) || null,

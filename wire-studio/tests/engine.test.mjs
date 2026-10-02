@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { buildWorkflow, buildUtility, readiness, readInventory, FAMILIES, schema } from "../engine/index.mjs";
-import { classify } from "../engine/inventory.mjs";
+import { classify, variantOf } from "../engine/inventory.mjs";
 import { objectInfo, sampleParams, CUSTOM_NODES } from "./fixtures.mjs";
 
 const info = objectInfo();
@@ -25,15 +25,45 @@ const LOADERS = {
   krea2: (n) => (n.class_type === "UNETLoader" && /krea2/i.test(n.inputs.unet_name)) || (n.class_type === "CLIPLoader" && n.inputs.type === "krea2") || (n.class_type === "VAELoader" && /qwen_image_vae/.test(n.inputs.vae_name)),
 };
 
+test("family and type come from folders at any depth", () => {
+  const f = ctx.inv.families;
+  assert.ok(f.sdxl.models.includes("SDXL/turbo/dreamshaperMix_v8.safetensors") && !f.sdxl.unverified.includes("SDXL/turbo/dreamshaperMix_v8.safetensors"), "SDXL folder decides");
+  assert.ok(f.sdxl.loras.includes("SDXL/styles/watercolor.safetensors"));
+  assert.ok(f.zimage.loras.includes("z-image/people/portrait_v2.safetensors"));
+  assert.equal(f.anima.variants["Anima_Turbo/terraRisingUnity_v301.safetensors"], "turbo", "a word in the folder name counts");
+  assert.equal(f.anima.variants["anima-base-v1.0.safetensors"], "regular");
+  assert.equal(f.sdxl.variants["SDXL/turbo/dreamshaperMix_v8.safetensors"], "turbo");
+  assert.equal(f.zimage.variants["z-image/regular/my_finetune.safetensors"], "regular");
+  assert.equal(f.zimage.variants["z_image_turbo_bf16.safetensors"], "turbo");
+  assert.equal(f.krea2.variants["krea2_raw_bf16.safetensors"], "regular");
+  assert.equal(variantOf("SDXL/regular/dreamshaperXL_lightning.safetensors"), "regular", "a folder beats the file name");
+  assert.equal(variantOf("SDXL-Lightning/x.safetensors"), "turbo");
+  assert.deepEqual(Object.fromEntries(Object.entries(f).map(([k, v]) => [k, v.auto])), {
+    anima: "anima-base-v1.0.safetensors", sdxl: "Illustrious-XL-v2.0.safetensors", zimage: "z_image_turbo_bf16.safetensors", krea2: "krea2_turbo_fp8_scaled.safetensors",
+  });
+  assert.deepEqual(ctx.inv.misplaced, [{ name: "Z-Image/turbo/z_image_turbo_aio.safetensors", family: "zimage", folder: "checkpoints", should: "diffusion_models" }]);
+  assert.ok(!f.sdxl.models.includes("Z-Image/turbo/z_image_turbo_aio.safetensors"), "a misplaced Z-Image file is never offered as SDXL");
+  for (const id of Object.keys(f)) assert.deepEqual(Object.keys(schema().families[id].presets).sort(), ["regular", "turbo"]);
+});
+
+test("the model type sets the server-side defaults", () => {
+  const base = buildWorkflow("zimage", "generate", { prompt: "x", model: "z-image/regular/my_finetune.safetensors" }, ctx).prompt;
+  const ks = nodesOf(base, "KSampler")[0].inputs;
+  assert.deepEqual([ks.steps, ks.cfg], [25, 4]);
+  assert.equal(nodesOf(base, "CLIPTextEncode").length, 2);
+  const raw = buildWorkflow("krea2", "generate", { prompt: "x", model: "krea2_raw_bf16.safetensors" }, ctx).prompt;
+  assert.equal(nodesOf(raw, "KSampler")[0].inputs.steps, 52);
+});
+
 test("inventory sorts every model into exactly one family", () => {
   const f = ctx.inv.families;
-  assert.deepEqual(f.anima.models, ["anima-base-v1.0.safetensors", "Anima/anima_turbo_int8.safetensors"]);
-  assert.deepEqual(f.zimage.models, ["z_image_turbo_bf16.safetensors", "z_image_bf16.safetensors"]);
+  assert.deepEqual(f.anima.models, ["anima-base-v1.0.safetensors", "Anima/anima_turbo_int8.safetensors", "Anima_Turbo/terraRisingUnity_v301.safetensors"]);
+  assert.deepEqual(f.zimage.models, ["z_image_turbo_bf16.safetensors", "z_image_bf16.safetensors", "z-image/regular/my_finetune.safetensors"]);
   assert.deepEqual(f.krea2.models, ["krea2_turbo_fp8_scaled.safetensors", "krea2_raw_bf16.safetensors"], "FLUX.1 Krea dev is not Krea 2");
   assert.ok(f.sdxl.models.includes("Illustrious-XL-v2.0.safetensors"));
   assert.ok(f.sdxl.models.includes("mystery_mix_v3.safetensors") && f.sdxl.unverified.includes("mystery_mix_v3.safetensors"));
   for (const bad of ["sdpose_wholebody_fp16.safetensors", "sd15/dreamshaper_8.safetensors", "sd_xl_refiner_1.0.safetensors"]) assert.ok(!f.sdxl.models.includes(bad), bad);
-  assert.deepEqual(f.anima.loras, ["Anima/ANIMA_DETAILER_zoda_anima_v2.safetensors"]);
+  assert.deepEqual(f.anima.loras, ["Anima/ANIMA_DETAILER_zoda_anima_v2.safetensors", "anima/characters/miku_v3.safetensors", "AnimaLoRA/style_x.safetensors"]);
   assert.equal(f.anima.turboLora, "anima-turbo-lora-v0.2.safetensors");
   assert.deepEqual(f.krea2.controlLoras, ["krea2/krea2_depth_control_lora.safetensors"]);
   assert.equal(f.krea2.editLora, "krea2_identity_edit_v1_2.safetensors");

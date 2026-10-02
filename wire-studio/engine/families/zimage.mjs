@@ -14,16 +14,18 @@ const TURBO = { steps: 8, cfg: 1, sampler: "res_multistep", scheduler: "simple" 
 const BASE = { steps: 25, cfg: 4, sampler: "res_multistep", scheduler: "simple" };
 const NEGATIVE = "blurry, low quality, distorted, extra fingers, watermark, text";
 const fam = (ctx) => ctx.inv.families.zimage;
-const defaultsFor = (name) => (/turbo/i.test(name || "") || !name ? TURBO : BASE);
+// Turbo vs Base comes from the inventory (a turbo/ or regular/ folder, else the file name).
+const PREFER = /z_image_turbo_bf16|turbo/i;
+const defaultsFor = (ctx, name) => (fam(ctx).variants?.[name] === "regular" ? BASE : TURBO);
 
 function loaders(g, p, ctx) {
   const f = fam(ctx);
-  const unet = c.pick(f.models, p.model, /z_image_turbo_bf16|turbo/i, "Z-Image model", MODELS.zimageTurbo);
+  const unet = c.pick(f.models, p.model, PREFER, "Z-Image model", MODELS.zimageTurbo);
   let model = g.add("UNETLoader", { unet_name: unet, weight_dtype: "default" }, "Z-Image model");
   const clip = g.add("CLIPLoader", { clip_name: c.pick(f.clips, null, /qwen_3_4b\.safetensors$|qwen_3_4b/i, "Z-Image text encoder", MODELS.zimageClip), type: "lumina2", device: "default" }, "Text encoder (Qwen3 4B)");
   const vae = g.add("VAELoader", { vae_name: c.pick(f.vaes, null, /ae\.safetensors$/i, "Z-Image VAE (ae)", MODELS.zimageVae) }, "Z-Image VAE (ae)");
   ({ model } = c.applyLoras(g, { model, clip }, p.loras, f.loras, "Z-Image LoRA", false));
-  return { model, clip, vae, sample: c.sampling(p, defaultsFor(unet)) };
+  return { model, clip, vae, sample: c.sampling(p, defaultsFor(ctx, unet)) };
 }
 // AuraFlow shift is applied last, after any control patch (official template order).
 const shifted = (g, model, p) => g.add("ModelSamplingAuraFlow", { model, shift: c.clamp(p.shift, 3, 0, 20) }, "Sampling shift");
@@ -78,10 +80,8 @@ export default {
   tagline: "Photoreal & versatile · 6B",
   promptStyle: "Natural sentences: subject, look, setting, light, camera.",
   defaults: { ...TURBO, negative: NEGATIVE, width: 1024, height: 1024, shift: 3 },
-  presets: [
-    { match: "turbo", label: "Turbo", ...TURBO },
-    { match: ".", label: "Base", ...BASE },
-  ],
+  preferModel: PREFER,
+  presets: { turbo: { label: "Turbo", ...TURBO }, regular: { label: "Base", ...BASE } },
   baseNeeds,
   tasks: {
     generate: {
