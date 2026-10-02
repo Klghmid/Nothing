@@ -13,7 +13,9 @@ before it runs, and never mixed with another family's models.
 | Text to Image · Image to Image | Smart Edit (Krea 2) · Inpaint · Outpaint | Face Fix · Hand Fix · Face Swap | Pose · ControlNet | Upscale · Remove background |
 
 See [docs/WORKFLOWS.md](docs/WORKFLOWS.md) for what each family runs for each task and why, and
-[docs/PLAN.md](docs/PLAN.md) for the architecture and roadmap. Every workflow is also available as
+[docs/PLAN.md](docs/PLAN.md) for the architecture and roadmap, and
+[docs/SKETCH-PLAN.md](docs/SKETCH-PLAN.md) for the planned Sketch workspace (Photoshop-style,
+pen pressure on desktop tablets and iPad). Every workflow is also available as
 a standalone ComfyUI file in [workflows/](workflows/README.md).
 
 ## Start

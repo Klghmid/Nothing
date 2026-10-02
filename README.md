@@ -9,6 +9,7 @@ Everything lives in [`wire-studio/`](wire-studio/):
 - [ComfyUI models guide](wire-studio/docs/MODEL-FOLDERS.md): every model file, its folder, and a sample `ComfyUI/models` tree
 - [Workflows](wire-studio/docs/WORKFLOWS.md): what each family runs for each task, and why
 - [Plan](wire-studio/docs/PLAN.md): architecture and roadmap
+- [WireSketch plan](wire-studio/docs/SKETCH-PLAN.md): the planned Photoshop-style Sketch workspace (pen pressure, desktop tablets, iPad), kept separate from the AI workspace
 
 ```bash
 cd wire-studio
