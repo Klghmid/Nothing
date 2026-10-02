@@ -51,6 +51,7 @@ export const FILES = {
   upscalers: ["RealESRGAN_x4plus.safetensors", "4x-AnimeSharp.pth"],
   detectors: ["bbox/face_yolov8m.pt", "bbox/hand_yolov8s.pt", "bbox/Eyes.pt", "segm/person_yolov8m-seg.pt"],
   da3: ["depth_anything_3_mono_large.safetensors"],
+  bgRemoval: ["birefnet.safetensors"],
   inputs: ["example.png"],
 };
 const SAMPLERS = ["euler", "euler_ancestral", "dpmpp_2m", "dpmpp_2m_sde", "res_multistep", "er_sde", "uni_pc"];
@@ -155,6 +156,9 @@ export function objectInfo(files = FILES, { without = [] } = {}) {
     LoadDA3Model: node({ model_name: N(files.da3 || []), weight_dtype: N(["default", "fp16", "bf16", "fp32"]) }, {}, ["DA3_MODEL"]),
     DA3Inference: live("DA3Inference"),
     DA3Render: live("DA3Render"),
+    // Native BiRefNet background removal (ComfyUI core)
+    LoadBackgroundRemovalModel: node({ bg_removal_name: N(files.bgRemoval || []) }, {}, ["BACKGROUND_REMOVAL"]),
+    RemoveBackground: node({ bg_removal_model: L("BACKGROUND_REMOVAL"), image: L("IMAGE") }, {}, ["MASK"]),
     // ComfyUI-RMBG
     BiRefNetRMBG: node({ image: L("IMAGE"), model: C(["BiRefNet-general", "BiRefNet-HR", "BiRefNet-portrait"]) }, { sensitivity: F(1, 0, 1), mask_blur: I(0, 0, 64), mask_offset: I(0, -20, 20), invert_output: B(false), refine_foreground: B(false), unload_model: B(false), background: C(["Alpha", "Color"]), background_color: ["COLORCODE", { default: "#222222" }] }, ["IMAGE", "MASK", "IMAGE"]),
     // comfyui-inpaint-nodes

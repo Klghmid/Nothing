@@ -118,6 +118,8 @@ ComfyUI/models/
 │   └── GFPGANv1.4.pth                                    Shared · Face restore (ReActor) · optional
 ├── geometry_estimation/                                  ← native depth maps (Depth Anything 3)
 │   └── depth_anything_3_mono_large.safetensors           Shared · Depth Anything 3 (native depth maps) · optional
+├── background_removal/                                   ← native background removal (BiRefNet)
+│   └── birefnet.safetensors                              Shared · BiRefNet background removal (native) · optional
 ├── unet/                                                 ← older name for diffusion_models (also read)
 ├── clip/                                                 ← older name for text_encoders (also read)
 ├── clip_vision/                                          ← not used by Wire Studio
@@ -208,6 +210,7 @@ page* links go to the model's own page where a direct link could not be verified
 
 | File | Folder (inside models/) | Used for | Need | Get it |
 |---|---|---|---|---|
+| `birefnet.safetensors` | `background_removal/` | BiRefNet background removal (native): Remove background, Background Replace (official template; else ComfyUI-RMBG) | Optional | [Download](https://huggingface.co/Comfy-Org/BiRefNet/resolve/main/background_removal/birefnet.safetensors) |
 | `depth_anything_3_mono_large.safetensors` | `geometry_estimation/` | Depth Anything 3 (native depth maps): Depth maps without comfyui_controlnet_aux (official Anima depth template) | Optional | [Download](https://huggingface.co/Comfy-Org/Depth-Anything-3/resolve/main/geometry_estimation/depth_anything_3_mono_large.safetensors) |
 | `RealESRGAN_x4plus.safetensors` | `upscale_models/` | Upscale model: Upscale (all families) | Required | [Download](https://huggingface.co/Comfy-Org/Real-ESRGAN_repackaged/resolve/main/RealESRGAN_x4plus.safetensors) |
 | `face_yolov8m.pt` | `ultralytics/bbox/` | Face detector (Impact Subpack): Face Fix, Face Swap blend | Required | [Download](https://huggingface.co/Bingsu/adetailer/resolve/main/face_yolov8m.pt) |
@@ -241,6 +244,7 @@ page* links go to the model's own page where a direct link could not be verified
 | `anima-lllite-scribble-1.safetensors` | `models/model_patches/` | Anima |
 | `anima-preview3-base.safetensors` | `models/diffusion_models/anima/regular/` | Anima |
 | `anima-turbo-lora-v0.2.safetensors` | `models/loras/anima/` | Anima |
+| `birefnet.safetensors` | `models/background_removal/` | Shared |
 | `codeformer-v0.1.0.pth` | `models/facerestore_models/` | Shared |
 | `controlnet-union-sdxl-1.0-promax.safetensors` | `models/controlnet/SDXL/` | SDXL |
 | `depth_anything_3_mono_large.safetensors` | `models/geometry_estimation/` | Shared |

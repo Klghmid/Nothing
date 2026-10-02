@@ -23,6 +23,7 @@ const LISTS = {
   insightface: [["ReActorFaceSwap", "swap_model"]],
   facerestore_models: [["ReActorFaceSwap", "face_restore_model"]],
   geometry_estimation: [["LoadDA3Model", "model_name"]],
+  background_removal: [["LoadBackgroundRemovalModel", "bg_removal_name"]],
 };
 const base = (n) => String(n).replaceAll("\\", "/").split("/").pop().toLowerCase();
 const isPlaceholder = (m) => /\s/.test(m.file);

@@ -30,6 +30,7 @@ export const CORE_NODES = [
   "AnimaLLLiteApply", "QwenImageDiffsynthControlnet", "ZImageFunControlnet", "ModelSamplingAuraFlow", "ModelSamplingFlux",
   "DifferentialDiffusion", "TextEncodeQwenImageEditPlus", "FluxKontextMultiReferenceLatentMethod",
   "LoadDA3Model", "DA3Inference", "DA3Render",
+  "LoadBackgroundRemovalModel", "RemoveBackground", "InvertMask", "GrowMask", "MaskComposite", "JoinImageWithAlpha",
 ];
 
 export const NODE_PACK = {
@@ -98,6 +99,8 @@ export const TASKS = {
   "k2-pose": { label: "Pose Restage", group: "Identity Edit", icon: "pose", run: "Restage pose", about: "Put the character in a new pose, described or from a photo." },
   inpaint: { label: "Inpaint", group: "Edit", icon: "brush", run: "Inpaint", about: "Paint over an area and describe what should be there." },
   outpaint: { label: "Outpaint", group: "Edit", icon: "expand", run: "Extend", about: "Extend the canvas beyond its borders." },
+  reframe: { label: "Reframe", group: "Edit", icon: "expand", run: "Reframe", about: "Change the shape of a picture (aspect ratio or exact size) by extending it." },
+  "bg-replace": { label: "Background Replace", group: "Edit", icon: "image", run: "Replace background", about: "Keep the subject and put a new background behind it: described, from a photo, or blurred." },
   face: { label: "Face Fix", group: "Fix", icon: "face", run: "Fix face", about: "Find faces (or eyes / lips) and redraw them in more detail." },
   hands: { label: "Hand Fix", group: "Fix", icon: "hand", run: "Fix hands", about: "Find hands and redraw them at higher detail." },
   faceswap: { label: "Face Swap", group: "Fix", icon: "swap", run: "Swap face", about: "Put a face from a photo onto an image, then blend it in with this model." },

@@ -9,7 +9,7 @@ import { render, GUIDE } from "../scripts/build-model-guide.mjs";
 import { objectInfo, FILES } from "./fixtures.mjs";
 
 const FAMILY_ID = { Anima: "anima", SDXL: "sdxl", "Z-Image": "zimage", "Krea 2": "krea2" };
-const KNOWN = ["checkpoints", "diffusion_models", "loras", "text_encoders", "vae", "model_patches", "controlnet", "upscale_models", "ultralytics", "insightface", "facerestore_models", "geometry_estimation"];
+const KNOWN = ["checkpoints", "diffusion_models", "loras", "text_encoders", "vae", "model_patches", "controlnet", "upscale_models", "ultralytics", "insightface", "facerestore_models", "geometry_estimation", "background_removal"];
 // Placeholder rows ("your … models") get a concrete sample name for the detection test.
 const fileOf = (m, i) => (/\s/.test(m.file) ? `sample_${i}.${m.path.startsWith("ultralytics") ? "pt" : "safetensors"}` : m.file);
 
@@ -35,8 +35,8 @@ test("every suggested file has a known folder, and Setup's suggestions come from
 
 test("following the guide gives a fully detected setup: right family, right type, every task ready", () => {
   const rel = (m, i, top) => `${m.path.slice(top.length + 1) ? m.path.slice(top.length + 1) + "/" : ""}${fileOf(m, i)}`;
-  const files = { checkpoints: [], unets: [], loras: [], clips: [], vaes: [], patches: [], controlnets: [], upscalers: [], detectors: [], da3: [], inputs: ["example.png"] };
-  const slot = { checkpoints: "checkpoints", diffusion_models: "unets", loras: "loras", text_encoders: "clips", vae: "vaes", model_patches: "patches", controlnet: "controlnets", upscale_models: "upscalers", ultralytics: "detectors", geometry_estimation: "da3" };
+  const files = { checkpoints: [], unets: [], loras: [], clips: [], vaes: [], patches: [], controlnets: [], upscalers: [], detectors: [], da3: [], bgRemoval: [], inputs: ["example.png"] };
+  const slot = { checkpoints: "checkpoints", diffusion_models: "unets", loras: "loras", text_encoders: "clips", vae: "vaes", model_patches: "patches", controlnet: "controlnets", upscale_models: "upscalers", ultralytics: "detectors", geometry_estimation: "da3", background_removal: "bgRemoval" };
   MODEL_LIST.forEach((m, i) => {
     const top = m.path.split("/")[0];
     if (!slot[top] || m.duplicate) return;

@@ -9,7 +9,7 @@ import { MODEL_LIST, FAMILY_ORDER, OTHER_FOLDERS, AUTO_FOLDERS } from "../engine
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
 export const GUIDE = path.join(root, "docs", "MODEL-FOLDERS.md");
 
-const TOP = ["checkpoints", "diffusion_models", "loras", "text_encoders", "vae", "model_patches", "controlnet", "upscale_models", "ultralytics", "insightface", "facerestore_models", "geometry_estimation"];
+const TOP = ["checkpoints", "diffusion_models", "loras", "text_encoders", "vae", "model_patches", "controlnet", "upscale_models", "ultralytics", "insightface", "facerestore_models", "geometry_estimation", "background_removal"];
 const TOP_NOTE = {
   checkpoints: "SDXL family only (all-in-one checkpoints)",
   diffusion_models: "Anima, Z-Image and Krea 2 models (UNET-only files)",
@@ -23,6 +23,7 @@ const TOP_NOTE = {
   insightface: "face swap (ReActor)",
   facerestore_models: "face restore (ReActor)",
   geometry_estimation: "native depth maps (Depth Anything 3)",
+  background_removal: "native background removal (BiRefNet)",
 };
 const placeholder = (m) => /\s/.test(m.file);
 const shown = (m) => (placeholder(m) ? `(${m.file})` : m.file);
