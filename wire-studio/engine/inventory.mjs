@@ -65,7 +65,9 @@ export function readInventory(info = {}, overrides = {}) {
   const vaes = options(info, "VAELoader", "vae_name");
   const patches = options(info, "ModelPatchLoader", "name");
   const fam = (list, id) => list.filter((n) => classify(n, overrides) === id);
-  const unsortedLoras = loras.filter((n) => ["unknown", "other"].includes(classify(n, overrides)));
+  // Files no family claims ("unknown") need your decision; files of families Wire Studio does
+  // not run (FLUX, SD 1.5, Qwen-Image, Wan…) are listed apart and never offered.
+  const unsortedLoras = fam(loras, "unknown");
   const krea2Loras = fam(loras, "krea2");
   const isControlLora = (n) => (/depth|control|canny|pose/i.test(parts(n).pop()) || parts(n).slice(0, -1).some((f) => /^control(net)?s?$/i.test(f))) && !/style|edit/i.test(n);
   const sdxlModels = ckpts.filter((n) => ["sdxl", "unknown"].includes(classify(n, overrides)) && !/sdpose|inpaint.*sd15/i.test(n));
@@ -84,6 +86,8 @@ export function readInventory(info = {}, overrides = {}) {
     restorers: options(info, "ReActorFaceSwap", "face_restore_model"),
     unsortedLoras,
     unsortedModels: [...ckpts, ...unets].filter((n) => classify(n, overrides) === "unknown" && !/sdpose/i.test(n)),
+    otherLoras: fam(loras, "other"),
+    otherModels: [...new Set([...ckpts, ...unets])].filter((n) => classify(n, overrides) === "other" || /sdpose/i.test(n)),
     misplaced,
     families: {
       anima: {

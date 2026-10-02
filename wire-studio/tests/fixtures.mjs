@@ -28,6 +28,8 @@ export const FILES = {
     "AnimaLoRA/style_x.safetensors",
     "SDXL/styles/watercolor.safetensors",
     "z-image/people/portrait_v2.safetensors",
+    "FLUX/flux_realism_lora.safetensors",
+    "Wan2.2/lightx2v_i2v_14B.safetensors",
   ],
   clips: ["qwen_3_06b_base.safetensors", "qwen_3_4b.safetensors", "qwen3vl_4b_fp8_scaled.safetensors", "clip_l.safetensors", "t5xxl_fp8_e4m3fn.safetensors"],
   vaes: ["qwen_image_vae.safetensors", "ae.safetensors", "sdxl_vae.safetensors"],

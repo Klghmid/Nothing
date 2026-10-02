@@ -36,8 +36,10 @@ expose it to the internet.
 ## Setting up ComfyUI
 
 **Setup → What is ready** shows a family × task grid. Select any cell to see exactly which nodes
-and model files that workflow uses, which are missing, the folder each file goes in and a download
-link. **Re-check** after installing.
+and model files that workflow uses: the suggested file name and its folder, the installed file it
+uses, and a download link for anything missing. **Setup → Suggested models & LoRAs** lists every
+suggested file per family (Anima, SDXL, Z-Image, Krea 2, shared helpers) and marks each one
+installed, covered by another file, or missing. **Re-check** after installing.
 
 Models are sorted into families by **folder** first (at any depth), then by file name, and a
 `turbo/` or `regular/` folder picks the sampling preset:
@@ -83,9 +85,9 @@ input/output folders. Writes are atomic with a `.bak` copy, so a crash cannot co
 ## Development
 
 ```bash
-npm test                    # 64 tests: every workflow + the server against a mock ComfyUI
+npm test                    # 72 tests: every workflow + the server against a mock ComfyUI
 npm run dev:mock            # the app on :5180 against a mock ComfyUI on :8199 (no GPU)
-npm i --no-save playwright-core && npm run test:ui     # 11 browser checks (desktop + phone)
+npm i --no-save playwright-core && npm run test:ui     # 12 browser checks (desktop + phone)
 npm run export-workflows    # regenerate workflows/
 ```
 

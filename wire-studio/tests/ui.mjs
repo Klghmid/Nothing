@@ -147,6 +147,29 @@ try {
     await page.click(".matrix tr:has-text('Face Swap') td:nth-child(2) button");
     await page.waitForSelector(".card:has-text('Anima · Face Swap')");
     await shot("setup");
+    // Each model requirement names the suggested file, its folder and the installed file used.
+    await page.click(".matrix tr:has-text('Inpaint') td:nth-child(4) button");
+    const detail = page.locator(".card:has-text('Z-Image · Inpaint')");
+    await detail.waitFor();
+    const text = await detail.innerText();
+    for (const want of ["Suggested: z_image_turbo_bf16.safetensors in models/diffusion_models/z-image/turbo/", "Using models/diffusion_models/z_image_turbo_bf16.safetensors", "Using models/model_patches/Z-Image-Turbo-Fun-Controlnet-Union-2.1-2601-8steps.safetensors"]) assert.ok(text.includes(want), want);
+  });
+  await check("setup lists suggested models and LoRAs per family, found or missing", async () => {
+    const tab = page.locator("#suggested button[role=tab]:has-text('Krea 2')");
+    await tab.scrollIntoViewIfNeeded();
+    const before = await page.evaluate(() => document.querySelector(".sheet-body").scrollTop);
+    assert.ok(before > 0);
+    await tab.click();
+    assert.ok(Math.abs((await page.evaluate(() => document.querySelector(".sheet-body").scrollTop)) - before) < 4, "scroll is kept");
+    const krea = await page.locator("#suggested").innerText();
+    for (const want of ["krea2_turbo_fp8_scaled.safetensors", "Installed: models/diffusion_models/krea2_turbo_fp8_scaled.safetensors", "Goes in models/loras/krea2/control/", "krea2_turbo_int8_convrot.safetensors", "Not installed"]) assert.ok(krea.includes(want), want);
+    await page.locator("#suggested label.check input").check();
+    const missing = await page.locator("#suggested").innerText();
+    assert.ok(missing.includes("krea2_turbo_int8_convrot.safetensors") && !missing.includes("krea2_turbo_fp8_scaled.safetensors"), "only missing files are listed");
+    await page.locator("#suggested label.check input").uncheck();
+    await page.locator("#library summary:has-text('Other model families')").click();
+    assert.ok((await page.locator("#library").innerText()).includes("FLUX/flux_realism_lora.safetensors"));
+    await page.locator("#suggested").screenshot({ path: path.join(out, "setup-suggested.png") });
     await page.keyboard.press("Escape");
   });
   await check("form values survive a reload", async () => {
@@ -164,6 +187,12 @@ try {
     await phone.waitForSelector(".panel-head h1");
     const overflow = await phone.evaluate(() => document.documentElement.scrollWidth - innerWidth);
     assert.ok(overflow <= 1, "overflow " + overflow);
+    await phone.click("#setup-button");
+    await phone.locator("#suggested").scrollIntoViewIfNeeded();
+    const wide = await phone.evaluate(() => { const b = document.querySelector(".sheet-body"); return b.scrollWidth - b.clientWidth; });
+    assert.ok(wide <= 1, "setup overflow " + wide);
+    await phone.locator("#suggested").screenshot({ path: path.join(out, "phone-suggested.png") });
+    await phone.keyboard.press("Escape");
     await phone.screenshot({ path: path.join(out, "phone.png") });
   });
   await check("no page errors", async () => assert.deepEqual(errors, []));

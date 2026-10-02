@@ -42,9 +42,9 @@ const patchFor = (ctx, re) => fam(ctx).patches.find((n) => re.test(n));
 const sampleAndDecode = (g, m, latent, p, denoise = 1) => c.decode(g, c.ksampler(g, { ...m, latent, sample: c.sampling(p, SAMPLE), denoise }), m.vae);
 
 const baseNeeds = (ctx) => [
-  need.model(fam(ctx).models.length, MODELS.animaBase, "Anima model", "The diffusion model"),
-  need.model(fam(ctx).clips.length, MODELS.animaClip, "Qwen3 0.6B text encoder", "Reads the prompt"),
-  need.model(fam(ctx).vaes.length, MODELS.qwenImageVae, "Qwen Image VAE", "Encodes / decodes images"),
+  need.model(fam(ctx).models, MODELS.animaBase, "Anima model", "The diffusion model"),
+  need.model(fam(ctx).clips, MODELS.animaClip, "Qwen3 0.6B text encoder", "Reads the prompt"),
+  need.model(fam(ctx).vaes, MODELS.qwenImageVae, "Qwen Image VAE", "Encodes / decodes images"),
 ];
 const common = [field.model(), field.loras()];
 const advanced = [field.negative(NEGATIVE), field.seed(), field.sampling()];

@@ -63,9 +63,9 @@ function depthControl(g, m, ctx, map, latent, p) {
 }
 
 const baseNeeds = (ctx) => [
-  need.model(fam(ctx).models.length, MODELS.krea2Turbo, "Krea 2 model (Turbo or RAW)", "The diffusion model"),
-  need.model(fam(ctx).clips.length, MODELS.krea2Clip, "Qwen3-VL 4B text encoder", "Reads the prompt (type krea2)"),
-  need.model(fam(ctx).vaes.length, MODELS.qwenImageVae, "Qwen Image VAE", "Encodes / decodes images"),
+  need.model(fam(ctx).models, MODELS.krea2Turbo, "Krea 2 model (Turbo or RAW)", "The diffusion model"),
+  need.model(fam(ctx).clips, MODELS.krea2Clip, "Qwen3-VL 4B text encoder", "Reads the prompt (type krea2)"),
+  need.model(fam(ctx).vaes, MODELS.qwenImageVae, "Qwen Image VAE", "Encodes / decodes images"),
 ];
 const depthNeeds = (ctx) => [
   need.node(ctx, "Krea2ControlLoRALoader", PACKS.krea2control, "Loads the control LoRA"),

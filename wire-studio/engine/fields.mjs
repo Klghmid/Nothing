@@ -19,9 +19,15 @@ export const field = {
 
 export const choice = (value, label, hint) => ({ value, label, hint });
 
-// Requirement checks for the Setup view. Each returns { ok, level, kind, label, help }.
+// Requirement checks for the Setup view. Each returns { ok, level, kind, label, why, help };
+// model checks also return `found`: the installed files that satisfy it. Pass the matching
+// file(s) — a name, a list, or { name } — so Setup can say which of your files is used.
+const filesOf = (x) => (Array.isArray(x) ? x : typeof x === "string" ? [x] : x?.name ? [x.name] : []).filter((n) => typeof n === "string" && n);
 export const need = {
   node: (ctx, type, pack, why, level = "required") => ({ ok: !!ctx.info?.[type], level, kind: "node", label: type, why, help: pack }),
   anyNode: (ctx, types, pack, why, level = "required") => ({ ok: types.some((t) => ctx.info?.[t]), level, kind: "node", label: types.join(" or "), why, help: pack }),
-  model: (ok, model, label, why, level = "required") => ({ ok: !!ok, level, kind: "model", label, why, help: model }),
+  model: (match, model, label, why, level = "required") => {
+    const found = filesOf(match);
+    return { ok: Array.isArray(match) ? found.length > 0 : !!match, level, kind: "model", label, why, help: model, found };
+  },
 };

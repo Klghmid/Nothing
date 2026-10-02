@@ -10,8 +10,10 @@ or to set up a new machine from scratch.
 2. Put each file where the [sample tree](#sample-folder-tree) shows it. The sub-folders named
    after a family (`anima/`, `SDXL/`, `z-image/`, `krea2/`) and the `turbo/` / `regular/`
    folders are what let Wire Studio sort everything automatically.
-3. In Wire Studio, open **Setup** and press **Re-check**. Anything still missing is listed there
-   with its file name, folder and download link (taken from the same list as this guide).
+3. In Wire Studio, open **Setup** and press **Re-check**. **Suggested models & LoRAs** lists
+   every file below for each family with its folder, and marks which ones your ComfyUI already
+   has (and where) and which are missing, with a download link. Selecting a task in **What is
+   ready** shows the files that task uses: the suggested name and the installed file it picked.
 
 ## Where the models folder is
 
@@ -171,7 +173,7 @@ page* links go to the model's own page where a direct link could not be verified
 | `ae.safetensors` | `vae/` | VAE: All Z-Image tasks | Required | [Download](https://huggingface.co/Comfy-Org/z_image_turbo/resolve/main/split_files/vae/ae.safetensors) |
 | *your Z-Image LoRAs* | `loras/z-image/people/` | LoRAs (any sub-folders): Any Z-Image task | Your files | — |
 | `Z-Image-Turbo-Fun-Controlnet-Union.safetensors` | `model_patches/` | Fun ControlNet Union: Pose, ControlNet (canny, HED, depth, pose, M-LSD) | Recommended | [Download](https://huggingface.co/alibaba-pai/Z-Image-Turbo-Fun-Controlnet-Union/resolve/main/Z-Image-Turbo-Fun-Controlnet-Union.safetensors) |
-| `Z-Image-Turbo-Fun-Controlnet-Union-2.1-2601-8steps.safetensors` — Z-Image-Turbo-Fun-Controlnet-Union-2.1 (8 steps) | `model_patches/` | Fun ControlNet Union 2.1: Adds context-aware Inpaint / Outpaint; also does all ControlNet types | Optional | [Project page](https://huggingface.co/alibaba-pai/Z-Image-Turbo-Fun-Controlnet-Union-2.1) |
+| `Z-Image-Turbo-Fun-Controlnet-Union-2.1-2601-8steps.safetensors` | `model_patches/` | Fun ControlNet Union 2.1: Adds context-aware Inpaint / Outpaint; also does all ControlNet types | Optional | [Project page](https://huggingface.co/alibaba-pai/Z-Image-Turbo-Fun-Controlnet-Union-2.1) |
 
 ### Krea 2
 
@@ -293,8 +295,8 @@ Applied when you pick a model (change them any time under *Advanced*):
 - **A LoRA:** put it anywhere under `loras/<family>/`.
 - **Anything with an unclear name** in a shared or top-level folder appears in **Setup →
   Library** as *unsorted*; assign it to a family there once and it is remembered.
-- **Models for other families** (FLUX, SD 1.5, Wan…) can stay where they are; Wire Studio
-  ignores them.
+- **Models for other families** (FLUX, SD 1.5, Qwen-Image, Wan…) can stay where they are; Wire
+  Studio never offers them. Setup → Library lists them apart under *Other model families*.
 
 ## Common mistakes
 

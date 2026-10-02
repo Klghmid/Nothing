@@ -74,8 +74,8 @@ function maskedRedraw(g, m, p, ctx, image, mask, dims, denoise) {
   return sampleAndDecode(g, m, latent, p, denoise);
 }
 
-const baseNeeds = (ctx) => [need.model(fam(ctx).models.length, MODELS.sdxlBase, "SDXL checkpoint", "Any SDXL / Illustrious / NoobAI / Pony checkpoint")];
-const netNeeds = (ctx, why, level = "required") => need.model(fam(ctx).controlnets.length, MODELS.sdxlUnion, "SDXL ControlNet (Union ProMax recommended)", why, level);
+const baseNeeds = (ctx) => [need.model(fam(ctx).models, MODELS.sdxlBase, "SDXL checkpoint", "Any SDXL / Illustrious / NoobAI / Pony checkpoint")];
+const netNeeds = (ctx, why, level = "required") => need.model(fam(ctx).controlnets, MODELS.sdxlUnion, "SDXL ControlNet (Union ProMax recommended)", why, level);
 const common = [field.model(), field.loras()];
 const advanced = [field.negative(NEGATIVE), field.seed(), field.sampling()];
 const KINDS = [choice("canny", "Canny edges"), choice("lineart", "Line art"), choice("scribble", "Scribble / soft edge"), choice("depth", "Depth"), choice("pose", "Pose (skeleton)")];

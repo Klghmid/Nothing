@@ -2,7 +2,7 @@
 import { h, put, icon, fmtTime, shortName, copyText, menu } from "./ui.js";
 import { api, viewUrl, thumb } from "./api.js";
 import { S, taskMeta, isActive, emit, upsertJob } from "./state.js";
-import { needList } from "./form.js";
+import { needList, foundFiles } from "./form.js";
 
 const overlay = () => document.getElementById("overlay");
 export function closeOverlay() {
@@ -11,6 +11,9 @@ export function closeOverlay() {
   document.querySelector(".lightbox")?.remove();
 }
 function sheet(title, tools, body) {
+  // Re-drawing the same sheet (a tab, a matrix cell) keeps its scroll position.
+  const open = !overlay().hidden && overlay().querySelector(".sheet")?.getAttribute("aria-label") === title;
+  const scroll = open ? overlay().querySelector(".sheet-body")?.scrollTop || 0 : 0;
   const el = h(
     "div",
     { class: "sheet", role: "dialog", "aria-label": title },
@@ -19,7 +22,11 @@ function sheet(title, tools, body) {
   );
   put(overlay(), el);
   overlay().hidden = false;
-  overlay().onclick = (e) => e.target === overlay() && closeOverlay();
+  if (scroll) el.querySelector(".sheet-body").scrollTop = scroll;
+  // (A handler that returns false cancels the click, so never return the comparison.)
+  overlay().onclick = (e) => {
+    if (e.target === overlay()) closeOverlay();
+  };
   return el;
 }
 const famLabel = (f) => (f === "utility" ? "Tools" : S.schema.families[f]?.label || f);
@@ -160,6 +167,9 @@ export function setup(focus = {}) {
   const families = S.schema.order;
   const matrix = r
     ? h(
+        "div",
+        { class: "table-scroll" },
+        h(
         "table",
         { class: "matrix" },
         h("thead", {}, h("tr", {}, h("th", {}, "Task"), families.map((f) => h("th", { style: { textAlign: "center" } }, famLabel(f))))),
@@ -181,6 +191,7 @@ export function setup(focus = {}) {
             ),
           ),
         ),
+        ),
       )
     : h("div", { class: "faint" }, "Connect to see what is ready.");
 
@@ -192,19 +203,21 @@ export function setup(focus = {}) {
         "div",
         { class: "card" },
         h("h3", {}, `${famLabel(selected.family)} · ${taskLabel(selected.task)}`),
-        cell.state === "off" ? h("div", { class: "muted" }, cell.reason) : cell.items.length ? needList(cell.items) : h("div", { class: "muted" }, "Nothing extra needed."),
+        cell.state === "off" ? h("div", { class: "muted" }, cell.reason) : cell.items.length ? needList(cell.items, { family: selected.family }) : h("div", { class: "muted" }, "Nothing extra needed."),
         h("div", { class: "chips" }, cell.state !== "off" ? h("button", { class: "btn small", onclick: () => (closeOverlay(), emit("goto", selected)) }, "Open this task", icon("right")) : null),
       );
   }
 
   const inv = S.inventory;
   const unsorted = inv ? [...(inv.unsortedModels || []).map((n) => ({ n, kind: "model" })), ...(inv.unsortedLoras || []).map((n) => ({ n, kind: "LoRA" }))] : [];
+  const others = inv ? [...(inv.otherModels || []).map((n) => ({ n, kind: "model" })), ...(inv.otherLoras || []).map((n) => ({ n, kind: "LoRA" }))] : [];
+  const fileTable = (rows, current) => h("div", { class: "table-scroll" }, h("table", { class: "matrix files" }, h("tbody", {}, rows.map(({ n, kind }) => h("tr", {}, h("td", { class: "mono" }, n), h("td", { class: "faint" }, kind), h("td", {}, assignSelect(n, current)))))));
   const assigned = Object.entries(S.assignments || {});
   const library = h(
     "div",
     { class: "card", id: "library" },
     h("h3", {}, icon("layers"), "Library"),
-    h("div", { class: "muted" }, "Files are sorted into families by their folder (loras/SDXL/…, diffusion_models/z-image/turbo/…, any depth), else by file name. A turbo/ or regular/ folder sets the sampling preset. Anything unclear is listed here so it is never mixed into the wrong workflow."),
+    h("div", { class: "muted" }, "Files are sorted into families by their folder (loras/SDXL/…, diffusion_models/z-image/turbo/…, any depth), else by file name. A turbo/ or regular/ folder sets the sampling preset. Files whose family cannot be told are listed here so they are never mixed into the wrong workflow."),
     h("div", { class: "chips" }, h("a", { class: "btn small", href: "/guide", target: "_blank", rel: "noreferrer" }, icon("info"), "ComfyUI models guide")),
     inv
       ? h(
@@ -225,14 +238,16 @@ export function setup(focus = {}) {
           h("div", {}, h("b", {}, "These files cannot be loaded where they are"), h("div", {}, "Anima, Z-Image and Krea 2 models are diffusion models; ComfyUI only loads them from models/diffusion_models (or models/unet)."), inv.misplaced.map((m) => h("div", { class: "mono" }, `models/${m.folder}/${m.name}  →  models/${m.should}/${m.name}`))),
         )
       : null,
-    unsorted.length
+    unsorted.length ? h("div", {}, h("div", { class: "t-sub" }, `Unsorted — pick a family (${unsorted.length})`), fileTable(unsorted, "")) : h("div", { class: "faint" }, "No unsorted files."),
+    others.length
       ? h(
-          "table",
-          { class: "matrix" },
-          h("tbody", {}, unsorted.map(({ n, kind }) => h("tr", {}, h("td", { class: "mono" }, n), h("td", { class: "faint" }, kind), h("td", {}, assignSelect(n, ""))))),
+          "details",
+          { class: "advanced" },
+          h("summary", {}, icon("chev", "chev"), `Other model families — not used (${others.length})`),
+          h("div", { class: "inner" }, h("div", { class: "muted" }, "FLUX, SD 1.5, Qwen-Image, Wan and other families Wire Studio does not run. They are never offered in a workflow. If one is really an Anima, SDXL, Z-Image or Krea 2 file, assign it."), fileTable(others, "")),
         )
-      : h("div", { class: "faint" }, "No unsorted files."),
-    assigned.length ? h("details", { class: "advanced" }, h("summary", {}, `Your assignments (${assigned.length})`), h("div", { class: "inner" }, h("table", { class: "matrix" }, h("tbody", {}, assigned.map(([n, f]) => h("tr", {}, h("td", { class: "mono" }, n), h("td", {}, assignSelect(n, f)))))))) : null,
+      : null,
+    assigned.length ? h("details", { class: "advanced" }, h("summary", {}, `Your assignments (${assigned.length})`), h("div", { class: "inner" }, h("div", { class: "table-scroll" }, h("table", { class: "matrix files" }, h("tbody", {}, assigned.map(([n, f]) => h("tr", {}, h("td", { class: "mono" }, n), h("td", {}, assignSelect(n, f))))))))) : null,
   );
 
   const theme = document.documentElement.dataset.theme === "light";
@@ -246,11 +261,70 @@ export function setup(focus = {}) {
       h("div", { class: "card" }, h("h3", {}, icon("plug"), "ComfyUI connection"), h("div", { class: "conn-row" }, url, connect), status),
       h("div", { class: "card" }, h("h3", {}, icon("grid"), "What is ready", S.stale ? h("span", { class: "badge warn" }, "cached") : null), h("div", { class: "muted" }, "Every family has its own workflows. Select a cell to see exactly which nodes and model files it uses and where to get anything missing."), matrix),
       detail,
+      suggestedCard(inv),
       library,
     ],
   );
   if (focus.tab === "library") document.getElementById("library")?.scrollIntoView();
 }
+// Every suggested model and LoRA per family, its folder, and whether this ComfyUI has it.
+const NEED = { required: "Required", recommended: "Recommended", optional: "Optional", alternative: "Alternative", example: "Your files" };
+const COUNTED = ["required", "recommended", "optional"];
+let suggestTab = null;
+let suggestMissing = false;
+function suggestedCard(inv) {
+  const list = inv?.suggested;
+  const head = h("h3", {}, icon("download"), "Suggested models & LoRAs");
+  const guide = h("a", { class: "btn small", href: "/guide", target: "_blank", rel: "noreferrer" }, icon("info"), "Full guide with folder tree");
+  if (!list) return h("div", { class: "card", id: "suggested" }, head, h("div", { class: "muted" }, "Connect to ComfyUI to see which suggested files you already have."), h("div", { class: "chips" }, guide));
+  const tabs = [...S.schema.order.map((f) => famLabel(f)), "Shared"];
+  const tab = tabs.includes(suggestTab) ? suggestTab : famLabel(S.family);
+  const counts = (label) => {
+    const rows = list.filter((m) => m.family === label && COUNTED.includes(m.need));
+    return `${rows.filter((m) => m.status !== "missing").length}/${rows.length}`;
+  };
+  const rows = list.filter((m) => m.family === tab && (!suggestMissing || m.status === "missing"));
+  const familyId = S.schema.order.find((f) => famLabel(f) === tab);
+  const preferred = familyId ? inv.families?.[familyId]?.auto : null;
+  const row = (m) => {
+    const ok = m.status !== "missing";
+    const [ico, cls] = ok ? ["check", "ok"] : m.need === "required" ? ["x", "no"] : m.need === "recommended" ? ["alert", "rec"] : ["download", "faint"];
+    const name = m.placeholder ? h("i", {}, m.display || m.file) : h("span", { class: "copy mono", title: "Copy file name", onclick: () => copyText(m.file) }, m.file);
+    const note = !m.placeholder && m.display && m.display !== m.file ? (m.display.startsWith(m.file) ? m.display.slice(m.file.length).trim() : m.display) : "";
+    const status =
+      m.status === "found"
+        ? h("span", {}, m.placeholder ? "Yours: " : "Installed: ", foundFiles(m.found, m.path, preferred))
+        : m.status === "covered"
+          ? h("span", {}, "Using instead: ", foundFiles(m.found, m.path, preferred))
+          : h("span", {}, m.need === "example" ? h("span", { class: "faint" }, "None yet") : h("span", { class: "faint" }, "Not installed"), m.url ? h("a", { href: m.url, target: "_blank", rel: "noreferrer", class: "link", style: { marginLeft: "8px" } }, /\/resolve\//.test(m.url) ? "Download" : "Get it", " ↗") : null);
+    return h(
+      "div",
+      { class: "need" },
+      icon(ico, cls),
+      h(
+        "div",
+        {},
+        h("div", { class: "t" }, name, h("span", { class: `need-tag ${m.need}` }, NEED[m.need])),
+        h("div", { class: "d" }, note ? h("span", { class: "faint" }, note) : null, h("span", {}, m.role, " — ", m.tasks), h("span", {}, "Goes in ", h("span", { class: "mono" }, `models/${m.path}/`)), status),
+      ),
+    );
+  };
+  return h(
+    "div",
+    { class: "card", id: "suggested" },
+    head,
+    h("div", { class: "muted" }, "Every model and LoRA file Wire Studio uses or suggests, the folder it goes in, and whether your ComfyUI has it. Any sub-folder works; the one shown keeps things tidy and sets the family and type."),
+    h(
+      "div",
+      { class: "tabs-row" },
+      h("div", { class: "seg", role: "tablist" }, tabs.map((t) => h("button", { role: "tab", "aria-selected": String(t === tab), onclick: () => ((suggestTab = t), setup()) }, t, h("span", { class: "count" }, counts(t))))),
+      h("label", { class: "check" }, h("input", { type: "checkbox", checked: suggestMissing, onchange: (e) => ((suggestMissing = e.target.checked), setup()) }), "Only missing"),
+    ),
+    rows.length ? h("div", {}, rows.map(row)) : h("div", { class: "faint" }, suggestMissing ? `Every suggested ${tab} file is installed.` : "Nothing listed."),
+    h("div", { class: "chips" }, guide),
+  );
+}
+
 function assignSelect(name, current) {
   const sel = h(
     "select",

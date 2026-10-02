@@ -11,7 +11,7 @@ import { createStore, flushAll } from "./lib/store.mjs";
 import { createComfy, normalizeUrl } from "./lib/comfy.mjs";
 import { createProgress } from "./lib/progress.mjs";
 import { createJobs } from "./lib/jobs.mjs";
-import { buildWorkflow, buildUtility, readiness, readInventory, schema, FAMILIES } from "./engine/index.mjs";
+import { buildWorkflow, buildUtility, readiness, readInventory, suggestions, schema, FAMILIES } from "./engine/index.mjs";
 import { markdown, guidePage } from "./lib/markdown.mjs";
 
 const root = path.dirname(fileURLToPath(import.meta.url));
@@ -54,11 +54,13 @@ const progress = createProgress(() => settings.get().comfyUrl, settings.get().cl
 function contextFrom(info) {
   return { info, inv: readInventory(info, assignments.get()) };
 }
-function publicInventory(inv) {
-  return { ...inv, families: inv.families };
+// The inventory as the browser sees it, with every suggested file marked found / missing.
+function publicInventory(ctx, ready) {
+  return { ...ctx.inv, suggested: suggestions(ctx, ready) };
 }
 function remember(ctx) {
-  const value = { url: settings.get().comfyUrl, at: Date.now(), inventory: publicInventory(ctx.inv), readiness: readiness(ctx) };
+  const ready = readiness(ctx);
+  const value = { url: settings.get().comfyUrl, at: Date.now(), inventory: publicInventory(ctx, ready), readiness: ready };
   snapshot.set(value);
   return value;
 }

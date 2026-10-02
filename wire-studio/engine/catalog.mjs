@@ -44,7 +44,7 @@ export const packOf = (type) => PACKS[NODE_PACK[type] || "core"];
 
 // Model files Setup can ask for, with their default folder and download link, taken from the
 // single list in model-list.mjs (which also generates the ComfyUI models guide).
-export const MODELS = Object.fromEntries(MODEL_LIST.filter((m) => m.key).map((m) => [m.key, { file: m.display || m.file, folder: m.path, url: m.url }]));
+export const MODELS = Object.fromEntries(MODEL_LIST.filter((m) => m.key).map((m) => [m.key, { key: m.key, file: m.display || m.file, folder: m.path, url: m.url }]));
 
 export const TASK_GROUPS = ["Create", "Edit", "Fix", "Control", "Finish"];
 

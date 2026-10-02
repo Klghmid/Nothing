@@ -2,6 +2,7 @@
 import { Graph, finalize, fail } from "./graph.mjs";
 import { packOf, TASKS, TASK_GROUPS, ASPECTS, PACKS } from "./catalog.mjs";
 import { readInventory as readFiles, FAMILY_IDS, classify, variantOf } from "./inventory.mjs";
+import { suggestions } from "./suggested.mjs";
 import * as c from "./common.mjs";
 import anima from "./families/anima.mjs";
 import sdxl from "./families/sdxl.mjs";
@@ -9,7 +10,7 @@ import zimage from "./families/zimage.mjs";
 import krea2 from "./families/krea2.mjs";
 
 export const FAMILIES = { anima, sdxl, zimage, krea2 };
-export { FAMILY_IDS, classify, variantOf };
+export { FAMILY_IDS, classify, variantOf, suggestions };
 
 // Installed files sorted by family, plus the model each family uses when none is chosen
 // (the same preference its loader applies), so the form can show it and its preset.

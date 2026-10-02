@@ -321,22 +321,43 @@ function loraPicker(anchor, list) {
 }
 
 // ---------- readiness checklist ----------
-export function needList(items, { onlyMissing = false } = {}) {
+// Installed files as paths under ComfyUI/models/, the one Wire Studio uses by default first.
+export function foundFiles(found, folder, preferred) {
+  const top = String(folder || "").split("/")[0];
+  const list = [...(found || [])].sort((a, b) => (b === preferred) - (a === preferred));
+  return h(
+    "span",
+    { class: "found" },
+    h("span", { class: "mono", title: list.join("\n") }, `models/${top ? top + "/" : ""}${list[0]}`),
+    list.length > 1 ? h("span", { class: "faint" }, ` +${list.length - 1} more`) : null,
+  );
+}
+
+// A task's requirements. Model rows always name the suggested file and its folder, and say
+// which of your installed files Wire Studio uses for it.
+export function needList(items, { onlyMissing = false, family = null } = {}) {
+  const preferred = family ? S.inventory?.families?.[family]?.auto : null;
   return items
     .filter((n) => !onlyMissing || !n.ok)
     .map((n) => {
       const help = n.help || {};
-      const where = n.kind === "model" ? h("span", {}, "Put ", h("span", { class: "copy mono", title: "Copy file name", onclick: () => copyText(help.file || n.label) }, help.file || n.label), " in ", h("span", { class: "mono" }, `models/${help.folder || "…"}`)) : h("span", {}, "Install ", h("b", {}, help.name || "the node pack"));
+      const file = help.file || n.label;
+      const fileName = h("span", { class: "copy mono", title: "Copy file name", onclick: () => copyText(file) }, file);
+      const folder = h("span", { class: "mono" }, `models/${help.folder || "…"}/`);
+      const download = help.url ? h("a", { href: help.url, target: "_blank", rel: "noreferrer", class: "link" }, n.kind === "model" ? (/\/resolve\//.test(help.url) ? "Download" : "Get it") : "Open project page", " ↗") : null;
+      let lines;
+      if (n.kind !== "model") lines = n.ok ? [] : [h("span", {}, "Install ", h("b", {}, help.name || "the node pack")), download];
+      else if (n.ok)
+        lines = [
+          n.found?.length ? h("span", {}, "Using ", foundFiles(n.found, help.folder, preferred)) : null,
+          h("span", { class: "faint" }, "Suggested: ", fileName, " in ", folder),
+        ];
+      else lines = [h("span", {}, "Put ", fileName, " in ", folder), download];
       return h(
         "div",
         { class: "need" },
         icon(n.ok ? "check" : n.level === "required" ? "x" : "alert", n.ok ? "ok" : n.level === "required" ? "no" : "rec"),
-        h(
-          "div",
-          {},
-          h("div", { class: "t" }, n.label, n.level !== "required" ? h("span", { class: "hint" }, "  recommended") : null),
-          h("div", { class: "d" }, n.why ? h("span", {}, n.why) : null, n.ok ? null : where, !n.ok && help.url ? h("a", { href: help.url, target: "_blank", rel: "noreferrer", class: "link" }, n.kind === "model" ? "Download" : "Open project page", " ↗") : null),
-        ),
+        h("div", {}, h("div", { class: "t" }, n.label, n.level !== "required" ? h("span", { class: "hint" }, "  recommended") : null), h("div", { class: "d" }, n.why ? h("span", {}, n.why) : null, ...lines)),
       );
     });
 }
@@ -360,10 +381,10 @@ export function renderPanel() {
   if (!S.connection.ok)
     body.append(h("div", { class: "notice bad" }, icon("plug"), h("span", {}, "ComfyUI is not connected. ", h("button", { class: "link", onclick: () => emit("open-setup", {}) }, "Connect"))));
   else if (r?.state === "missing")
-    body.append(h("div", { class: "card" }, h("h3", {}, icon("alert"), "Needs setup before it can run"), needList(r.items, { onlyMissing: true }), h("div", { class: "chips" }, h("button", { class: "btn small", onclick: () => emit("refresh") }, icon("refresh"), "Re-check"), h("button", { class: "btn small", onclick: () => emit("open-setup", { family: S.family, task: S.task }) }, "Open setup"))));
+    body.append(h("div", { class: "card" }, h("h3", {}, icon("alert"), "Needs setup before it can run"), needList(r.items, { onlyMissing: true, family: S.family }), h("div", { class: "chips" }, h("button", { class: "btn small", onclick: () => emit("refresh") }, icon("refresh"), "Re-check"), h("button", { class: "btn small", onclick: () => emit("open-setup", { family: S.family, task: S.task }) }, "Open setup"))));
   else if (r?.state === "limited") {
     const missing = r.items.filter((n) => !n.ok);
-    body.append(h("details", { class: "advanced" }, h("summary", {}, icon("info"), "Works now; better with add-ons", h("span", { class: "sum" }, String(missing.length))), h("div", { class: "inner" }, needList(missing))));
+    body.append(h("details", { class: "advanced" }, h("summary", {}, icon("info"), "Works now; better with add-ons", h("span", { class: "sum" }, String(missing.length))), h("div", { class: "inner" }, needList(missing, { family: S.family }))));
   }
   for (const note of t.notes || []) body.append(h("div", { class: "notice" }, icon("info"), h("span", {}, note)));
 

@@ -61,9 +61,9 @@ function maskedRedraw(g, m, p, ctx, image, mask, denoise) {
 }
 
 const baseNeeds = (ctx) => [
-  need.model(fam(ctx).models.length, MODELS.zimageTurbo, "Z-Image model (Turbo or Base)", "The diffusion model"),
-  need.model(fam(ctx).clips.length, MODELS.zimageClip, "Qwen3 4B text encoder", "Reads the prompt"),
-  need.model(fam(ctx).vaes.length, MODELS.zimageVae, "ae.safetensors VAE", "Encodes / decodes images"),
+  need.model(fam(ctx).models, MODELS.zimageTurbo, "Z-Image model (Turbo or Base)", "The diffusion model"),
+  need.model(fam(ctx).clips, MODELS.zimageClip, "Qwen3 4B text encoder", "Reads the prompt"),
+  need.model(fam(ctx).vaes, MODELS.zimageVae, "ae.safetensors VAE", "Encodes / decodes images"),
   need.node(ctx, "ModelSamplingAuraFlow", PACKS.core, "Z-Image sampling"),
 ];
 const controlNeeds = (ctx, level = "required") => [

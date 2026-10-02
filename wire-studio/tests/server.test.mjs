@@ -172,6 +172,8 @@ test("server end to end against a mock ComfyUI", async (t) => {
     const r = await s.api("/api/assign", { method: "PUT", json: { name: "detail_slider.safetensors", family: "sdxl" } });
     assert.ok(r.data.inventory.families.sdxl.loras.includes("detail_slider.safetensors"));
     assert.ok(!r.data.inventory.unsortedLoras.includes("detail_slider.safetensors"));
+    const zimage = r.data.inventory.suggested.find((m) => m.file === "z_image_turbo_bf16.safetensors");
+    assert.deepEqual([zimage.status, zimage.path], ["found", "diffusion_models/z-image/turbo"], "suggested files come with what is installed");
   });
 
   await t.test("the ComfyUI folder guide is served as a page", async () => {

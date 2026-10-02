@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs/promises";
 import { MODEL_LIST } from "../engine/model-list.mjs";
 import { MODELS } from "../engine/catalog.mjs";
-import { readInventory, readiness } from "../engine/index.mjs";
+import { readInventory, readiness, suggestions } from "../engine/index.mjs";
 import { render, GUIDE } from "../scripts/build-model-guide.mjs";
 import { objectInfo, FILES } from "./fixtures.mjs";
 
@@ -61,6 +61,9 @@ test("following the guide gives a fully detected setup: right family, right type
   assert.ok(inv.families.krea2.controlLoras.some((n) => n.startsWith("krea2/control/")), "loras/krea2/control/ holds control LoRAs");
   assert.deepEqual(inv.unsortedLoras, []);
   assert.deepEqual(inv.misplaced, []);
-  for (const [family, tasks] of Object.entries(readiness({ info, inv })))
+  const ready = readiness({ info, inv });
+  for (const [family, tasks] of Object.entries(ready))
     for (const [task, r] of Object.entries(tasks)) if (r.state !== "off") assert.equal(r.state, "ready", `${family}/${task}: ${JSON.stringify(r.items.filter((x) => !x.ok).map((x) => x.label))}`);
+  // Setup → Suggested models & LoRAs then shows every file placed by the guide as installed.
+  for (const m of suggestions({ info, inv }, ready)) if (m.path.split("/")[0] in slot) assert.equal(m.status, "found", `${m.file} shows as installed`);
 });

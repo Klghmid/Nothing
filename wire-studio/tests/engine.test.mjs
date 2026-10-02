@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { buildWorkflow, buildUtility, readiness, readInventory, FAMILIES, schema } from "../engine/index.mjs";
+import { buildWorkflow, buildUtility, readiness, readInventory, suggestions, FAMILIES, schema } from "../engine/index.mjs";
 import { classify, variantOf } from "../engine/inventory.mjs";
 import { objectInfo, sampleParams, CUSTOM_NODES } from "./fixtures.mjs";
 
@@ -24,6 +24,38 @@ const LOADERS = {
   zimage: (n) => (n.class_type === "UNETLoader" && /z_image/i.test(n.inputs.unet_name)) || (n.class_type === "CLIPLoader" && n.inputs.type === "lumina2") || (n.class_type === "VAELoader" && n.inputs.vae_name === "ae.safetensors"),
   krea2: (n) => (n.class_type === "UNETLoader" && /krea2/i.test(n.inputs.unet_name)) || (n.class_type === "CLIPLoader" && n.inputs.type === "krea2") || (n.class_type === "VAELoader" && /qwen_image_vae/.test(n.inputs.vae_name)),
 };
+
+test("Setup names the suggested file and the installed file used for each requirement", () => {
+  const ready = readiness(ctx);
+  const item = (family, task, key) => ready[family][task].items.find((n) => n.help?.key === key);
+  const union21 = item("zimage", "inpaint", "zimageUnion21");
+  assert.equal(union21.help.folder, "model_patches");
+  assert.deepEqual(union21.found, ["Z-Image-Turbo-Fun-Controlnet-Union-2.1-2601-8steps.safetensors"]);
+  assert.ok(item("zimage", "inpaint", "zimageTurbo").found.includes("z_image_turbo_bf16.safetensors"));
+  assert.deepEqual(item("anima", "generate", "animaTurbo").found, ["anima-turbo-lora-v0.2.safetensors"]);
+  assert.deepEqual(item("sdxl", "inpaint", "sdxlUnion").found, ["SDXL/controlnet-union-sdxl-1.0-promax.safetensors"]);
+  assert.deepEqual(item("krea2", "control", "krea2Depth").found, ["krea2/krea2_depth_control_lora.safetensors"]);
+
+  const list = suggestions(ctx, ready);
+  const row = (file) => list.find((m) => m.file === file);
+  assert.deepEqual([row("z_image_turbo_bf16.safetensors").status, row("z_image_turbo_bf16.safetensors").found], ["found", ["z_image_turbo_bf16.safetensors"]]);
+  assert.equal(row("qwen_3_4b_fp8_mixed.safetensors").status, "missing");
+  assert.equal(row("anima-preview3-base.safetensors").status, "missing");
+  assert.deepEqual(row("controlnet-union-sdxl-1.0-promax.safetensors").found, ["SDXL/controlnet-union-sdxl-1.0-promax.safetensors"], "found in a sub-folder");
+  assert.equal(row("sd_xl_base_1.0.safetensors").status, "covered", "any SDXL checkpoint does the job");
+  assert.ok(row("sd_xl_base_1.0.safetensors").found.includes("Illustrious-XL-v2.0.safetensors"));
+  const turbo = row("your Anima Turbo / distilled models");
+  assert.equal(turbo.status, "found");
+  assert.deepEqual(turbo.found.sort(), ["Anima/anima_turbo_int8.safetensors", "Anima_Turbo/terraRisingUnity_v301.safetensors"]);
+  assert.deepEqual(row("your Krea 2 depth Control-LoRA, any file name").found, ["krea2/krea2_depth_control_lora.safetensors"]);
+  assert.deepEqual(row("your Anima LoRAs").found, ctx.inv.families.anima.loras);
+  assert.equal(row("inswapper_128.onnx").status, "found");
+  assert.equal(row("codeformer-v0.1.0.pth").status, "found");
+  assert.equal(list.filter((m) => m.file === "qwen_image_vae.safetensors").every((m) => m.status === "found"), true, "shared by Anima and Krea 2");
+  const lean = objectInfo({ checkpoints: [], unets: [], loras: [], clips: [], vaes: [], patches: [], controlnets: [], upscalers: [], detectors: [], inputs: ["example.png"] });
+  const leanCtx = { info: lean, inv: readInventory(lean) };
+  assert.ok(suggestions(leanCtx, readiness(leanCtx)).filter((m) => m.family !== "Shared").every((m) => m.status === "missing" && !m.found.length));
+});
 
 test("family and type come from folders at any depth", () => {
   const f = ctx.inv.families;
@@ -69,6 +101,8 @@ test("inventory sorts every model into exactly one family", () => {
   assert.equal(f.krea2.editLora, "krea2_identity_edit_v1_2.safetensors");
   assert.deepEqual(f.krea2.loras, ["krea2_darkbrush.safetensors"]);
   assert.deepEqual(ctx.inv.unsortedLoras, ["detail_slider.safetensors"]);
+  assert.deepEqual(ctx.inv.otherLoras, ["FLUX/flux_realism_lora.safetensors", "Wan2.2/lightx2v_i2v_14B.safetensors"], "other families are listed apart, not as unsorted");
+  assert.ok(ctx.inv.otherModels.includes("flux1-krea-dev.safetensors") && ctx.inv.otherModels.includes("sd15/dreamshaper_8.safetensors"));
   assert.deepEqual(f.sdxl.controlnets, ["SDXL/controlnet-union-sdxl-1.0-promax.safetensors", "sdxl/diffusers_xl_canny_full.safetensors"]);
   assert.equal(classify("animagine-xl-4.0.safetensors"), "sdxl", "Animagine is SDXL, not Anima");
   assert.equal(classify("detail_slider.safetensors", { "detail_slider.safetensors": "sdxl" }), "sdxl", "Library assignment wins");
