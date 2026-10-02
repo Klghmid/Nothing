@@ -6,6 +6,7 @@
 // Turbo: KSampler 8 steps, CFG 1, res_multistep/simple, negative = ConditioningZeroOut.
 // Base: 25 steps, CFG 4 with a real negative prompt.
 import { field, choice, need } from "../fields.mjs";
+import { fail } from "../graph.mjs";
 import { MODELS, PACKS } from "../catalog.mjs";
 import * as c from "../common.mjs";
 import { detailerNeeds, swapNeeds, mapNeeds, upscaleNeeds, outpaintNeeds } from "../needs.mjs";
@@ -37,22 +38,44 @@ function prompts(g, m, p, fallback = "") {
 }
 const finish = (g, m, latent, p, denoise = 1) => c.decode(g, c.ksampler(g, { model: shifted(g, m.model, p), positive: m.positive, negative: m.negative, latent, sample: m.sample, denoise }), m.vae);
 
-// Fun ControlNet Union (model patch). Union 2.x also has an inpaint mode (inpaint_image + mask).
-const unionPatch = (ctx, inpaint) => {
-  const list = fam(ctx).patches.filter((n) => !/tile/i.test(n));
-  if (inpaint) return list.find((n) => /union[-_]?2/i.test(n) && !/lite/i.test(n)) || list.find((n) => /union[-_]?2/i.test(n));
-  return list.find((n) => /union[-_]?2\.1/i.test(n) && !/lite/i.test(n)) || list.find((n) => /union/i.test(n)) || list[0];
+// Fun ControlNet Union (model patch). What a file can do is read from its name — ComfyUI
+// exposes no file metadata: 1.0 = canny / HED / depth / pose / M-LSD; 2.x adds the inpaint mode;
+// 2.1 adds scribble; the 2602 release adds gray; "lite" = fewer control layers (low VRAM).
+// Tile models are not Union models and are never picked here.
+const unionInfo = (name) => {
+  const base = String(name).split(/[\\/]/).pop();
+  const v2 = /union[-_]?2/i.test(base), v21 = /union[-_]?2[._]1/i.test(base), lite = /lite/i.test(base);
+  return { name, inpaint: v2, scribble: v21, gray: v21 && /2602/.test(base), lite, rank: (/2602/.test(base) ? 40 : v21 ? 30 : v2 ? 20 : 10) + (lite ? 0 : 5) };
 };
+const unionPatches = (ctx) => fam(ctx).patches.filter((n) => !/tile/i.test(n)).map(unionInfo);
+const MODE = { scribble: "scribble", gray: "gray" };
+const fitsMode = (u, kind, inpaint) => (!inpaint || u.inpaint) && (!MODE[kind] || u[MODE[kind]]);
+// The Union patch for a mode: the one chosen under Advanced (checked), else the newest full
+// patch that has the mode, then lite, then older versions.
+function pickUnion(ctx, { kind, inpaint = false, wanted } = {}) {
+  const list = unionPatches(ctx);
+  if (wanted) {
+    const u = list.find((x) => x.name === wanted);
+    if (!u) throw fail(`"${String(wanted).split(/[\\/]/).pop()}" is not an installed Z-Image Fun ControlNet Union model`, { missing: { models: [{ label: "Fun ControlNet Union 2.1", ...MODELS.zimageUnion21 }] } });
+    if (!fitsMode(u, kind, inpaint)) throw fail(`${String(wanted).split(/[\\/]/).pop()} has no ${inpaint && !u.inpaint ? "inpaint" : kind} mode; choose a newer Fun ControlNet Union (Advanced → Control model)`);
+    return u.name;
+  }
+  return list.filter((u) => fitsMode(u, kind, inpaint)).sort((a, b) => b.rank - a.rank)[0]?.name || null;
+}
+const unionPatch = (ctx, inpaint) => pickUnion(ctx, { inpaint });
 const controlNode = (g) => (g.has("ZImageFunControlnet") ? "ZImageFunControlnet" : g.has("QwenImageDiffsynthControlnet") ? "QwenImageDiffsynthControlnet" : null);
 function funControl(g, m, patch, inputs, title) {
   const node = controlNode(g);
   const loader = g.add("ModelPatchLoader", { name: patch }, "Fun ControlNet Union");
   m.model = g.add(node, { model: m.model, model_patch: loader, vae: m.vae, ...inputs }, title);
 }
-// Masked redraw: Union 2.x inpaint mode when installed, else differential diffusion.
-function maskedRedraw(g, m, p, ctx, image, mask, denoise) {
-  const patch = unionPatch(ctx, true);
-  if (patch && g.has("ZImageFunControlnet")) funControl(g, m, patch, { inpaint_image: image, mask, strength: c.clamp(p.context, 0.9, 0, 1.5) }, "Inpaint context (Fun Union)");
+// Masked redraw: Union 2.x inpaint mode when installed, else differential diffusion. An optional
+// structure map rides in the same call (`image` next to `inpaint_image` + `mask`, same size).
+function maskedRedraw(g, m, p, ctx, image, mask, denoise, guide = null) {
+  const patch = guide ? pickUnion(ctx, { kind: guide.kind, inpaint: true, wanted: p.patch }) : pickUnion(ctx, { inpaint: true, wanted: p.patch });
+  if (guide && !(patch && g.has("ZImageFunControlnet")))
+    throw fail(`A structure guide needs the inpaint mode of Fun ControlNet Union 2.x${guide.kind === "gray" ? " (2602)" : guide.kind === "scribble" ? " (2.1)" : ""}`, { missing: { models: [{ label: "Fun ControlNet Union 2.1", ...MODELS.zimageUnion21 }] } });
+  if (patch && g.has("ZImageFunControlnet")) funControl(g, m, patch, { inpaint_image: image, mask, ...(guide ? { image: guide.map } : {}), strength: c.clamp(p.context, 0.9, 0, 1.5) }, guide ? `Inpaint context + ${guide.kind} (Fun Union)` : "Inpaint context (Fun Union)");
   else {
     if (g.has("DifferentialDiffusion")) m.model = g.add("DifferentialDiffusion", { model: m.model }, "Differential diffusion");
     g.note("Fun ControlNet Union 2.x not installed: using masked sampling");
@@ -72,7 +95,20 @@ const controlNeeds = (ctx, level = "required") => [
 ];
 const common = [field.model(), field.loras()];
 const advanced = [field.negative(NEGATIVE), field.seed(), field.sampling(), field.slider("shift", "Shift", 1, 8, 0.1, 3, { advanced: true, hint: "AuraFlow sampling shift (template default 3)" })];
-const KINDS = [choice("canny", "Canny edges"), choice("hed", "Soft edge (HED)"), choice("depth", "Depth"), choice("pose", "Pose (skeleton)"), choice("mlsd", "Straight lines (M-LSD)")];
+const KINDS = [
+  choice("canny", "Canny edges"),
+  choice("hed", "Soft edge (HED)"),
+  choice("depth", "Depth"),
+  choice("pose", "Pose (skeleton)"),
+  choice("mlsd", "Straight lines (M-LSD)"),
+  { ...choice("scribble", "Scribble"), feature: "scribble" },
+  { ...choice("gray", "Gray (tones)"), feature: "gray" },
+];
+const KIND_VALUES = KINDS.map((k) => k.value);
+const GUIDES = [choice("none", "None"), ...KINDS];
+const patchField = field.select("patch", "Control model", "unionPatches", "", { advanced: true, hint: "Automatic picks the newest full Union patch with the chosen mode; pick a lite patch for less VRAM" });
+// A map for a Union mode, at the given size.
+const unionMap = (g, kind, image, p, size) => c.controlMap(g, kind, image, p, size);
 
 export default {
   id: "zimage",
@@ -83,8 +119,13 @@ export default {
   preferModel: PREFER,
   presets: { turbo: { label: "Turbo", ...TURBO }, regular: { label: "Base", ...BASE } },
   baseNeeds,
+  // Modes the installed Union patches offer (choices with `feature` are hidden otherwise).
+  features: (ctx) => ({ scribble: unionPatches(ctx).some((u) => u.scribble), gray: unionPatches(ctx).some((u) => u.gray), inpaint: unionPatches(ctx).some((u) => u.inpaint) }),
   unsupported: {
     lineart: "Fun ControlNet Union has no line-art mode; use Soft edge (HED) or Scribble.",
+  },
+  research: {
+    tile: "Z-Image-Turbo-Fun-Controlnet-Tile-2.1 exists, but no official ComfyUI template or documented input preparation could be verified (see WORKFLOW_RESEARCH.md, Phase 2).",
   },
   missing: {
     style: "No style-reference model for Z-Image was found.",
@@ -118,7 +159,19 @@ export default {
     inpaint: {
       evidence: "official",
       verified: "graph",
-      fields: [field.image("image", "Image"), field.mask(), field.prompt({ placeholder: "What should appear in the painted area" }), field.slider("denoise", "Redraw strength", 0.1, 1, 0.01, 1), field.slider("context", "Match surroundings", 0, 1.5, 0.05, 0.9, { advanced: true, hint: "Fun Union 2.x inpaint strength (model card: 0.65–1.0)" }), ...common, ...advanced],
+      fields: [
+        field.image("image", "Image"),
+        field.mask(),
+        field.prompt({ placeholder: "What should appear in the painted area" }),
+        field.slider("denoise", "Redraw strength", 0.1, 1, 0.01, 1),
+        field.select("guide", "Keep structure", GUIDES, "none", { hint: "Optional: the redraw follows a map of the picture (needs Fun ControlNet Union 2.x)" }),
+        field.image("control", "Separate guide image", { optional: true, advanced: true, when: { key: "guide", is: KIND_VALUES }, hint: "Optional: take the structure from another image or a ready map" }),
+        field.toggle("isMap", "Guide image is already a map", false, { advanced: true, when: "control" }),
+        field.slider("context", "Match surroundings", 0, 1.5, 0.05, 0.9, { advanced: true, hint: "Fun Union 2.x inpaint strength (model card: 0.65–1.0)" }),
+        patchField,
+        ...common,
+        ...advanced,
+      ],
       needs: (ctx) => [...baseNeeds(ctx), need.node(ctx, "ZImageFunControlnet", PACKS.core, "Inpaint mode of the Fun ControlNet", "recommended"), need.model(unionPatch(ctx, true), MODELS.zimageUnion21, "Fun ControlNet Union 2.1", "Makes the fill match its surroundings", "recommended")],
       build(g, p, ctx) {
         const m = loaders(g, p, ctx);
@@ -126,13 +179,28 @@ export default {
         const src = c.loadImage(g, p.image, "Image");
         const mask = c.loadMask(g, p.mask);
         const { w, h } = c.sourceSize(p);
-        return c.composite(g, src, maskedRedraw(g, m, p, ctx, src, mask, c.clamp(p.denoise, 1, 0.1, 1)), c.softEdge(g, mask, w, h));
+        // The guide map must be the size of the inpaint image (one combined Fun Union call).
+        const kind = KIND_VALUES.includes(p.guide) ? p.guide : null;
+        const guide = kind && { kind, map: unionMap(g, kind, p.control ? c.loadImage(g, p.control, "Guide image") : src, { ...p, isMap: !!(p.control && p.isMap) }, { width: w, height: h }) };
+        return c.composite(g, src, maskedRedraw(g, m, p, ctx, src, mask, c.clamp(p.denoise, 1, 0.1, 1), guide), c.softEdge(g, mask, w, h));
       },
     },
     outpaint: {
       evidence: "composed",
       verified: "graph",
-      fields: [field.image("image", "Image"), field.edges(), field.prompt({ placeholder: "Describe the scenery to add (avoid repeating the subject)" }), field.select("fill", "Pre-fill", [choice("navier-stokes", "Smooth (recommended)"), choice("telea", "Telea"), choice("none", "None")], "navier-stokes", { advanced: true }), field.slider("denoise", "Redraw strength", 0.5, 1, 0.01, 1, { advanced: true }), ...common, ...advanced],
+      fields: [
+        field.image("image", "Image"),
+        field.edges(),
+        field.prompt({ placeholder: "Describe the scenery to add (avoid repeating the subject)" }),
+        field.select("guide", "Guide the new area", GUIDES, "none", { advanced: true, hint: "Optional: a control image of the whole extended canvas (sketch, depth, lines…)" }),
+        field.image("control", "Guide image (whole new canvas)", { advanced: true, when: { key: "guide", is: KIND_VALUES } }),
+        field.toggle("isMap", "Guide image is already a map", false, { advanced: true, when: "control" }),
+        field.select("fill", "Pre-fill", [choice("navier-stokes", "Smooth (recommended)"), choice("telea", "Telea"), choice("none", "None")], "navier-stokes", { advanced: true }),
+        field.slider("denoise", "Redraw strength", 0.5, 1, 0.01, 1, { advanced: true }),
+        patchField,
+        ...common,
+        ...advanced,
+      ],
       needs: (ctx) => [...baseNeeds(ctx), need.model(unionPatch(ctx, true), MODELS.zimageUnion21, "Fun ControlNet Union 2.1", "Continues the picture coherently", "recommended"), ...outpaintNeeds(ctx)],
       build(g, p, ctx) {
         const m = loaders(g, p, ctx);
@@ -140,7 +208,11 @@ export default {
         const pad = c.padCanvas(g, c.loadImage(g, p.image, "Image"), p);
         const filled = c.edgeFill(g, pad.image, pad.mask, p);
         const base = filled || pad.image;
-        return c.composite(g, base, maskedRedraw(g, m, p, ctx, base, pad.mask, filled ? c.clamp(p.denoise, 1, 0.5, 1) : 1), pad.mask);
+        // Only a separate image can describe the new area; the source itself does not reach it.
+        const kind = KIND_VALUES.includes(p.guide) && p.control ? p.guide : null;
+        if (KIND_VALUES.includes(p.guide) && !p.control) g.note("Guide skipped: add a guide image of the whole extended canvas");
+        const guide = kind && { kind, map: unionMap(g, kind, c.loadImage(g, p.control, "Guide image"), p, { width: pad.width, height: pad.height }) };
+        return c.composite(g, base, maskedRedraw(g, m, p, ctx, base, pad.mask, filled ? c.clamp(p.denoise, 1, 0.5, 1) : 1, guide), pad.mask);
       },
     },
     face: {
@@ -197,12 +269,13 @@ export default {
         field.prompt({ placeholder: "Describe who is in the pose and where" }),
         field.size({ fromImage: true }),
         field.slider("strength", "Pose strength", 0.3, 1.5, 0.05, 0.8, { hint: "Model card range 0.65–1.0" }),
+        patchField,
         ...common,
         ...advanced,
       ],
       needs: (ctx) => [...baseNeeds(ctx), ...controlNeeds(ctx), ...mapNeeds(ctx, ["pose"])],
       build(g, p, ctx) {
-        const patch = unionPatch(ctx, false);
+        const patch = pickUnion(ctx, { kind: "pose", wanted: p.patch });
         if (!patch || !controlNode(g)) throw c.missing("Z-Image Fun ControlNet Union", MODELS.zimageUnion);
         const m = loaders(g, p, ctx);
         Object.assign(m, prompts(g, m, p));
@@ -223,20 +296,55 @@ export default {
         field.size({ fromImage: true }),
         field.slider("strength", "Control strength", 0.3, 1.5, 0.05, 0.75, { hint: "Model card range 0.65–1.0" }),
         field.toggle("invertMap", "Invert map", false, { advanced: true }),
+        patchField,
         ...common,
         ...advanced,
       ],
       needs: (ctx) => [...baseNeeds(ctx), ...controlNeeds(ctx), ...mapNeeds(ctx, ["hed", "depth", "pose", "mlsd"])],
       build(g, p, ctx) {
-        const patch = unionPatch(ctx, false);
+        const kind = KIND_VALUES.includes(p.kind) ? p.kind : "canny";
+        const patch = pickUnion(ctx, { kind, wanted: p.patch });
+        if (!patch && MODE[kind] && unionPatches(ctx).length) throw fail(`The ${kind} mode needs Fun ControlNet Union ${kind === "gray" ? "2.1 (2602)" : "2.1"}`, { missing: { models: [{ label: "Fun ControlNet Union 2.1", ...MODELS.zimageUnion21 }] } });
         if (!patch || !controlNode(g)) throw c.missing("Z-Image Fun ControlNet Union", MODELS.zimageUnion);
-        const kind = KINDS.some((k) => k.value === p.kind) ? p.kind : "canny";
         const m = loaders(g, p, ctx);
         Object.assign(m, prompts(g, m, p));
         const { width, height, batch } = c.outputSize(p);
         const map = c.controlMap(g, kind, c.loadImage(g, p.image, "Control image"), p, { width, height });
         funControl(g, m, patch, { image: map, strength: c.clamp(p.strength, 0.75, 0, 2) }, `Apply ${kind} control`);
         return finish(g, m, g.add("EmptySD3LatentImage", { width, height, batch_size: batch }, "Empty canvas"), p);
+      },
+    },
+    "img2img-control": {
+      evidence: "composed",
+      verified: "graph",
+      notes: ["Redraws the source while the Fun ControlNet keeps its structure. At a high change strength this restyles the picture."],
+      fields: [
+        field.image("image", "Source image"),
+        field.select("kind", "Keep from the source", KINDS, "canny"),
+        field.prompt({ placeholder: "Describe the whole picture as it should look (or a new style)" }),
+        field.slider("denoise", "Change strength", 0.2, 1, 0.01, 0.6, { hint: "0.85–0.95 restyles while the control keeps the structure" }),
+        field.slider("strength", "Control strength", 0.3, 1.5, 0.05, 0.75, { hint: "Model card range 0.65–1.0" }),
+        field.image("control", "Separate control image", { optional: true, advanced: true, hint: "Optional: take the structure from another image (or a ready map)" }),
+        field.toggle("isMap", "Control image is already a map", false, { advanced: true, when: "control" }),
+        patchField,
+        ...common,
+        ...advanced,
+      ],
+      needs: (ctx) => [...baseNeeds(ctx), ...controlNeeds(ctx), ...mapNeeds(ctx, ["hed", "depth", "pose", "mlsd"])],
+      build(g, p, ctx) {
+        const kind = KIND_VALUES.includes(p.kind) ? p.kind : "canny";
+        const patch = pickUnion(ctx, { kind, wanted: p.patch });
+        if (!patch && MODE[kind] && unionPatches(ctx).length) throw fail(`The ${kind} mode needs Fun ControlNet Union ${kind === "gray" ? "2.1 (2602)" : "2.1"}`, { missing: { models: [{ label: "Fun ControlNet Union 2.1", ...MODELS.zimageUnion21 }] } });
+        if (!patch || !controlNode(g)) throw c.missing("Z-Image Fun ControlNet Union", MODELS.zimageUnion);
+        const m = loaders(g, p, ctx);
+        Object.assign(m, prompts(g, m, p));
+        const src = c.loadImage(g, p.image, "Source image");
+        const { w, h } = c.sourceSize(p);
+        const width = c.round(w, 16), height = c.round(h, 16);
+        const map = unionMap(g, kind, p.control ? c.loadImage(g, p.control, "Control image") : src, { ...p, isMap: !!(p.control && p.isMap) }, { width, height });
+        funControl(g, m, patch, { image: map, strength: c.clamp(p.strength, 0.75, 0, 2) }, `Apply ${kind} control`);
+        const latent = c.encode(g, c.scaleImage(g, src, width, height, "disabled", "Fit source to /16"), m.vae);
+        return finish(g, m, latent, p, c.clamp(p.denoise, 0.6, 0.05, 1));
       },
     },
     upscale: {

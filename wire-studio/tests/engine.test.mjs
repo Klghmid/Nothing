@@ -30,7 +30,7 @@ test("Setup names the suggested file and the installed file used for each requir
   const item = (family, task, key) => ready[family][task].items.find((n) => n.help?.key === key);
   const union21 = item("zimage", "inpaint", "zimageUnion21");
   assert.equal(union21.help.folder, "model_patches");
-  assert.deepEqual(union21.found, ["Z-Image-Turbo-Fun-Controlnet-Union-2.1-2601-8steps.safetensors"]);
+  assert.deepEqual(union21.found, ["Z-Image-Turbo-Fun-Controlnet-Union-2.1-2602-8steps.safetensors"], "the newest full 2.x patch");
   assert.ok(item("zimage", "inpaint", "zimageTurbo").found.includes("z_image_turbo_bf16.safetensors"));
   assert.deepEqual(item("anima", "generate", "animaTurbo").found, ["anima-turbo-lora-v0.2.safetensors"]);
   assert.deepEqual(item("sdxl", "inpaint", "sdxlUnion").found, ["SDXL/controlnet-union-sdxl-1.0-promax.safetensors"]);
@@ -385,11 +385,11 @@ test("Anima Img2Img + Control: the source is encoded and also gives the map; a s
   assert.equal(nodesOf(prompt, "ModelPatchLoader")[0].inputs.name, "anima-lllite-depth-1.safetensors");
   assert.equal(prompt[ks.latent_image[0]].class_type, "VAEEncode", "img2img latent, not an empty canvas");
   assert.ok(types(prompt).includes("DA3Render"), "native depth map");
-  const sep = buildWorkflow("anima", "img2img-control", { ...sampleParams("img2img-control"), control: "sketch.png", isMap: true }, ctx).prompt;
+  const sep = buildWorkflow("anima", "img2img-control", { ...sampleParams("img2img-control"), kind: "lineart", control: "sketch.png", isMap: true }, ctx).prompt;
   const names = nodesOf(sep, "LoadImage").map((n) => n.inputs.image).sort();
   assert.deepEqual(names, ["example.png", "sketch.png"]);
   assert.ok(!types(sep).includes("LineArtPreprocessor"), "a ready-made map is used as is");
-  const own = buildWorkflow("anima", "img2img-control", { ...sampleParams("img2img-control"), isMap: true }, ctx).prompt;
+  const own = buildWorkflow("anima", "img2img-control", { ...sampleParams("img2img-control"), kind: "lineart", isMap: true }, ctx).prompt;
   assert.ok(types(own).includes("LineArtPreprocessor"), "the source photo itself is never treated as a map");
   const pose = schema().families.anima.tasks["img2img-control"].fields.find((f) => f.key === "kind").choices.find((c) => c.value === "pose");
   assert.equal(pose.status, "partial", "the legacy pose patch keeps its limitation");
@@ -403,4 +403,58 @@ test("dynamic-combo inputs of native nodes survive the conform step (Depth Anyth
   assert.equal(render["output.apply_sky_clip"], false);
   assert.equal(nodesOf(prompt, "DA3Inference")[0].inputs.mode, "mono");
   assert.equal(nodesOf(prompt, "LoadDA3Model")[0].inputs.model_name, "depth_anything_3_mono_large.safetensors");
+});
+
+test("Z-Image Union: each mode gets a patch that has it; lite on request; tile never used as Union", () => {
+  const withPatches = (patches) => {
+    const i = objectInfo({ ...FILES, patches });
+    return { info: i, inv: readInventory(i) };
+  };
+  const patchOf = (prompt) => nodesOf(prompt, "ModelPatchLoader")[0].inputs.name;
+  const run = (c2, kind, extra = {}) => patchOf(buildWorkflow("zimage", "control", { ...sampleParams("control"), kind, ...extra }, c2).prompt);
+  assert.equal(run(ctx, "gray"), "Z-Image-Turbo-Fun-Controlnet-Union-2.1-2602-8steps.safetensors");
+  assert.equal(run(ctx, "canny"), "Z-Image-Turbo-Fun-Controlnet-Union-2.1-2602-8steps.safetensors", "newest full patch by default");
+  assert.equal(run(ctx, "canny", { patch: "Z-Image-Turbo-Fun-Controlnet-Union-2.1-lite-2602-8steps.safetensors" }), "Z-Image-Turbo-Fun-Controlnet-Union-2.1-lite-2602-8steps.safetensors", "Advanced → Control model (lite for low VRAM)");
+  assert.ok(!ctx.inv.families.zimage.unionPatches.some((n) => /tile/i.test(n)), "tile models are not Union models");
+  assert.throws(() => run(ctx, "canny", { patch: "Z-Image-Turbo-Fun-Controlnet-Tile-2.1-2601-8steps.safetensors" }), /is not an installed Z-Image Fun ControlNet Union model/);
+  assert.throws(() => run(ctx, "canny", { patch: "anima-lllite-depth-1.safetensors" }), /is not an installed Z-Image Fun ControlNet Union model/, "another family's patch");
+  const old = withPatches(["Z-Image-Turbo-Fun-Controlnet-Union.safetensors", "Z-Image-Turbo-Fun-Controlnet-Union-2.1-2601-8steps.safetensors"]);
+  assert.equal(run(old, "scribble"), "Z-Image-Turbo-Fun-Controlnet-Union-2.1-2601-8steps.safetensors");
+  assert.throws(() => run(old, "gray"), /gray mode needs Fun ControlNet Union 2\.1 \(2602\)/);
+  assert.throws(() => run(old, "scribble", { patch: "Z-Image-Turbo-Fun-Controlnet-Union.safetensors" }), /has no scribble mode/);
+  assert.deepEqual(old.inv.families.zimage.features, { scribble: true, gray: false, inpaint: true }, "the UI hides gray here");
+  const v1 = withPatches(["Z-Image-Turbo-Fun-Controlnet-Union.safetensors"]);
+  assert.deepEqual(v1.inv.families.zimage.features, { scribble: false, gray: false, inpaint: false });
+  const kinds = schema().families.zimage.tasks.control.fields.find((f) => f.key === "kind").choices;
+  assert.deepEqual(kinds.filter((k) => k.feature).map((k) => [k.value, k.feature]), [["scribble", "scribble"], ["gray", "gray"]]);
+});
+
+test("Z-Image Inpaint + structure guide: one Fun Union call with the map, the inpaint image and the mask", () => {
+  const { prompt } = buildWorkflow("zimage", "inpaint", { ...sampleParams("inpaint"), guide: "depth" }, ctx);
+  const fun = nodesOf(prompt, "ZImageFunControlnet");
+  assert.equal(fun.length, 1, "a single combined call");
+  const inputs = fun[0].inputs;
+  assert.ok(inputs.image && inputs.inpaint_image && inputs.mask);
+  const fit = prompt[inputs.image[0]];
+  assert.deepEqual([fit.class_type, fit.inputs.width, fit.inputs.height], ["ImageScale", 832, 1216], "the map has the inpaint image's size");
+  const none = buildWorkflow("zimage", "inpaint", sampleParams("inpaint"), ctx).prompt;
+  assert.ok(!("image" in nodesOf(none, "ZImageFunControlnet")[0].inputs), "no guide → plain inpaint context");
+  const v1 = objectInfo({ ...FILES, patches: ["Z-Image-Turbo-Fun-Controlnet-Union.safetensors"] });
+  assert.throws(() => buildWorkflow("zimage", "inpaint", { ...sampleParams("inpaint"), guide: "depth" }, { info: v1, inv: readInventory(v1) }), /structure guide needs the inpaint mode of Fun ControlNet Union 2\.x/);
+});
+
+test("Z-Image Outpaint guide comes from a separate image of the whole canvas; Img2Img + Control encodes the source", () => {
+  const noGuideImage = buildWorkflow("zimage", "outpaint", { ...sampleParams("outpaint"), guide: "canny" }, ctx);
+  assert.ok(!("image" in nodesOf(noGuideImage.prompt, "ZImageFunControlnet")[0].inputs));
+  assert.ok(noGuideImage.notes.some((n) => /guide image of the whole extended canvas/.test(n)));
+  const guided = buildWorkflow("zimage", "outpaint", { ...sampleParams("outpaint"), guide: "canny", control: "layout.png" }, ctx).prompt;
+  const fit = guided[nodesOf(guided, "ZImageFunControlnet")[0].inputs.image[0]].inputs;
+  assert.deepEqual([fit.width, fit.height], [832 + 256, 1216], "the guide map covers the extended canvas");
+  const i2i = buildWorkflow("zimage", "img2img-control", { ...sampleParams("img2img-control"), kind: "hed", denoise: 0.9 }, ctx).prompt;
+  const ks = nodesOf(i2i, "KSampler")[0].inputs;
+  assert.equal(ks.denoise, 0.9);
+  assert.equal(i2i[ks.latent_image[0]].class_type, "VAEEncode");
+  assert.ok(types(i2i).includes("HEDPreprocessor"));
+  const shift = nodesOf(i2i, "ModelSamplingAuraFlow")[0];
+  assert.equal(i2i[shift.inputs.model[0]].class_type, "ZImageFunControlnet", "control before the shift (template order)");
 });

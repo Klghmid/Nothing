@@ -121,3 +121,60 @@ Pose keeps the *Weak control* limitation of the legacy pose patch.
 grayscale → READY (documented mode of any-test-like-v2); pose → PARTIAL (legacy patch);
 Img2Img + Control → READY † (composed). **VRAM:** not measured here (no GPU); an LLLite patch is
 small next to the 2B model, and the map preprocessors load their own models once.
+
+---
+
+## Phase 2 — Z-Image Fun ControlNet Union 2.1 (2602), combined control, Lite
+
+**Family:** Z-Image only (Turbo; Base works with the same patch at Base settings).
+**Architecture:** alibaba-pai *Fun ControlNet* — control layers injected into the Z-Image DiT via
+a model patch: `ModelPatchLoader(name)` → `ZImageFunControlnet(model, model_patch, vae, strength,
+image?, inpaint_image?, mask?, start_percent, end_percent)` → `MODEL`, applied **before**
+`ModelSamplingAuraFlow` (official template order).
+
+| Item | Finding | Source |
+|---|---|---|
+| Node | `ZImageFunControlnet` is a subclass of `QwenImageDiffsynthControlnet` (same function) that adds the optional `inpaint_image`; the older node has no inpaint input. Official blueprints still use the older name for plain control. | `comfy_extras/nodes_model_patch.py` |
+| Patch detection | `ModelPatchLoader` recognises Fun ControlNets by `control_all_x_embedder.2-1.weight`: 15 control layers + 17 extra input channels = **2.1 full**; 3 layers + 17 = **2.1 lite**; otherwise **1.0** (no inpaint channels). A release with zeroed `control_noise_refiner` weights is flagged `broken`. | same |
+| Control + inpaint | With a 2.x patch, `image` (control map), `inpaint_image` and `mask` are encoded **together** (`ZImageControlPatch.encode_latent_cond`; the control map and the inpaint image must have the same size). Control + Inpaint / Outpaint is therefore one native call, not a composition. | same |
+| Mask convention | the node inverts the mask internally (`mask = 1 - mask`); pass ComfyUI's usual white = regenerate | same |
+| Sampling | Turbo 8 steps, CFG 1, res_multistep / simple, AuraFlow shift 3 (template); 8-step distilled patches ("…-8steps") | templates, file names |
+| Control strength | `control_context_scale` 0.65–0.90 for 2.x; larger scales want more steps; lite tolerates larger scales and gives softer control; inpaint mode wants a larger scale | *(card, via search)* |
+
+**Patch versions and modes** *(card, via search: alibaba-pai/Z-Image-Turbo-Fun-Controlnet-Union-2.1)*:
+
+| File | Size | Modes | Inpaint |
+|---|---|---|---|
+| `Z-Image-Turbo-Fun-Controlnet-Union.safetensors` (1.0) | — | canny, HED, depth, pose, M-LSD (official template note) | no |
+| `…-Union-2.1-2601-8steps.safetensors` | 6.7 GB | + **scribble** | yes |
+| `…-Union-2.1-lite-2601-8steps.safetensors` | 2.0 GB | as 2601, fewer layers (low VRAM, softer) | yes |
+| `…-Union-2.1-2602-8steps.safetensors` | 6.7 GB | + **gray** | yes |
+| `…-Union-2.1-lite-2602-8steps.safetensors` | 2.0 GB | as 2602, fewer layers | yes |
+
+Version and lite/full are read from the **file name**: ComfyUI's `/object_info` exposes no file
+metadata or hashes, so nothing stronger is available remotely (recorded as a limitation).
+
+**Decisions.**
+- Modes are offered per installed patch (runtime features): scribble needs a 2.x patch, gray a
+  2602 patch; *Advanced → Control model* lists the installed Union patches so a **Lite** file can be
+  chosen for low VRAM (one workflow, no duplicated logic). Automatic picks the newest full patch
+  that supports the chosen mode, then lite, then 1.0. Tile patches are never used as Union.
+- Scribble maps: FakeScribble (white lines on black, as for every Union model); gray: the
+  luminance map (`ImageLuminanceDetector`).
+- **Img2Img + Control** (composed): encoded source + Fun control, denoise 0.6. *Restyle* is the
+  same task at a high change strength (0.85–0.95) — not a separate task.
+- **Inpaint / Outpaint + Control**: optional structure guide passed as `image` next to
+  `inpaint_image` + `mask` (2.x only). For inpaint the map is made from the source (or a separate
+  control image) at the source size; for outpaint only a separate control image of the whole new
+  canvas makes sense.
+- **Tile restore / super-resolution → RESEARCH_ONLY.** A `Z-Image-Turbo-Fun-Controlnet-Tile-2.1`
+  model exists (trained up to 2048², 8 steps, lite variant) *(card, via search)*, but neither an
+  official ComfyUI template nor a documented input preparation (tiling, control image, denoise)
+  could be verified. The official 2K upscaler template (`utility_z_image_turbo_2k_upscaler`) does
+  **not** use it (model ×4 → ×0.5 → 5 steps, dpmpp_2m_sde / beta, denoise 0.33) — that is what the
+  existing Upscale follows.
+
+**Status:** canny / HED / depth / pose / M-LSD READY †; scribble READY † (2.x); gray READY †
+(2602); Lite as a model choice READY †; Img2Img + Control, Inpaint + Control, Outpaint + Control
+READY † (native combined call / composed img2img); Tile RESEARCH_ONLY.
+**VRAM:** not measured here; the card positions lite (2.0 GB) for lower-VRAM machines vs 6.7 GB.

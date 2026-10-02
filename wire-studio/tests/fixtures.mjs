@@ -38,7 +38,7 @@ export const FILES = {
   ],
   clips: ["qwen_3_06b_base.safetensors", "qwen_3_4b.safetensors", "qwen3vl_4b_fp8_scaled.safetensors", "clip_l.safetensors", "t5xxl_fp8_e4m3fn.safetensors"],
   vaes: ["qwen_image_vae.safetensors", "ae.safetensors", "sdxl_vae.safetensors"],
-  patches: ["anima-lllite-inpainting-v2.safetensors", "anima-lllite-any-test-like-v2.safetensors", "anima-lllite-depth-1.safetensors", "anima-lllite-pose-1.safetensors", "Z-Image-Turbo-Fun-Controlnet-Union.safetensors", "Z-Image-Turbo-Fun-Controlnet-Union-2.1-2601-8steps.safetensors"],
+  patches: ["anima-lllite-inpainting-v2.safetensors", "anima-lllite-any-test-like-v2.safetensors", "anima-lllite-depth-1.safetensors", "anima-lllite-pose-1.safetensors", "Z-Image-Turbo-Fun-Controlnet-Union.safetensors", "Z-Image-Turbo-Fun-Controlnet-Union-2.1-2601-8steps.safetensors", "Z-Image-Turbo-Fun-Controlnet-Union-2.1-2602-8steps.safetensors", "Z-Image-Turbo-Fun-Controlnet-Union-2.1-lite-2602-8steps.safetensors", "Z-Image-Turbo-Fun-Controlnet-Tile-2.1-2601-8steps.safetensors"],
   controlnets: ["SDXL/controlnet-union-sdxl-1.0-promax.safetensors", "control_v11p_sd15_openpose.pth", "sdxl/diffusers_xl_canny_full.safetensors"],
   upscalers: ["RealESRGAN_x4plus.safetensors", "4x-AnimeSharp.pth"],
   detectors: ["bbox/face_yolov8m.pt", "bbox/hand_yolov8s.pt", "bbox/Eyes.pt", "segm/person_yolov8m-seg.pt"],
@@ -197,7 +197,7 @@ export function sampleParams(task) {
     faceswap: { image: "example.png", face: "face.png" },
     pose: { image: "example.png" },
     control: { image: "example.png", kind: "depth" },
-    "img2img-control": { image: "example.png", kind: "lineart", denoise: 0.6 },
+    "img2img-control": { image: "example.png", kind: "canny", denoise: 0.6 },
     upscale: { image: "example.png", scale: 2, refine: true },
   };
   return { ...base, ...(byTask[task] || {}) };

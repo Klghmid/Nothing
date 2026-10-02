@@ -32,7 +32,7 @@
   "4": {
     "class_type": "CLIPTextEncode",
     "inputs": {
-      "text": "What should appear in the painted area",
+      "text": "Describe the whole picture as it should look (or a new style)",
       "clip": [
         "2",
         0
@@ -60,29 +60,37 @@
       "image": "input.png"
     },
     "_meta": {
-      "title": "Image"
+      "title": "Source image"
     }
   },
   "7": {
-    "class_type": "LoadImage",
+    "class_type": "Canny",
     "inputs": {
-      "image": "mask.png"
+      "image": [
+        "6",
+        0
+      ],
+      "low_threshold": 0.15,
+      "high_threshold": 0.4
     },
     "_meta": {
-      "title": "Painted mask"
+      "title": "Make canny map"
     }
   },
   "8": {
-    "class_type": "ImageToMask",
+    "class_type": "ImageScale",
     "inputs": {
       "image": [
         "7",
         0
       ],
-      "channel": "red"
+      "upscale_method": "lanczos",
+      "width": 1024,
+      "height": 1024,
+      "crop": "center"
     },
     "_meta": {
-      "title": "Mask"
+      "title": "Fit map to output size"
     }
   },
   "9": {
@@ -109,25 +117,37 @@
         "3",
         0
       ],
-      "inpaint_image": [
-        "6",
-        0
-      ],
-      "mask": [
+      "image": [
         "8",
         0
       ],
-      "strength": 0.9
+      "strength": 0.75
     },
     "_meta": {
-      "title": "Inpaint context (Fun Union)"
+      "title": "Apply canny control"
     }
   },
   "11": {
+    "class_type": "ImageScale",
+    "inputs": {
+      "image": [
+        "6",
+        0
+      ],
+      "upscale_method": "lanczos",
+      "width": 1024,
+      "height": 1024,
+      "crop": "disabled"
+    },
+    "_meta": {
+      "title": "Fit source to /16"
+    }
+  },
+  "12": {
     "class_type": "VAEEncode",
     "inputs": {
       "pixels": [
-        "6",
+        "11",
         0
       ],
       "vae": [
@@ -137,22 +157,6 @@
     },
     "_meta": {
       "title": "Encode image"
-    }
-  },
-  "12": {
-    "class_type": "SetLatentNoiseMask",
-    "inputs": {
-      "samples": [
-        "11",
-        0
-      ],
-      "mask": [
-        "8",
-        0
-      ]
-    },
-    "_meta": {
-      "title": "Limit to painted area"
     }
   },
   "13": {
@@ -192,7 +196,7 @@
       "cfg": 1,
       "sampler_name": "res_multistep",
       "scheduler": "simple",
-      "denoise": 1
+      "denoise": 0.6
     },
     "_meta": {
       "title": "Sampler"
@@ -215,75 +219,13 @@
     }
   },
   "16": {
-    "class_type": "MaskToImage",
-    "inputs": {
-      "mask": [
-        "8",
-        0
-      ]
-    },
-    "_meta": {
-      "title": "Soft edge"
-    }
-  },
-  "17": {
-    "class_type": "ImageBlur",
-    "inputs": {
-      "image": [
-        "16",
-        0
-      ],
-      "blur_radius": 4,
-      "sigma": 2
-    },
-    "_meta": {
-      "title": "Soft edge blur"
-    }
-  },
-  "18": {
-    "class_type": "ImageToMask",
-    "inputs": {
-      "image": [
-        "17",
-        0
-      ],
-      "channel": "red"
-    },
-    "_meta": {
-      "title": "Soft edge mask"
-    }
-  },
-  "19": {
-    "class_type": "ImageCompositeMasked",
-    "inputs": {
-      "destination": [
-        "6",
-        0
-      ],
-      "source": [
-        "15",
-        0
-      ],
-      "mask": [
-        "18",
-        0
-      ],
-      "x": 0,
-      "y": 0,
-      "resize_source": false
-    },
-    "_meta": {
-      "title": "Paste result into original"
-    }
-  },
-  "20": {
     "class_type": "SaveImage",
     "inputs": {
       "images": [
-        "19",
+        "15",
         0
       ],
-      "filename_prefix": "WireStudio/zimage-inpaint"
+      "filename_prefix": "WireStudio/zimage-img2img-control"
     },
     "_meta": {
       "title": "Save image"

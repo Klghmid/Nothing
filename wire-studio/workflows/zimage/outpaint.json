@@ -101,7 +101,7 @@
   "9": {
     "class_type": "ModelPatchLoader",
     "inputs": {
-      "name": "Z-Image-Turbo-Fun-Controlnet-Union-2.1-2601-8steps.safetensors"
+      "name": "Z-Image-Turbo-Fun-Controlnet-Union-2.1-2602-8steps.safetensors"
     },
     "_meta": {
       "title": "Fun ControlNet Union"

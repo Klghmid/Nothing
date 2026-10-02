@@ -19,7 +19,7 @@ export const EXPORT_FILES = {
   loras: ["anima-turbo-lora-v0.2.safetensors", "krea2_style_reference.safetensors", "krea2/krea2_depth_control_lora.safetensors", "krea2/editor/krea2_identity_edit_v1_2.safetensors"],
   clips: ["qwen_3_06b_base.safetensors", "qwen_3_4b.safetensors", "qwen3vl_4b_fp8_scaled.safetensors"],
   vaes: ["qwen_image_vae.safetensors", "ae.safetensors"],
-  patches: ["anima-lllite-inpainting-v2.safetensors", "anima-lllite-any-test-like-v2.safetensors", "anima-lllite-depth-1.safetensors", "anima-lllite-pose-1.safetensors", "Z-Image-Turbo-Fun-Controlnet-Union-2.1-2601-8steps.safetensors"],
+  patches: ["anima-lllite-inpainting-v2.safetensors", "anima-lllite-any-test-like-v2.safetensors", "anima-lllite-depth-1.safetensors", "anima-lllite-pose-1.safetensors", "Z-Image-Turbo-Fun-Controlnet-Union-2.1-2602-8steps.safetensors"],
   controlnets: ["controlnet-union-sdxl-1.0-promax.safetensors"],
   upscalers: ["RealESRGAN_x4plus.safetensors"],
   detectors: ["bbox/face_yolov8m.pt", "bbox/hand_yolov8s.pt"],

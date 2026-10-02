@@ -48,8 +48,8 @@ themselves live in code (`engine/families/*.mjs`) and as exported files (`../wor
 | Hand Fix | ✓ | ✓ | ✓ | ✓ |
 | Face Swap | **not offered** | ✓ ReActor + SDXL blend | ✓ ReActor + Z-Image blend | ✓ ReActor + Krea 2 blend |
 | Pose | ✓ LLLite pose (*weak*) | ✓ OpenPose / Union | ✓ Fun Union pose | *experimental*, depth-guided |
-| ControlNet | line art · canny · scribble · grayscale · any · depth | canny · line art · scribble · depth · pose | canny · HED · depth · pose · M-LSD | depth |
-| Img2Img + Control | line art · canny · scribble · grayscale · depth · pose (weak) | — | — | — |
+| ControlNet | line art · canny · scribble · grayscale · any · depth | canny · line art · scribble · depth · pose | canny · HED · depth · pose · M-LSD · scribble (2.1) · gray (2602) | depth |
+| Img2Img + Control | line art · canny · scribble · grayscale · depth · pose (weak) | — | canny · HED · depth · pose · M-LSD · scribble · gray | — |
 | Upscale (+ detail) | ✓ | ✓ | ✓ (official 2K upscaler settings) | ✓ |
 
 ---
@@ -132,10 +132,21 @@ Reference templates: `image_z_image_turbo`, `image_z_image`, `image_z_image_turb
   res_multistep / simple, negative = `ConditioningZeroOut`. Base: 25 steps, CFG 4, real negative.
   Picking a model switches these automatically (the UI shows a toast).
 - **ControlNet / Pose**: `ModelPatchLoader(Fun ControlNet Union)` → `ZImageFunControlnet` (or
-  `QwenImageDiffsynthControlnet` on older ComfyUI) **before** the AuraFlow shift, the template's
-  order. Types: canny, HED, depth, pose, M-LSD. Strength 0.75 / 0.8 (model card: 0.65–1.0).
+  `QwenImageDiffsynthControlnet` on older ComfyUI; same code, no inpaint input) **before** the
+  AuraFlow shift, the template's order. Types: canny, HED, depth, pose, M-LSD, plus **scribble**
+  (Union 2.1) and **gray** (the 2602 release) — offered only when an installed patch has the mode.
+  Automatic picks the newest full patch with the mode (2602 → 2601 → lite → 1.0); *Advanced →
+  Control model* picks any installed Union patch, e.g. the **lite** file (2 GB instead of 6.7 GB)
+  for less VRAM. Version and lite/full are read from the file name (ComfyUI exposes no file
+  metadata). Tile models are never used as Union. Strength 0.75 / 0.8 (card: 0.65–0.9 for 2.x).
+- **Img2Img + Control**: encoded source + Fun control (denoise 0.6; 0.85–0.95 restyles while the
+  structure holds).
 - **Inpaint / Outpaint**: Fun Union 2.x inpaint mode (`inpaint_image` + `mask`, context 0.9; the
   card recommends a higher scale for inpainting), else differential diffusion + noise mask.
+  Optional **structure guide**: a control map passed in the **same** `ZImageFunControlnet` call
+  (`image` next to `inpaint_image` + `mask`, same size) — for inpaint from the picture itself or a
+  separate image, for outpaint from a separate image of the whole extended canvas.
+- **Tile restore**: research only — the Tile ControlNet exists but no verified ComfyUI usage.
 - **Upscale**: the official 2K upscaler's settings: model ×4 → resize → 5 steps, CFG 1,
   dpmpp_2m_sde / beta, denoise 0.33.
 - **Face Swap**: ReActor → Z-Image face pass (0.25).

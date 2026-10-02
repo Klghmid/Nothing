@@ -127,6 +127,8 @@ export function readInventory(info = {}, overrides = {}) {
         clips: clips.filter((n) => /qwen_3_4b/i.test(n)),
         vaes: vaes.filter((n) => /(^|[\\/])ae\.safetensors$/i.test(n)),
         patches: patches.filter((n) => /z[-_]?image.*control/i.test(n) || classify(n, overrides) === "zimage"),
+        // Fun ControlNet Union patches (tile models are a different kind of control model).
+        unionPatches: patches.filter((n) => (/z[-_]?image.*control/i.test(n) || classify(n, overrides) === "zimage") && !/tile/i.test(n)),
       },
       krea2: {
         models: unetModels.krea2,

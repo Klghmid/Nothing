@@ -29,10 +29,13 @@ export const CAPABILITIES = [
   { id: "depth", label: "Depth", from: [{ task: "control", kind: "depth" }] },
   { id: "canny", label: "Canny", from: [{ task: "control", kind: "canny" }] },
   { id: "lineart", label: "Lineart", from: [{ task: "control", kind: "lineart" }] },
+  { id: "scribble", label: "Scribble", from: [{ task: "control", kind: "scribble" }] },
+  { id: "gray", label: "Gray / tone control", from: [{ task: "control", kind: "gray" }] },
   { id: "face", label: "Face Fix", from: [{ task: "face" }] },
   { id: "hands", label: "Hand Fix", from: [{ task: "hands" }] },
   { id: "faceswap", label: "Face Swap", from: [{ task: "faceswap" }] },
   { id: "upscale", label: "Upscale", from: [{ task: "upscale" }] },
+  { id: "tile", label: "Tile Restore", from: [{ task: "tile" }] },
   { id: "remove-bg", label: "Remove Background", tool: "remove-bg" },
   { id: "style", label: "Style Reference", from: [{ task: "generate", field: "style1" }] },
   { id: "identity", label: "Identity Editing", from: [{ task: "edit" }] },
@@ -68,6 +71,10 @@ export function capabilityMatrix(families) {
       const found = cap.from.map((s) => provider(fam, s)).filter(Boolean).sort((a, b) => RANK[b.status] - RANK[a.status]);
       if (found.length) cells[id] = found[0];
       else {
+        if (fam.research?.[cap.id]) {
+          cells[id] = { status: "research", note: fam.research[cap.id] };
+          continue;
+        }
         const off = fam.unsupported?.[cap.id] || (cap.from.some((s) => fam.tasks[s.task]?.unavailable) ? fam.tasks[cap.from[0].task]?.unavailable : null);
         cells[id] = off ? { status: "unsupported", note: off } : { status: "missing", note: fam.missing?.[cap.id] || "" };
       }

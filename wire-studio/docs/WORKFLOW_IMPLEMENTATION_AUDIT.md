@@ -117,3 +117,30 @@ Not run on a GPU: every new Anima workflow (†).
 Not in this phase (later phases of the plan): Anima object remove / replace, background replace,
 regional edit, guided outpaint and reframe (Phases 7–8 build these on each family's own masked
 redraw), and the enhancement workflows (Phase 15).
+
+## Phase 2 — Z-Image Fun ControlNet Union 2.1 (2602)
+
+Research: [WORKFLOW_RESEARCH.md § Phase 2](WORKFLOW_RESEARCH.md#phase-2--z-image-fun-controlnet-union-21-2602-combined-control-lite).
+
+| Workflow | Status | Required | Tests | Export |
+|---|---|---|---|---|
+| Z-Image · ControlNet · canny / HED / depth / pose / M-LSD | READY † (now picks the newest full patch with the mode) | `ZImageFunControlnet` (core), a Fun ControlNet Union patch | mode-aware choice, lite override | `zimage/control-*.json` |
+| Z-Image · ControlNet · **scribble** (new) | READY † | Union **2.1** (2601 or 2602, full or lite) | refused on 1.0-only machines, hidden in the UI | `zimage/control-scribble.json` |
+| Z-Image · ControlNet · **gray** (new) | READY † | Union 2.1 **2602**; `ImageLuminanceDetector` or a ready grayscale map | refused with 2601 only, hidden in the UI | `zimage/control-gray.json` |
+| Z-Image · **Lite** control model (new) | READY † | `…-lite-2602-8steps` or `…-lite-2601-8steps` | *Advanced → Control model*; the same workflows | — |
+| Z-Image · **Img2Img + Control** (new; Restyle = high change strength) | READY † | as ControlNet | encoded latent, control before the AuraFlow shift | `zimage/img2img-control-*.json` |
+| Z-Image · **Inpaint + structure guide** (new) | READY † | Union **2.x** (inpaint mode) | one combined call, map at the inpaint size, refused with 1.0 | — |
+| Z-Image · **Outpaint + guide image** (new) | READY † | Union 2.x | guide only from a separate whole-canvas image (else noted and skipped) | — |
+| Z-Image · Tile restore | RESEARCH_ONLY | — | — | — |
+
+Findings during the phase: the official Z-Image control blueprints still use
+`QwenImageDiffsynthControlnet`; `ZImageFunControlnet` is its newer subclass (same code + optional
+`inpaint_image`), so Wire Studio's choice stands. The representative exports now use the current
+2602 patch (only the patch file name changed in the 9 affected files).
+
+Results: `npm test` 169/169 · browser checks 14/14 · live ComfyUI validator 77/77 (with 2601,
+2602, lite-2602 and a Tile placeholder installed — the Tile file is never picked).
+Not run on a GPU: all new Z-Image workflows (†). Deferred to later phases of the plan: Z-Image
+object remove / replace, background replace, structure-preserving and controlled regional edits
+(built with the editing phases on each family's masked redraw), Control + Reframe (Phase 8 reuses
+Outpaint, so it inherits the guide).

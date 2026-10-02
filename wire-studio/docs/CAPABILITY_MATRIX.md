@@ -29,15 +29,18 @@ real hardware in this form (Anima Studio's live tests). See
 | Inpaint | READY | READY | READY † | PARTIAL † |
 | Outpaint | READY | READY | READY † | PARTIAL † |
 | Control | READY † | READY † | READY † | PARTIAL † |
-| Controlled Img2Img | READY † | MISSING | MISSING | MISSING |
+| Controlled Img2Img | READY † | MISSING | READY † | MISSING |
 | Pose | PARTIAL † | READY † | READY † | EXPERIMENTAL † |
 | Depth | READY † | READY † | READY † | READY † |
 | Canny | READY † | READY † | READY † | MISSING |
 | Lineart | READY † | READY † | UNSUPPORTED | MISSING |
+| Scribble | READY † | READY † | READY † | MISSING |
+| Gray / tone control | READY † | MISSING | READY † | MISSING |
 | Face Fix | READY | READY | READY † | READY † |
 | Hand Fix | READY | READY | READY † | READY † |
 | Face Swap | UNSUPPORTED | READY † | READY † | READY † |
 | Upscale | READY | READY | READY | READY † |
+| Tile Restore | MISSING | MISSING | RESEARCH_ONLY | MISSING |
 | Remove Background | READY † | READY † | READY † | READY † |
 | Style Reference | UNSUPPORTED | MISSING | MISSING | READY † |
 | Identity Editing | UNSUPPORTED | MISSING | MISSING | READY † |
@@ -55,10 +58,13 @@ real hardware in this form (Anima Studio's live tests). See
   - Depth: READY — task `control` · type `depth`; official template / model author; graph validated, not yet run on a GPU
   - Canny: READY — task `control` · type `canny`; official template / model author; graph validated, not yet run on a GPU
   - Lineart: READY — task `control` · type `lineart`; official template / model author; graph validated, not yet run on a GPU
+  - Scribble: READY — task `control` · type `scribble`; official template / model author; graph validated, not yet run on a GPU
+  - Gray / tone control: READY — task `control` · type `gray`; official template / model author; graph validated, not yet run on a GPU
   - Face Fix: READY — task `face`; community model or node pack; run on a GPU
   - Hand Fix: READY — task `hands`; community model or node pack; run on a GPU
   - Face Swap: UNSUPPORTED — Not offered for Anima: face-swap models (InsightFace) are trained on photos and do not detect anime faces reliably. Use Face Fix with a character prompt or LoRA instead.
   - Upscale: READY — task `upscale`; Wire Studio composition of documented nodes; run on a GPU
+  - Tile Restore: MISSING
   - Remove Background: READY — shared tool (no model family); community model or node pack; graph validated, not yet run on a GPU; ComfyUI-RMBG BiRefNet / RMBG; no model family involved
   - Style Reference: UNSUPPORTED — No IPAdapter or style-reference model exists for Anima, and Anima rejects area conditioning (Anima Studio live test).
   - Identity Editing: UNSUPPORTED — No identity-preserving edit or reference model exists for Anima.
@@ -73,10 +79,13 @@ real hardware in this form (Anima Studio's live tests). See
   - Depth: READY — task `control` · type `depth`; community model or node pack; graph validated, not yet run on a GPU
   - Canny: READY — task `control` · type `canny`; community model or node pack; graph validated, not yet run on a GPU
   - Lineart: READY — task `control` · type `lineart`; community model or node pack; graph validated, not yet run on a GPU
+  - Scribble: READY — task `control` · type `scribble`; community model or node pack; graph validated, not yet run on a GPU
+  - Gray / tone control: MISSING
   - Face Fix: READY — task `face`; community model or node pack; run on a GPU
   - Hand Fix: READY — task `hands`; community model or node pack; run on a GPU
   - Face Swap: READY — task `faceswap`; community model or node pack; graph validated, not yet run on a GPU
   - Upscale: READY — task `upscale`; Wire Studio composition of documented nodes; run on a GPU
+  - Tile Restore: MISSING
   - Remove Background: READY — shared tool (no model family); community model or node pack; graph validated, not yet run on a GPU; ComfyUI-RMBG BiRefNet / RMBG; no model family involved
   - Style Reference: MISSING — IPAdapter style / composition reference (roadmap).
   - Identity Editing: MISSING — InstantID identity-preserving generation (roadmap).
@@ -86,15 +95,18 @@ real hardware in this form (Anima Studio's live tests). See
   - Inpaint: READY — task `inpaint`; official template / model author; graph validated, not yet run on a GPU
   - Outpaint: READY — task `outpaint`; Wire Studio composition of documented nodes; graph validated, not yet run on a GPU
   - Control: READY — task `control`; official template / model author; graph validated, not yet run on a GPU
-  - Controlled Img2Img: MISSING
+  - Controlled Img2Img: READY — task `img2img-control`; Wire Studio composition of documented nodes; graph validated, not yet run on a GPU
   - Pose: READY — task `pose`; official template / model author; graph validated, not yet run on a GPU
   - Depth: READY — task `control` · type `depth`; official template / model author; graph validated, not yet run on a GPU
   - Canny: READY — task `control` · type `canny`; official template / model author; graph validated, not yet run on a GPU
   - Lineart: UNSUPPORTED — Fun ControlNet Union has no line-art mode; use Soft edge (HED) or Scribble.
+  - Scribble: READY — task `control` · type `scribble`; official template / model author; graph validated, not yet run on a GPU
+  - Gray / tone control: READY — task `control` · type `gray`; official template / model author; graph validated, not yet run on a GPU
   - Face Fix: READY — task `face`; community model or node pack; graph validated, not yet run on a GPU
   - Hand Fix: READY — task `hands`; community model or node pack; graph validated, not yet run on a GPU
   - Face Swap: READY — task `faceswap`; community model or node pack; graph validated, not yet run on a GPU
   - Upscale: READY — task `upscale`; official template / model author; run on a GPU
+  - Tile Restore: RESEARCH_ONLY — Z-Image-Turbo-Fun-Controlnet-Tile-2.1 exists, but no official ComfyUI template or documented input preparation could be verified (see WORKFLOW_RESEARCH.md, Phase 2).
   - Remove Background: READY — shared tool (no model family); community model or node pack; graph validated, not yet run on a GPU; ComfyUI-RMBG BiRefNet / RMBG; no model family involved
   - Style Reference: MISSING — No style-reference model for Z-Image was found.
   - Identity Editing: MISSING — Z-Image-Edit is announced but not released.
@@ -109,10 +121,13 @@ real hardware in this form (Anima Studio's live tests). See
   - Depth: READY — task `control` · type `depth`; community model or node pack; graph validated, not yet run on a GPU
   - Canny: MISSING — No public Krea 2 canny Control-LoRA.
   - Lineart: MISSING — No public Krea 2 line-art Control-LoRA (one is announced by tori29umai).
+  - Scribble: MISSING
+  - Gray / tone control: MISSING
   - Face Fix: READY — task `face`; community model or node pack; graph validated, not yet run on a GPU
   - Hand Fix: READY — task `hands`; community model or node pack; graph validated, not yet run on a GPU
   - Face Swap: READY — task `faceswap`; community model or node pack; graph validated, not yet run on a GPU
   - Upscale: READY — task `upscale`; Wire Studio composition of documented nodes; graph validated, not yet run on a GPU
+  - Tile Restore: MISSING
   - Remove Background: READY — shared tool (no model family); community model or node pack; graph validated, not yet run on a GPU; ComfyUI-RMBG BiRefNet / RMBG; no model family involved
   - Style Reference: READY — task `generate`; official template / model author; graph validated, not yet run on a GPU
   - Identity Editing: READY — task `edit`; community model or node pack; graph validated, not yet run on a GPU

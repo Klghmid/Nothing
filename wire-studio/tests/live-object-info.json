@@ -2459,7 +2459,10 @@
     "required": {
      "name": [
       [
+       "Z-Image-Turbo-Fun-Controlnet-Tile-2.1-2601-8steps.safetensors",
        "Z-Image-Turbo-Fun-Controlnet-Union-2.1-2601-8steps.safetensors",
+       "Z-Image-Turbo-Fun-Controlnet-Union-2.1-2602-8steps.safetensors",
+       "Z-Image-Turbo-Fun-Controlnet-Union-2.1-lite-2602-8steps.safetensors",
        "Z-Image-Turbo-Fun-Controlnet-Union.safetensors",
        "anima-lllite-any-test-like-v2.safetensors",
        "anima-lllite-depth-1.safetensors",

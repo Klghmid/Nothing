@@ -96,7 +96,9 @@ ComfyUI/models/
 │   ├── anima-lllite-lineart-1.safetensors                Anima · LLLite line-art patch (legacy, Preview3) · alternative
 │   ├── anima-lllite-scribble-1.safetensors               Anima · LLLite scribble patch (legacy, Preview3) · alternative
 │   ├── Z-Image-Turbo-Fun-Controlnet-Union.safetensors    Z-Image · Fun ControlNet Union · recommended
-│   └── Z-Image-Turbo-Fun-Controlnet-Union-2.1-2601-8steps.safetensors  Z-Image · Fun ControlNet Union 2.1 · optional
+│   ├── Z-Image-Turbo-Fun-Controlnet-Union-2.1-2602-8steps.safetensors  Z-Image · Fun ControlNet Union 2.1 (2602) · recommended
+│   ├── Z-Image-Turbo-Fun-Controlnet-Union-2.1-lite-2602-8steps.safetensors  Z-Image · Fun ControlNet Union 2.1 lite (2602) · alternative
+│   └── Z-Image-Turbo-Fun-Controlnet-Union-2.1-2601-8steps.safetensors  Z-Image · Fun ControlNet Union 2.1 (2601) · alternative
 ├── controlnet/                                           ← SDXL ControlNets
 │   └── SDXL/
 │       └── controlnet-union-sdxl-1.0-promax.safetensors  SDXL · ControlNet Union ProMax · recommended
@@ -180,7 +182,9 @@ page* links go to the model's own page where a direct link could not be verified
 | `ae.safetensors` | `vae/` | VAE: All Z-Image tasks | Required | [Download](https://huggingface.co/Comfy-Org/z_image_turbo/resolve/main/split_files/vae/ae.safetensors) |
 | *your Z-Image LoRAs* | `loras/z-image/people/` | LoRAs (any sub-folders): Any Z-Image task | Your files | — |
 | `Z-Image-Turbo-Fun-Controlnet-Union.safetensors` | `model_patches/` | Fun ControlNet Union: Pose, ControlNet (canny, HED, depth, pose, M-LSD) | Recommended | [Download](https://huggingface.co/alibaba-pai/Z-Image-Turbo-Fun-Controlnet-Union/resolve/main/Z-Image-Turbo-Fun-Controlnet-Union.safetensors) |
-| `Z-Image-Turbo-Fun-Controlnet-Union-2.1-2601-8steps.safetensors` | `model_patches/` | Fun ControlNet Union 2.1: Adds context-aware Inpaint / Outpaint; also does all ControlNet types | Optional | [Project page](https://huggingface.co/alibaba-pai/Z-Image-Turbo-Fun-Controlnet-Union-2.1) |
+| `Z-Image-Turbo-Fun-Controlnet-Union-2.1-2602-8steps.safetensors` | `model_patches/` | Fun ControlNet Union 2.1 (2602): All control types incl. scribble and gray; Inpaint / Outpaint context and structure guides; Img2Img + Control | Recommended | [Project page](https://huggingface.co/alibaba-pai/Z-Image-Turbo-Fun-Controlnet-Union-2.1) |
+| `Z-Image-Turbo-Fun-Controlnet-Union-2.1-lite-2602-8steps.safetensors` | `model_patches/` | Fun ControlNet Union 2.1 lite (2602): Less VRAM (2 GB instead of 6.7 GB), softer control; pick it under Advanced → Control model | Alternative | [Project page](https://huggingface.co/alibaba-pai/Z-Image-Turbo-Fun-Controlnet-Union-2.1) |
+| `Z-Image-Turbo-Fun-Controlnet-Union-2.1-2601-8steps.safetensors` | `model_patches/` | Fun ControlNet Union 2.1 (2601): Earlier 2.1 release: everything but the gray mode | Alternative | [Project page](https://huggingface.co/alibaba-pai/Z-Image-Turbo-Fun-Controlnet-Union-2.1) |
 
 ### Krea 2
 
@@ -256,6 +260,8 @@ page* links go to the model's own page where a direct link could not be verified
 | `z_image_turbo_bf16.safetensors` | `models/diffusion_models/z-image/turbo/` | Z-Image |
 | `z_image_turbo_int8_convrot.safetensors` | `models/diffusion_models/z-image/turbo/` | Z-Image |
 | `Z-Image-Turbo-Fun-Controlnet-Union-2.1-2601-8steps.safetensors` | `models/model_patches/` | Z-Image |
+| `Z-Image-Turbo-Fun-Controlnet-Union-2.1-2602-8steps.safetensors` | `models/model_patches/` | Z-Image |
+| `Z-Image-Turbo-Fun-Controlnet-Union-2.1-lite-2602-8steps.safetensors` | `models/model_patches/` | Z-Image |
 | `Z-Image-Turbo-Fun-Controlnet-Union.safetensors` | `models/model_patches/` | Z-Image |
 <!-- /generated:index -->
 

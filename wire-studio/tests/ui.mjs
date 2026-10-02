@@ -74,6 +74,16 @@ try {
     assert.ok(patches.includes("anima-lllite-any-test-like-v2") && !patches.some((p) => /inpainting/.test(p)), patches.join());
     await page.click("details.advanced summary:has-text('Advanced')");
   });
+  await check("Z-Image control offers the modes of the installed Union patches and a Control model picker", async () => {
+    await page.click(".family:has-text('Z-Image')");
+    await page.click(".task:has-text('ControlNet')");
+    const kinds = await page.locator(".field:has(label:text-is('Control type')) option").allTextContents();
+    assert.deepEqual(kinds, ["Canny edges", "Soft edge (HED)", "Depth", "Pose (skeleton)", "Straight lines (M-LSD)", "Scribble", "Gray (tones)"]);
+    await page.click("details.advanced summary:has-text('Advanced')");
+    const models = await page.locator(".field:has(label:text-is('Control model')) option").allTextContents();
+    assert.ok(models.includes("Z-Image-Turbo-Fun-Controlnet-Union-2.1-lite-2602-8steps") && !models.some((m) => /Tile/.test(m)), models.join());
+    await page.click("details.advanced summary:has-text('Advanced')");
+  });
   await check("generate shows live progress, then the result", async () => {
     await page.click(".family:has-text('Anima')");
     await page.click(".task:has-text('Text to Image')");
@@ -162,7 +172,7 @@ try {
     const detail = page.locator(".card:has-text('Z-Image · Inpaint')");
     await detail.waitFor();
     const text = await detail.innerText();
-    for (const want of ["Suggested: z_image_turbo_bf16.safetensors in models/diffusion_models/z-image/turbo/", "Using models/diffusion_models/z_image_turbo_bf16.safetensors", "Using models/model_patches/Z-Image-Turbo-Fun-Controlnet-Union-2.1-2601-8steps.safetensors"]) assert.ok(text.includes(want), want);
+    for (const want of ["Suggested: z_image_turbo_bf16.safetensors in models/diffusion_models/z-image/turbo/", "Using models/diffusion_models/z_image_turbo_bf16.safetensors", "Using models/model_patches/Z-Image-Turbo-Fun-Controlnet-Union-2.1-2602-8steps.safetensors"]) assert.ok(text.includes(want), want);
   });
   await check("setup lists suggested models and LoRAs per family, found or missing", async () => {
     const tab = page.locator("#suggested button[role=tab]:has-text('Krea 2')");

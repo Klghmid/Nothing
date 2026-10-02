@@ -32,7 +32,7 @@
   "4": {
     "class_type": "CLIPTextEncode",
     "inputs": {
-      "text": "What should appear in the painted area",
+      "text": "Describe the new picture",
       "clip": [
         "2",
         0
@@ -60,29 +60,37 @@
       "image": "input.png"
     },
     "_meta": {
-      "title": "Image"
+      "title": "Control image"
     }
   },
   "7": {
-    "class_type": "LoadImage",
+    "class_type": "FakeScribblePreprocessor",
     "inputs": {
-      "image": "mask.png"
+      "image": [
+        "6",
+        0
+      ],
+      "resolution": 1024,
+      "safe": "enable"
     },
     "_meta": {
-      "title": "Painted mask"
+      "title": "Make scribble map"
     }
   },
   "8": {
-    "class_type": "ImageToMask",
+    "class_type": "ImageScale",
     "inputs": {
       "image": [
         "7",
         0
       ],
-      "channel": "red"
+      "upscale_method": "lanczos",
+      "width": 1024,
+      "height": 1024,
+      "crop": "center"
     },
     "_meta": {
-      "title": "Mask"
+      "title": "Fit map to output size"
     }
   },
   "9": {
@@ -109,53 +117,28 @@
         "3",
         0
       ],
-      "inpaint_image": [
-        "6",
-        0
-      ],
-      "mask": [
+      "image": [
         "8",
         0
       ],
-      "strength": 0.9
+      "strength": 0.75
     },
     "_meta": {
-      "title": "Inpaint context (Fun Union)"
+      "title": "Apply scribble control"
     }
   },
   "11": {
-    "class_type": "VAEEncode",
+    "class_type": "EmptySD3LatentImage",
     "inputs": {
-      "pixels": [
-        "6",
-        0
-      ],
-      "vae": [
-        "3",
-        0
-      ]
+      "width": 1024,
+      "height": 1024,
+      "batch_size": 1
     },
     "_meta": {
-      "title": "Encode image"
+      "title": "Empty canvas"
     }
   },
   "12": {
-    "class_type": "SetLatentNoiseMask",
-    "inputs": {
-      "samples": [
-        "11",
-        0
-      ],
-      "mask": [
-        "8",
-        0
-      ]
-    },
-    "_meta": {
-      "title": "Limit to painted area"
-    }
-  },
-  "13": {
     "class_type": "ModelSamplingAuraFlow",
     "inputs": {
       "model": [
@@ -168,11 +151,11 @@
       "title": "Sampling shift"
     }
   },
-  "14": {
+  "13": {
     "class_type": "KSampler",
     "inputs": {
       "model": [
-        "13",
+        "12",
         0
       ],
       "positive": [
@@ -184,7 +167,7 @@
         0
       ],
       "latent_image": [
-        "12",
+        "11",
         0
       ],
       "seed": 123456789,
@@ -198,11 +181,11 @@
       "title": "Sampler"
     }
   },
-  "15": {
+  "14": {
     "class_type": "VAEDecode",
     "inputs": {
       "samples": [
-        "14",
+        "13",
         0
       ],
       "vae": [
@@ -214,76 +197,14 @@
       "title": "Decode"
     }
   },
-  "16": {
-    "class_type": "MaskToImage",
-    "inputs": {
-      "mask": [
-        "8",
-        0
-      ]
-    },
-    "_meta": {
-      "title": "Soft edge"
-    }
-  },
-  "17": {
-    "class_type": "ImageBlur",
-    "inputs": {
-      "image": [
-        "16",
-        0
-      ],
-      "blur_radius": 4,
-      "sigma": 2
-    },
-    "_meta": {
-      "title": "Soft edge blur"
-    }
-  },
-  "18": {
-    "class_type": "ImageToMask",
-    "inputs": {
-      "image": [
-        "17",
-        0
-      ],
-      "channel": "red"
-    },
-    "_meta": {
-      "title": "Soft edge mask"
-    }
-  },
-  "19": {
-    "class_type": "ImageCompositeMasked",
-    "inputs": {
-      "destination": [
-        "6",
-        0
-      ],
-      "source": [
-        "15",
-        0
-      ],
-      "mask": [
-        "18",
-        0
-      ],
-      "x": 0,
-      "y": 0,
-      "resize_source": false
-    },
-    "_meta": {
-      "title": "Paste result into original"
-    }
-  },
-  "20": {
+  "15": {
     "class_type": "SaveImage",
     "inputs": {
       "images": [
-        "19",
+        "14",
         0
       ],
-      "filename_prefix": "WireStudio/zimage-inpaint"
+      "filename_prefix": "WireStudio/zimage-control"
     },
     "_meta": {
       "title": "Save image"
