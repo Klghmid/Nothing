@@ -9,7 +9,8 @@
     "dev:mock": "node tests/dev-mock.mjs",
     "test": "node --test tests/*.test.mjs",
     "export-workflows": "node scripts/export-workflows.mjs",
-    "test:ui": "node tests/ui.mjs"
+    "test:ui": "node tests/ui.mjs",
+    "docs": "node scripts/build-model-guide.mjs"
   },
   "engines": {
     "node": ">=20"

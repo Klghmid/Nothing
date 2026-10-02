@@ -178,7 +178,8 @@ test("server end to end against a mock ComfyUI", async (t) => {
     const r = await fetch(s.base + "/guide");
     const html = await r.text();
     assert.equal(r.status, 200);
-    assert.match(html, /<h1[^>]*>ComfyUI folder guide<\/h1>/);
+    assert.match(html, /<h1[^>]*>ComfyUI models guide<\/h1>/);
+    assert.ok(!html.includes("generated:"), "section markers are hidden");
     assert.match(html, /<table>/);
     assert.match(html, /<pre><code>ComfyUI\/models\//);
     assert.ok(!/<script>alert/.test(html));

@@ -205,7 +205,7 @@ export function setup(focus = {}) {
     { class: "card", id: "library" },
     h("h3", {}, icon("layers"), "Library"),
     h("div", { class: "muted" }, "Files are sorted into families by their folder (loras/SDXL/…, diffusion_models/z-image/turbo/…, any depth), else by file name. A turbo/ or regular/ folder sets the sampling preset. Anything unclear is listed here so it is never mixed into the wrong workflow."),
-    h("div", { class: "chips" }, h("a", { class: "btn small", href: "/guide", target: "_blank", rel: "noreferrer" }, icon("info"), "ComfyUI folder guide")),
+    h("div", { class: "chips" }, h("a", { class: "btn small", href: "/guide", target: "_blank", rel: "noreferrer" }, icon("info"), "ComfyUI models guide")),
     inv
       ? h(
           "div",

@@ -1,3 +1,5 @@
+import { MODEL_LIST } from "./model-list.mjs";
+
 // What every workflow needs and where to get it. Model URLs marked "template" come from
 // the `models` metadata of Comfy-Org's official workflow templates; repo links are used
 // where a direct file link could not be verified.
@@ -40,33 +42,9 @@ const NODE_PACK = {
 };
 export const packOf = (type) => PACKS[NODE_PACK[type] || "core"];
 
-const HF = "https://huggingface.co/";
-export const MODELS = {
-  animaBase: { file: "anima-base-v1.0.safetensors", folder: "diffusion_models", url: HF + "circlestone-labs/Anima/resolve/main/split_files/diffusion_models/anima-base-v1.0.safetensors" },
-  animaClip: { file: "qwen_3_06b_base.safetensors", folder: "text_encoders", url: HF + "circlestone-labs/Anima/resolve/main/split_files/text_encoders/qwen_3_06b_base.safetensors" },
-  qwenImageVae: { file: "qwen_image_vae.safetensors", folder: "vae", url: HF + "Comfy-Org/Krea-2/resolve/main/vae/qwen_image_vae.safetensors" },
-  animaTurbo: { file: "anima-turbo-lora-v0.2.safetensors", folder: "loras", url: HF + "circlestone-labs/Anima-Official-LoRAs/resolve/main/anima-turbo-lora-v0.2.safetensors" },
-  animaInpaint: { file: "anima-lllite-inpainting-v2.safetensors", folder: "model_patches", url: HF + "Comfy-Org/Anima-LLLite/resolve/main/model_patches/anima-lllite-inpainting-v2.safetensors" },
-  animaAny: { file: "anima-lllite-any-test-like-v2.safetensors", folder: "model_patches", url: HF + "Comfy-Org/Anima-LLLite/resolve/main/model_patches/anima-lllite-any-test-like-v2.safetensors" },
-  animaDepth: { file: "anima-lllite-depth-1.safetensors", folder: "model_patches", url: HF + "Comfy-Org/Anima-LLLite/resolve/main/model_patches/anima-lllite-depth-1.safetensors" },
-  animaPose: { file: "anima-lllite-pose-1.safetensors", folder: "model_patches", url: HF + "kohya-ss/Anima-LLLite/resolve/main/anima-lllite-pose-1.safetensors" },
-  sdxlBase: { file: "any SDXL / Illustrious / NoobAI / Pony checkpoint", folder: "checkpoints", url: HF + "stabilityai/stable-diffusion-xl-base-1.0/resolve/main/sd_xl_base_1.0.safetensors?download=true" },
-  sdxlUnion: { file: "controlnet-union-sdxl-1.0 ProMax (diffusion_pytorch_model_promax.safetensors)", folder: "controlnet", url: HF + "xinsir/controlnet-union-sdxl-1.0/resolve/main/diffusion_pytorch_model_promax.safetensors" },
-  zimageTurbo: { file: "z_image_turbo_bf16.safetensors", folder: "diffusion_models", url: HF + "Comfy-Org/z_image_turbo/resolve/main/split_files/diffusion_models/z_image_turbo_bf16.safetensors" },
-  zimageClip: { file: "qwen_3_4b.safetensors", folder: "text_encoders", url: HF + "Comfy-Org/z_image_turbo/resolve/main/split_files/text_encoders/qwen_3_4b.safetensors" },
-  zimageVae: { file: "ae.safetensors", folder: "vae", url: HF + "Comfy-Org/z_image_turbo/resolve/main/split_files/vae/ae.safetensors" },
-  zimageUnion: { file: "Z-Image-Turbo-Fun-Controlnet-Union.safetensors (or Union-2.1 for inpaint)", folder: "model_patches", url: HF + "alibaba-pai/Z-Image-Turbo-Fun-Controlnet-Union/resolve/main/Z-Image-Turbo-Fun-Controlnet-Union.safetensors" },
-  zimageUnion21: { file: "Z-Image-Turbo-Fun-Controlnet-Union-2.1 (8 steps)", folder: "model_patches", url: HF + "alibaba-pai/Z-Image-Turbo-Fun-Controlnet-Union-2.1" },
-  krea2Turbo: { file: "krea2_turbo_fp8_scaled.safetensors (or krea2_turbo_int8_convrot)", folder: "diffusion_models", url: HF + "Comfy-Org/Krea-2/resolve/main/diffusion_models/krea2_turbo_fp8_scaled.safetensors" },
-  krea2Clip: { file: "qwen3vl_4b_fp8_scaled.safetensors", folder: "text_encoders", url: HF + "Comfy-Org/Krea-2/resolve/main/text_encoders/qwen3vl_4b_fp8_scaled.safetensors" },
-  krea2Style: { file: "krea2_style_reference.safetensors", folder: "loras", url: HF + "Comfy-Org/Krea-2/resolve/main/loras/krea2_style_reference.safetensors" },
-  krea2Depth: { file: "Krea 2 depth Control LoRA", folder: "loras", url: HF + "Patil/Krea-2-depth-controlnet" },
-  krea2Edit: { file: "krea2_identity_edit_v1_2.safetensors", folder: "loras", url: "https://github.com/lbouaraba/comfyui-krea2edit" },
-  upscaler: { file: "RealESRGAN_x4plus.safetensors", folder: "upscale_models", url: HF + "Comfy-Org/Real-ESRGAN_repackaged/resolve/main/RealESRGAN_x4plus.safetensors" },
-  faceDetector: { file: "face_yolov8m.pt", folder: "ultralytics/bbox", url: HF + "Bingsu/adetailer/resolve/main/face_yolov8m.pt" },
-  handDetector: { file: "hand_yolov8s.pt", folder: "ultralytics/bbox", url: HF + "Bingsu/adetailer/resolve/main/hand_yolov8s.pt" },
-  inswapper: { file: "inswapper_128.onnx", folder: "insightface", url: "https://github.com/Gourieff/ComfyUI-ReActor#installation" },
-};
+// Model files Setup can ask for, with their default folder and download link, taken from the
+// single list in model-list.mjs (which also generates the ComfyUI models guide).
+export const MODELS = Object.fromEntries(MODEL_LIST.filter((m) => m.key).map((m) => [m.key, { file: m.display || m.file, folder: m.path, url: m.url }]));
 
 export const TASK_GROUPS = ["Create", "Edit", "Fix", "Control", "Finish"];
 

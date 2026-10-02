@@ -48,7 +48,7 @@ models/diffusion_models/anima/…         models/diffusion_models/z-image/turbo/
 models/loras/anima/<any sub-folders>    models/loras/SDXL/…   models/loras/z-image/…   models/loras/krea2/…
 ```
 
-The full layout, every file and where it goes, is in the **ComfyUI folder guide**:
+The full layout, every file and where it goes, is in the **ComfyUI models guide** (every model, its folder and a sample folder tree):
 [docs/MODEL-FOLDERS.md](docs/MODEL-FOLDERS.md), also at http://127.0.0.1:5180/guide and from
 **Setup → Library**. A file whose family cannot be told appears under **Setup → Library**;
 assign it to a family once and it is remembered. Files in a folder ComfyUI cannot load them from

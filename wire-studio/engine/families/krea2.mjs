@@ -42,10 +42,17 @@ function maskedRedraw(g, m, image, mask, denoise) {
   if (g.has("DifferentialDiffusion")) m.model = g.add("DifferentialDiffusion", { model: m.model }, "Differential diffusion");
   return finish(g, m, g.add("SetLatentNoiseMask", { samples: c.encode(g, image, m.vae), mask }, "Limit to painted area"), denoise);
 }
+// The depth Control-LoRA: one named "depth", else any control LoRA (loras/krea2/control/…) that is
+// not named for another control type, so a file kept under its download name is found too.
+const depthLora = (ctx) => {
+  const list = fam(ctx).controlLoras || [];
+  return list.find((n) => /depth/i.test(n)) || list.find((n) => !/canny|pose|line|normal|scribble|hed|tile/i.test(n.split(/[\\/]/).pop())) || null;
+};
 // Depth Control-LoRA (comfyui-krea2-controlnet): loader → encode control image → apply.
 function depthControl(g, m, ctx, map, latent, p) {
   for (const t of ["Krea2ControlLoRALoader", "Krea2ControlImageEncode", "Krea2ControlApply"]) c.needNode(g, t, "Krea 2 depth control");
-  const lora = c.pick(fam(ctx).controlLoras, p.controlLora, /depth/i, "Krea 2 depth Control LoRA", MODELS.krea2Depth);
+  const lora = p.controlLora ? c.pick(fam(ctx).controlLoras, p.controlLora, null, "Krea 2 depth Control LoRA", MODELS.krea2Depth) : depthLora(ctx);
+  if (!lora) throw c.missing("Krea 2 depth Control LoRA", MODELS.krea2Depth);
   const patched = g.add("Krea2ControlLoRALoader", { model: m.model, lora_name: lora, strength: c.clamp(p.strength, 1, 0, 2) }, "Krea 2 depth Control LoRA");
   const encoded = g.add(
     "Krea2ControlImageEncode",
@@ -62,7 +69,7 @@ const baseNeeds = (ctx) => [
 ];
 const depthNeeds = (ctx) => [
   need.node(ctx, "Krea2ControlLoRALoader", PACKS.krea2control, "Loads the control LoRA"),
-  need.model(fam(ctx).controlLoras.some((n) => /depth/i.test(n)), MODELS.krea2Depth, "Krea 2 depth Control LoRA", "Depth control (loras folder)"),
+  need.model(depthLora(ctx), MODELS.krea2Depth, "Krea 2 depth Control LoRA", "Depth control (loras/krea2/control/)"),
   ...mapNeeds(ctx, ["depth"]),
 ];
 const common = [field.model(), field.loras()];

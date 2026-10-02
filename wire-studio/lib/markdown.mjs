@@ -45,6 +45,8 @@ export function markdown(src) {
         items.push(`<li>${inline(item)}</li>`);
       }
       out.push(ordered ? `<ol>${items.join("")}</ol>` : `<ul>${items.join("")}</ul>`);
+    } else if (/^\s*<!--.*-->\s*$/.test(line)) {
+      i++; // section markers for the generator
     } else if (/^---+\s*$/.test(line)) {
       out.push("<hr>");
       i++;
@@ -89,7 +91,25 @@ export function guidePage(title, body) {
 </style>
 <script>try { document.documentElement.dataset.theme = localStorage.getItem("wire-theme") || (matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark"); } catch {}</script>
 </head>
-<body><main class="doc"><div class="top"><a href="/">← Back to Wire Studio</a></div>
+<body><main class="doc"><div class="top"><a href="/">← Back to Wire Studio</a><span style="flex:1"></span><input id="find" type="search" placeholder="Find a model or folder…" aria-label="Find a model or folder" style="width:min(320px,60vw)"><span id="hits" class="hint"></span></div>
 ${body}
-</main></body></html>`;
+</main>
+<script>
+// Find: show only matching table rows and tree lines (and their folders).
+const find = document.getElementById("find"), hits = document.getElementById("hits");
+const pres = [...document.querySelectorAll("pre code")].map((c) => ({ c, lines: c.textContent.split("\\n") }));
+find.addEventListener("input", () => {
+  const q = find.value.trim().toLowerCase();
+  let n = 0;
+  for (const tr of document.querySelectorAll(".doc tbody tr")) { const on = !q || tr.textContent.toLowerCase().includes(q); tr.hidden = !on; if (on && q) n++; }
+  for (const { c, lines } of pres) {
+    if (!q) { c.textContent = lines.join("\\n"); continue; }
+    const keep = new Set();
+    lines.forEach((l, i) => { if (l.toLowerCase().includes(q)) { n++; keep.add(i); const depth = l.search(/[^│├└─ ]/); for (let j = i - 1, d = depth; j >= 0 && d > 0; j--) { const dj = lines[j].search(/[^│├└─ ]/); if (dj < d) { keep.add(j); d = dj; } } } });
+    c.textContent = keep.size ? lines.filter((_, i) => keep.has(i)).join("\\n") : "(no match)";
+  }
+  hits.textContent = q ? n + " match" + (n === 1 ? "" : "es") : "";
+});
+</script>
+</body></html>`;
 }
