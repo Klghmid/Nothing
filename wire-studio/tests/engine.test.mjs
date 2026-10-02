@@ -311,3 +311,31 @@ test("utilities and schema", () => {
   assert.ok(s.families.krea2.tasks.edit.fields.length);
   assert.ok(!s.families.sdxl.tasks.edit, "Smart Edit is Krea 2 only");
 });
+
+test("each workflow declares its requirements (derived from its own checks)", async () => {
+  const { requirements } = await import("../engine/index.mjs");
+  const r = requirements("krea2", "edit");
+  assert.ok(r.nodes.some((n) => n.types.includes("Krea2EditModelPatch") && n.pack === "comfyui-krea2edit" && n.level === "required"));
+  assert.ok(r.models.some((m) => m.file === "krea2_identity_edit_v1_2.safetensors" && m.folder === "loras/krea2/editor"));
+  assert.ok(r.models.some((m) => m.file === "qwen3vl_4b_fp8_scaled.safetensors"), "the family's own text encoder");
+  assert.deepEqual(requirements("anima", "faceswap"), { nodes: [], models: [] }, "not offered → nothing required");
+  const s = schema();
+  assert.deepEqual(s.families.krea2.tasks.edit.requires, r, "sent to the browser with the form schema");
+  assert.equal(s.families.krea2.tasks.pose.badge, "Experimental");
+});
+
+test("an incomplete workflow is refused before it is built, naming exactly what is missing", () => {
+  const lean = objectInfo({ ...FILES, loras: FILES.loras.filter((n) => !/identity_edit/.test(n)) }, { without: ["Krea2EditModelPatch", "Krea2EditGroundedEncode"] });
+  const leanCtx = { info: lean, inv: readInventory(lean) };
+  assert.throws(
+    () => buildWorkflow("krea2", "edit", sampleParams("edit"), leanCtx),
+    (e) => {
+      assert.match(e.message, /^Krea 2 · Smart Edit cannot run yet\. Missing: /);
+      assert.match(e.message, /comfyui-krea2edit \(Krea2EditModelPatch\)/);
+      assert.match(e.message, /krea2_identity_edit_v1_2\.safetensors in models\/loras\/krea2\/editor\//);
+      assert.deepEqual(e.missing.nodes.map((n) => n.type), ["Krea2EditModelPatch", "Krea2EditGroundedEncode"]);
+      assert.equal(e.missing.models[0].file, "krea2_identity_edit_v1_2.safetensors");
+      return true;
+    },
+  );
+});

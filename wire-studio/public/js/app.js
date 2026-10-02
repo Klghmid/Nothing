@@ -3,10 +3,9 @@ import { h, put, icon, toast, closeMenu } from "./ui.js";
 import { api, viewUrl } from "./api.js";
 import { S, key, values, setValue, famSchema, taskSchema, taskMeta, readiness, on, upsertJob, jobById, isActive } from "./state.js";
 import { renderPanel, imageFromFile, setImage, pickFile, withUpload } from "./form.js";
-import { renderStage, focusJob, updateProgress, updatePreview, maskHasPaint, exportMask, undoMask, primaryField } from "./stage.js";
+import { renderStage, focusJob, updateProgress, updatePreview, maskHasPaint, exportMask, undoMask, primaryField, hasMask } from "./stage.js";
 import { lightbox, gallery, setup, renderQueue, pickResult, closeOverlay, useAsMenu, invalidateGallery, flatten } from "./views.js";
 
-const ICON_OF = { generate: "sparkles", img2img: "layers", edit: "wand", inpaint: "brush", outpaint: "expand", face: "face", hands: "hand", faceswap: "swap", pose: "pose", control: "grid", upscale: "zoom" };
 const mine = new Set(); // jobs started from this tab (toast + auto-show when finished)
 
 // ---------- theme ----------
@@ -49,7 +48,7 @@ function renderTasks() {
         h(
           "button",
           { class: "task" + (off ? " off" : ""), "aria-current": S.task === id ? "page" : "false", onclick: () => goto({ task: id }), title: off ? fam.tasks[id].unavailable : t.about },
-          icon(ICON_OF[id] || t.icon),
+          icon(t.icon),
           h("span", { class: "label" }, t.label),
           off ? h("span", { class: "pill" }, "n/a") : r && r.state !== "ready" ? h("span", { class: "flag " + r.state, title: r.state === "missing" ? "Needs setup" : "Works; add-ons recommended" }) : null,
         ),
@@ -205,7 +204,7 @@ function restore(job) {
   if (p.loras) v.loras = structuredClone(p.loras);
   setValue("seed", job.seed, { f: job.family, t: job.task, silent: true });
   goto({ family: job.family, task: job.task });
-  toast(`Settings restored (seed ${job.seed} fixed)${job.task === "inpaint" ? " — paint the mask again" : ""}`, "ok");
+  toast(`Settings restored (seed ${job.seed} fixed)${hasMask(t) ? " — paint the mask again" : ""}`, "ok");
 }
 
 // ---------- live updates ----------
@@ -382,7 +381,7 @@ document.addEventListener("keydown", (e) => {
     document.getElementById("queue").hidden = true;
     if (document.querySelector(".lightbox")) document.querySelector(".lightbox").remove();
     else closeOverlay();
-  } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z" && !typing && S.task === "inpaint") {
+  } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z" && !typing && hasMask()) {
     e.preventDefault();
     undoMask();
   }

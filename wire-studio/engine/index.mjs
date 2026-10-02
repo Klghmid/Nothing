@@ -1,6 +1,6 @@
 // Engine entry: build a family's task workflow, check family purity, report readiness.
 import { Graph, finalize, fail } from "./graph.mjs";
-import { packOf, TASKS, TASK_GROUPS, ASPECTS, PACKS } from "./catalog.mjs";
+import { packOf, TASKS, TASK_GROUPS, ASPECTS, PACKS, CONTROL_KINDS } from "./catalog.mjs";
 import { readInventory as readFiles, FAMILY_IDS, classify, variantOf } from "./inventory.mjs";
 import { suggestions } from "./suggested.mjs";
 import * as c from "./common.mjs";
@@ -20,7 +20,38 @@ export function readInventory(info, overrides) {
     const models = inv.families[id].models || [];
     inv.families[id].auto = models.find((n) => fam.preferModel?.test(n)) || models[0] || null;
   }
+  // Runtime features (e.g. which control types the installed patch supports): choices that
+  // name a feature are only offered, and only built, when it is installed.
+  for (const [id, fam] of Object.entries(FAMILIES)) inv.families[id].features = fam.features?.({ info: info || {}, inv }) || {};
+  inv.preprocessors = Object.fromEntries(Object.keys(CONTROL_KINDS).map((k) => [k, !!c.preprocessorFor(info, k)]));
   return inv;
+}
+
+// What a workflow needs, independent of what is installed: its own requirement checks run
+// against an empty ComfyUI. This is the workflow's declaration (nodes, models, levels, packs).
+const EMPTY = { info: {}, inv: readFiles({}, {}) };
+for (const id of Object.keys(FAMILIES)) Object.assign(EMPTY.inv.families[id], { auto: null, features: {} });
+export function requirements(familyId, taskId) {
+  const task = FAMILIES[familyId]?.tasks[taskId];
+  if (!task || task.unavailable) return { nodes: [], models: [] };
+  const items = (task.needs?.(EMPTY) || []).filter(Boolean);
+  const seen = new Set();
+  const list = items.filter((n) => !seen.has(n.kind + n.label) && seen.add(n.kind + n.label));
+  const pick = (kind) => list.filter((n) => n.kind === kind).map((n) => ({ label: n.label, level: n.level, why: n.why, ...(kind === "node" ? { types: n.types || [n.label], pack: n.help?.name || null } : { file: n.help?.file || null, folder: n.help?.folder || null }) }));
+  return { nodes: pick("node"), models: pick("model") };
+}
+
+// One readable sentence naming everything a blocked workflow lacks, and the same as data.
+export function missingReport(label, items) {
+  const missing = items.filter((n) => n.level === "required" && !n.ok);
+  const parts = missing.map((n) => (n.kind === "node" ? `${n.help?.name || "a node pack"} (${n.label})` : `${n.help?.file || n.label}${n.help?.folder ? ` in models/${n.help.folder}/` : ""}`));
+  return {
+    message: `${label} cannot run yet. Missing: ${parts.join("; ")}`,
+    missing: {
+      nodes: missing.filter((n) => n.kind === "node").map((n) => ({ type: (n.types || [n.label])[0], pack: n.help })),
+      models: missing.filter((n) => n.kind === "model").map((n) => ({ label: n.label, ...n.help })),
+    },
+  };
 }
 
 // Nodes only one family may contain, and the CLIPLoader type each UNET family uses.
@@ -67,7 +98,13 @@ export function taskOf(familyId, taskId) {
 }
 
 export function buildWorkflow(familyId, taskId, params, ctx) {
-  const { task } = taskOf(familyId, taskId);
+  const { fam, task } = taskOf(familyId, taskId);
+  // Never build a graph known to be incomplete: the task's own requirement checks decide.
+  const ready = taskReadiness(task, ctx);
+  if (ready.state === "missing") {
+    const r = missingReport(`${fam.label} · ${TASKS[taskId]?.label || taskId}`, ready.items);
+    throw fail(r.message, { missing: r.missing });
+  }
   const p = { ...params, seed: c.seedOf(params || {}) };
   const g = new Graph({ family: familyId, info: ctx.info });
   const image = task.build(g, p, ctx);
@@ -91,23 +128,23 @@ export function buildUtility(kind, p, ctx) {
   return { prompt: finalize(g, packOf), notes: g.notes };
 }
 
+// Readiness of one task: "ready", "limited" (runs; add-ons recommended), "missing" or "off".
+function taskReadiness(task, ctx) {
+  if (task.unavailable) return { state: "off", reason: task.unavailable, items: [] };
+  const items = (task.needs?.(ctx) || []).filter(Boolean);
+  const seen = new Set();
+  const unique = items.filter((n) => !seen.has(n.kind + n.label) && seen.add(n.kind + n.label));
+  const blocked = unique.some((n) => n.level === "required" && !n.ok);
+  const limited = unique.some((n) => n.level !== "required" && !n.ok);
+  return { state: blocked ? "missing" : limited ? "limited" : "ready", items: unique };
+}
+
 // Readiness of every family × task, with what is missing and where to get it.
 export function readiness(ctx) {
   const result = {};
   for (const [id, fam] of Object.entries(FAMILIES)) {
     result[id] = {};
-    for (const [taskId, task] of Object.entries(fam.tasks)) {
-      if (task.unavailable) {
-        result[id][taskId] = { state: "off", reason: task.unavailable, items: [] };
-        continue;
-      }
-      const items = (task.needs?.(ctx) || []).filter(Boolean);
-      const seen = new Set();
-      const unique = items.filter((n) => !seen.has(n.kind + n.label) && seen.add(n.kind + n.label));
-      const blocked = unique.some((n) => n.level === "required" && !n.ok);
-      const limited = unique.some((n) => n.level !== "required" && !n.ok);
-      result[id][taskId] = { state: blocked ? "missing" : limited ? "limited" : "ready", items: unique };
-    }
+    for (const [taskId, task] of Object.entries(fam.tasks)) result[id][taskId] = taskReadiness(task, ctx);
   }
   result.utility = {
     "remove-bg": { state: ctx.info.BiRefNetRMBG || ctx.info.RMBG ? "ready" : "missing", items: [{ ok: !!(ctx.info.BiRefNetRMBG || ctx.info.RMBG), level: "required", kind: "node", label: "BiRefNetRMBG or RMBG", why: "Removes the background", help: PACKS.rmbg }] },
@@ -127,7 +164,21 @@ export function schema() {
       defaults: fam.defaults,
       presets: fam.presets || {},
       tasks: Object.fromEntries(
-        Object.entries(fam.tasks).map(([taskId, t]) => [taskId, t.unavailable ? { unavailable: t.unavailable } : { fields: t.fields, notes: t.notes || [], badge: t.badge || "" }]),
+        Object.entries(fam.tasks).map(([taskId, t]) => [
+          taskId,
+          t.unavailable
+            ? { unavailable: t.unavailable }
+            : {
+                fields: t.fields,
+                notes: t.notes || [],
+                badge: t.badge || (t.status === "experimental" ? "Experimental" : ""),
+                status: t.status || "ready",
+                statusNote: t.statusNote || "",
+                evidence: t.evidence,
+                verified: t.verified,
+                requires: requirements(id, taskId),
+              },
+        ]),
       ),
     };
   }

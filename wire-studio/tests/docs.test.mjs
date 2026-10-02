@@ -89,3 +89,9 @@ test("every offered task declares its status, evidence and verification level", 
   for (const row of capabilityMatrix(FAMILIES))
     for (const [f, cell] of Object.entries(row.cells)) if (cell.status === "unsupported") assert.ok(cell.note, `${f} ${row.id}: unsupported needs a reason`);
 });
+
+test("docs/CURRENT_CAPABILITY_AUDIT.md is generated from the engine (run npm run docs)", async () => {
+  const { render, AUDIT_DOC } = await import("../scripts/build-capability-matrix.mjs");
+  const text = await fs.readFile(AUDIT_DOC, "utf8");
+  assert.equal(render(text, "audit"), text);
+});

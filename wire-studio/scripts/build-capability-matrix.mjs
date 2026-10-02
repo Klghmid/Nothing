@@ -1,14 +1,19 @@
-// Regenerates the capability matrix in docs/CAPABILITY_MATRIX.md from the engine's own task
-// declarations (engine/capabilities.mjs). `npm run docs` runs it; tests/docs.test.mjs fails
-// when the file is out of date, so the matrix can never drift from the code.
+// Regenerates docs/CAPABILITY_MATRIX.md (family × capability) and docs/CURRENT_CAPABILITY_AUDIT.md
+// (one row per workflow) from the engine's own task declarations, requirement checks, tests and
+// exports. `npm run docs` runs it; tests/docs.test.mjs fails when either file is out of date, so
+// neither can drift from the code.
 import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { FAMILIES } from "../engine/index.mjs";
+import fsSync from "node:fs";
+import { FAMILIES, requirements } from "../engine/index.mjs";
 import { capabilityMatrix, STATUS } from "../engine/capabilities.mjs";
+import { TASKS } from "../engine/catalog.mjs";
+import { variantParams } from "../engine/variants.mjs";
 
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
 export const MATRIX_DOC = path.join(root, "docs", "CAPABILITY_MATRIX.md");
+export const AUDIT_DOC = path.join(root, "docs", "CURRENT_CAPABILITY_AUDIT.md");
 
 const EVIDENCE = { official: "official template / model author", community: "community model or node pack", composed: "Wire Studio composition of documented nodes" };
 
@@ -31,15 +36,60 @@ export function buildMatrix() {
   return out.join("\n");
 }
 
-export function render(text) {
-  const re = /(<!-- generated:matrix -->)[\s\S]*?(<!-- \/generated:matrix -->)/;
-  if (!re.test(text)) throw new Error("docs/CAPABILITY_MATRIX.md is missing the generated:matrix markers");
-  return text.replace(re, `$1\n${buildMatrix()}\n$2`);
+// Tests that name a workflow explicitly (beyond the per-workflow build, purity and
+// real-definition checks every workflow gets), found by reading the test files.
+function namedTests(familyId, taskId) {
+  const dir = path.join(root, "tests");
+  const hits = [];
+  for (const f of fsSync.readdirSync(dir).filter((n) => n.endsWith(".test.mjs"))) {
+    const text = fsSync.readFileSync(path.join(dir, f), "utf8");
+    const re = new RegExp(`buildWorkflow\\(\\s*"${familyId}"\\s*,\\s*"${taskId}"`, "g");
+    const n = (text.match(re) || []).length;
+    if (n) hits.push(`${f} ×${n}`);
+  }
+  return hits;
+}
+
+export function buildAudit() {
+  const out = [
+    "| Family | Task | Implementation | Status | Evidence · verified | Required nodes | Required models | Recommended add-ons | UI | Tests | Export |",
+    "|---|---|---|---|---|---|---|---|---|---|---|",
+  ];
+  const esc = (x) => String(x).replaceAll("|", "\\|");
+  for (const [familyId, fam] of Object.entries(FAMILIES))
+    for (const [taskId, task] of Object.entries(fam.tasks)) {
+      const label = TASKS[taskId]?.label || taskId;
+      const impl = `\`engine/families/${familyId}.mjs\` → \`tasks["${taskId}"].build\``;
+      if (task.unavailable) {
+        out.push(`| ${fam.label} | ${label} | — | UNSUPPORTED | — | — | — | — | listed as n/a with the reason | refusal test | — |`);
+        continue;
+      }
+      const r = requirements(familyId, taskId);
+      const req = (list, f) => list.filter((x) => x.level === "required").map(f);
+      const nodes = req(r.nodes, (n) => `${n.types.join(" or ")}${n.pack ? ` (${n.pack})` : ""}`);
+      const models = req(r.models, (m) => (m.file ? `\`${m.file}\`` : m.label));
+      const extra = [...r.nodes.filter((n) => n.level !== "required").map((n) => n.types.join(" or ")), ...r.models.filter((m) => m.level !== "required").map((m) => m.file || m.label)];
+      const ui = `${TASKS[taskId]?.group || "—"}${task.badge || task.status === "experimental" ? ` · badge "${task.badge || "Experimental"}"` : ""}`;
+      const tests = ["build + family purity", "real definitions", ...namedTests(familyId, taskId)];
+      const exports = variantParams(familyId, taskId, task).map((v) => `[${v.file || taskId}](../workflows/${familyId}/${v.file ? `${taskId}-${v.file}` : taskId}.json)`);
+      const status = STATUS[task.status || "ready"] + (task.statusNote ? ` — ${task.statusNote}` : "");
+      out.push(`| ${fam.label} | ${label} | ${impl} | ${esc(status)} | ${task.evidence} · ${task.verified === "inference" ? "run on a GPU" : "graph only"} | ${esc(nodes.join("<br>") || "core only")} | ${esc(models.join("<br>"))} | ${esc(extra.join("<br>") || "—")} | ${ui} | ${tests.join("<br>")} | ${exports.join(" ")} |`);
+    }
+  return out.join("\n");
+}
+
+const DOCS = { matrix: buildMatrix, audit: buildAudit };
+export function render(text, name = "matrix") {
+  const re = new RegExp(`(<!-- generated:${name} -->)[\\s\\S]*?(<!-- \\/generated:${name} -->)`);
+  if (!re.test(text)) throw new Error(`missing the generated:${name} markers`);
+  return text.replace(re, `$1\n${DOCS[name]()}\n$2`);
 }
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.argv[1])) {
-  const before = await fs.readFile(MATRIX_DOC, "utf8");
-  const after = render(before);
-  await fs.writeFile(MATRIX_DOC, after);
-  console.log(after === before ? "docs/CAPABILITY_MATRIX.md is already up to date" : "Updated docs/CAPABILITY_MATRIX.md");
+  for (const [file, name] of [[MATRIX_DOC, "matrix"], [AUDIT_DOC, "audit"]]) {
+    const before = await fs.readFile(file, "utf8");
+    const after = render(before, name);
+    await fs.writeFile(file, after);
+    console.log(after === before ? `${path.relative(root, file)} is already up to date` : `Updated ${path.relative(root, file)}`);
+  }
 }

@@ -5,7 +5,10 @@ import { S, values, setValue, famSchema, taskSchema, taskMeta, readiness, famInv
 
 const FALLBACK_SAMPLERS = ["euler", "euler_ancestral", "dpmpp_2m", "dpmpp_2m_sde", "res_multistep", "er_sde", "uni_pc"];
 const FALLBACK_SCHEDULERS = ["simple", "normal", "karras", "exponential", "beta", "sgm_uniform"];
-const visible = (fld, v) => !fld.when || !!v[fld.when];
+// Same rule as engine/fields.mjs shown(): a key that must be truthy, or { key, is: [values] }.
+const visible = (fld, v) => !fld.when || (typeof fld.when === "string" ? !!v[fld.when] : (fld.when.is || []).includes(v[fld.when.key]));
+// A choice that names a runtime feature is offered only when the family reports it installed.
+const offered = (c) => !c.feature || !!famInventory().features?.[c.feature];
 const fmt = (n, step) => (step >= 1 ? String(Math.round(n)) : Number(n).toFixed(String(step).split(".")[1]?.length || 2));
 
 // ---------- image handling shared with the stage ----------
@@ -221,8 +224,13 @@ const R = {
   select(fld, v) {
     let choices = fld.choices;
     if (typeof choices === "string") {
-      const list = choices === "controlnets" ? famInventory().controlnets || [] : S.inventory?.[choices] || [];
+      const list = choices === "controlnets" ? famInventory().controlnets || [] : S.inventory?.[choices] || famInventory()[choices] || [];
       choices = [{ value: "", label: "Automatic" }, ...list.map((n) => ({ value: n, label: shortName(n) }))];
+    } else {
+      // Only what this ComfyUI can run; a control type without its preprocessor still works
+      // with an uploaded ready-made map, so it stays, marked.
+      choices = choices.filter(offered).map((c) => ({ ...c, label: c.label + (c.status === "experimental" ? " (experimental)" : "") + (fld.key === "kind" && S.inventory?.preprocessors && S.inventory.preprocessors[c.value] === false && !v.isMap ? " — upload a map" : "") }));
+      if (!choices.some((c) => String(c.value) === String(v[fld.key] ?? fld.default)) && choices[0]) v[fld.key] = choices[0].value;
     }
     const sel = h("select", { "aria-label": fld.label, onchange: (e) => setValue(fld.key, choices.find((c) => String(c.value) === e.target.value)?.value ?? e.target.value) }, choices.map((c) => h("option", { value: String(c.value) }, c.label)));
     sel.value = String(v[fld.key] ?? fld.default ?? "");
@@ -386,6 +394,7 @@ export function renderPanel() {
     const missing = r.items.filter((n) => !n.ok);
     body.append(h("details", { class: "advanced" }, h("summary", {}, icon("info"), "Works now; better with add-ons", h("span", { class: "sum" }, String(missing.length))), h("div", { class: "inner" }, needList(missing, { family: S.family }))));
   }
+  if (t.statusNote && t.status !== "ready") body.append(h("div", { class: "notice warn" }, icon("alert"), h("span", {}, `${t.status === "experimental" ? "Experimental" : "Limited"}: ${t.statusNote}`)));
   for (const note of t.notes || []) body.append(h("div", { class: "notice" }, icon("info"), h("span", {}, note)));
 
   const main = [];

@@ -1,6 +1,10 @@
 // Form schema helpers. Families describe each task's form with these; the browser renders
 // them generically, so a family only ever shows the controls its workflow really uses.
-// `when: "key"` shows a field only while that value is truthy (e.g. refine options).
+// `when: "key"` shows a field only while that value is truthy (e.g. refine options);
+// `when: { key, is: [values] }` only while that value is one of the listed ones.
+// A choice may carry `feature: "<name>"`: it is offered only when the family's runtime
+// features (engine/index.mjs readInventory) report that feature installed, and `status`
+// (see engine/capabilities.mjs).
 export const field = {
   prompt: (o = {}) => ({ type: "prompt", key: "prompt", label: o.label || "Prompt", placeholder: o.placeholder || "", optional: !!o.optional, hint: o.hint, when: o.when }),
   negative: (def) => ({ type: "text", key: "negative", label: "Negative prompt", default: def || "", advanced: true }),
@@ -25,9 +29,16 @@ export const choice = (value, label, hint) => ({ value, label, hint });
 const filesOf = (x) => (Array.isArray(x) ? x : typeof x === "string" ? [x] : x?.name ? [x.name] : []).filter((n) => typeof n === "string" && n);
 export const need = {
   node: (ctx, type, pack, why, level = "required") => ({ ok: !!ctx.info?.[type], level, kind: "node", label: type, why, help: pack }),
-  anyNode: (ctx, types, pack, why, level = "required") => ({ ok: types.some((t) => ctx.info?.[t]), level, kind: "node", label: types.join(" or "), why, help: pack }),
+  anyNode: (ctx, types, pack, why, level = "required") => ({ ok: types.some((t) => ctx.info?.[t]), level, kind: "node", label: types.join(" or "), types, why, help: pack }),
   model: (match, model, label, why, level = "required") => {
     const found = filesOf(match);
     return { ok: Array.isArray(match) ? found.length > 0 : !!match, level, kind: "model", label, why, help: model, found };
   },
 };
+
+// Is a field shown for these form values? (the browser applies the same rule)
+export function shown(fld, v) {
+  if (!fld.when) return true;
+  if (typeof fld.when === "string") return !!v[fld.when];
+  return (fld.when.is || []).includes(v[fld.when.key]);
+}

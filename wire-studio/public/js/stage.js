@@ -5,6 +5,15 @@ import { S, key, values, taskSchema, taskMeta, famSchema, jobById, isActive, emi
 import { imageSrc, withUpload, pickFile } from "./form.js";
 
 const primaryField = () => (taskSchema().fields || []).find((f) => f.type === "image");
+// What the stage shows is derived from the task's form schema, never from task ids:
+// a mask field → mask painter; an edges field → outpaint preview; a result that redraws its
+// input (an image field, no output size or canvas change) → before/after compare.
+const hasField = (t, type) => !!(t?.fields || []).some((f) => f.type === type);
+export const hasMask = (t = taskSchema()) => hasField(t, "mask");
+const comparable = (job) => {
+  const t = S.schema.families[job.family]?.tasks?.[job.task];
+  return !!t?.fields && hasField(t, "image") && !hasField(t, "size") && !hasField(t, "edges") && !t.noCompare;
+};
 const stageView = () => (S.view[key()] ||= { jobId: null, index: 0, mode: "input" });
 
 // ---------- fitting images to the canvas ----------
@@ -234,7 +243,7 @@ function resultView(job, v) {
   if (!im) return h("div", { class: "empty" }, h("h3", {}, "No image was saved"));
   const before = inputOf(job);
   const src = viewUrl(im);
-  if (before && ["img2img", "inpaint", "face", "hands", "faceswap", "edit", "upscale"].includes(job.task)) return compare(before, src);
+  if (before && comparable(job)) return compare(before, src);
   return fitImg({ src, alt: "Result", class: "checker", style: { cursor: "zoom-in" }, onclick: () => emit("lightbox", { job, index: 0 }) });
 }
 
@@ -326,7 +335,7 @@ export function renderStage() {
     );
   if (showResult && fld) actions.push(h("button", { class: "btn small", onclick: () => ((sv.mode = "input"), renderStage()) }, icon("left"), "Back to input"));
   if (!showResult && job && job.status === "done") actions.push(h("button", { class: "btn small", onclick: () => ((sv.mode = "result"), renderStage()) }, "Show last result", icon("right")));
-  if (!showResult && S.task === "inpaint" && img) actions.unshift(maskTools(img));
+  if (!showResult && hasMask(t) && img) actions.unshift(maskTools(img));
 
   const title = showResult ? h("h2", {}, job.status === "done" ? "Result" : isActive(job) ? "Working…" : "Run", h("span", { class: "faint", style: { fontWeight: 400 } }, `  ·  seed ${job.seed ?? "–"}  ·  ${fmtTime(job.created)}`)) : h("h2", {}, img ? fld.label : meta.label);
   const head = h("div", { class: "stage-head" }, title, h("div", { class: "spacer" }), actions);
@@ -341,8 +350,8 @@ export function renderStage() {
       h("div", { class: "live-preview" }, h("img", { "data-preview": job.id, alt: "", onerror: (e) => (e.target.style.visibility = "hidden"), onload: (e) => ((e.target.style.visibility = "visible"), canvas.classList.add("has-preview")), style: { visibility: "hidden" } })),
       progressCard(job),
     );
-  } else if (img && S.task === "inpaint") content = painter(img);
-  else if (img && S.task === "outpaint") content = outpaintPreview(img, v);
+  } else if (img && hasMask(t)) content = painter(img);
+  else if (img && hasField(t, "edges")) content = outpaintPreview(img, v);
   else if (img) content = fitImg({ src: imageSrc(img), alt: fld.label, class: "checker" });
   else content = emptyState(fld && !fld.optional ? fld : null);
   canvas.prepend(h("div", { class: "frame" }, content));
