@@ -5,7 +5,7 @@
       "image": "input.png"
     },
     "_meta": {
-      "title": "Image to edit"
+      "title": "Character"
     }
   },
   "2": {
@@ -116,12 +116,12 @@
         "3",
         0
       ],
-      "prompt": "e.g. make the jacket red leather, keep everything else",
+      "prompt": "Create a photo of this person e.g. at a night market, laughing, eating street food.",
       "image": [
         "1",
         0
       ],
-      "grounding_px": 768
+      "grounding_px": 1024
     },
     "_meta": {
       "title": "Instruction (image-grounded)"
@@ -192,7 +192,7 @@
         "12",
         0
       ],
-      "filename_prefix": "WireStudio/krea2-edit"
+      "filename_prefix": "WireStudio/krea2-k2-restage"
     },
     "_meta": {
       "title": "Save image"

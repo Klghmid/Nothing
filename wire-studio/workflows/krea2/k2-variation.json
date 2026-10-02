@@ -5,7 +5,7 @@
       "image": "input.png"
     },
     "_meta": {
-      "title": "Image to edit"
+      "title": "Character"
     }
   },
   "2": {
@@ -57,7 +57,7 @@
     "inputs": {
       "width": 1024,
       "height": 1024,
-      "batch_size": 1
+      "batch_size": 4
     },
     "_meta": {
       "title": "Output canvas"
@@ -103,7 +103,7 @@
         0
       ],
       "fit_mode": "fit",
-      "ref_boost": 4
+      "ref_boost": 0.7
     },
     "_meta": {
       "title": "Inject source image"
@@ -116,7 +116,7 @@
         "3",
         0
       ],
-      "prompt": "e.g. make the jacket red leather, keep everything else",
+      "prompt": "Create a variation of this character. Optional: e.g. different outfit and hairstyle, same face. Keep who they are recognisable.",
       "image": [
         "1",
         0
@@ -192,7 +192,7 @@
         "12",
         0
       ],
-      "filename_prefix": "WireStudio/krea2-edit"
+      "filename_prefix": "WireStudio/krea2-k2-variation"
     },
     "_meta": {
       "title": "Save image"

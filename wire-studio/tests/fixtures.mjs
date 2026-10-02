@@ -119,6 +119,8 @@ export function objectInfo(files = FILES, { without = [] } = {}) {
       { sam_model_opt: L("SAM_MODEL"), segm_detector_opt: L("SEGM_DETECTOR"), detailer_hook: L("DETAILER_HOOK"), inpaint_model: B(false), noise_mask_feather: I(20, 0, 100), scheduler_func_opt: L("SCHEDULER_FUNC"), tiled_encode: B(false), tiled_decode: B(false) },
       ["IMAGE", "IMAGE", "IMAGE", "MASK", "DETAILER_PIPE", "IMAGE"],
     ),
+    BboxDetectorSEGS: live("BboxDetectorSEGS"),
+    SegsToCombinedMask: live("SegsToCombinedMask"),
     // ReActor
     ReActorFaceSwap: node(
       {
@@ -182,11 +184,11 @@ export function objectInfo(files = FILES, { without = [] } = {}) {
   return info;
 }
 
-export const CUSTOM_NODES = ["UltralyticsDetectorProvider", "FaceDetailer", "ReActorFaceSwap", "DWPreprocessor", "DepthAnythingV2Preprocessor", "LineArtPreprocessor", "AnimeLineArtPreprocessor", "HEDPreprocessor", "PiDiNetPreprocessor", "FakeScribblePreprocessor", "M-LSDPreprocessor", "ImageLuminanceDetector", "ImageIntensityDetector", "BiRefNetRMBG", "INPAINT_MaskedFill", "UltimateSDUpscale", "Krea2ControlLoRALoader", "Krea2ControlApply", "Krea2ControlImageEncode", "Krea2EditModelPatch", "Krea2EditGroundedEncode"];
+export const CUSTOM_NODES = ["UltralyticsDetectorProvider", "FaceDetailer", "BboxDetectorSEGS", "SegsToCombinedMask", "ReActorFaceSwap", "DWPreprocessor", "DepthAnythingV2Preprocessor", "LineArtPreprocessor", "AnimeLineArtPreprocessor", "HEDPreprocessor", "PiDiNetPreprocessor", "FakeScribblePreprocessor", "M-LSDPreprocessor", "ImageLuminanceDetector", "ImageIntensityDetector", "BiRefNetRMBG", "INPAINT_MaskedFill", "UltimateSDUpscale", "Krea2ControlLoRALoader", "Krea2ControlApply", "Krea2ControlImageEncode", "Krea2EditModelPatch", "Krea2EditGroundedEncode"];
 
 // Parameters that make every task buildable (image names are just strings for LoadImage).
 export function sampleParams(task) {
-  const base = { prompt: "test prompt", seed: 42, imageW: 832, imageH: 1216, width: 1024, height: 1024 };
+  const base = { prompt: "test prompt", seed: 42, image: "example.png", imageW: 832, imageH: 1216, width: 1024, height: 1024 };
   const byTask = {
     img2img: { image: "example.png", denoise: 0.5 },
     edit: { image: "example.png" },

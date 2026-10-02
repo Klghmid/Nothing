@@ -39,6 +39,13 @@ export const CAPABILITIES = [
   { id: "remove-bg", label: "Remove Background", tool: "remove-bg" },
   { id: "style", label: "Style Reference", from: [{ task: "generate", field: "style1" }] },
   { id: "identity", label: "Identity Editing", from: [{ task: "edit" }] },
+  { id: "object-remove", label: "Object Remove", from: [{ task: "k2-remove" }, { task: "object-remove" }] },
+  { id: "object-replace", label: "Object Replace", from: [{ task: "k2-replace" }, { task: "object-replace" }] },
+  { id: "background", label: "Background Replace", from: [{ task: "bg-replace" }, { task: "k2-background" }] },
+  { id: "face-replace", label: "Face / Head Replace (identity)", from: [{ task: "k2-face" }, { task: "k2-head" }] },
+  { id: "tryon", label: "Virtual Try-On", from: [{ task: "k2-tryon" }] },
+  { id: "restage", label: "Character Restage / Sheet", from: [{ task: "k2-restage" }, { task: "k2-sheet" }] },
+  { id: "reframe", label: "Reframe", from: [{ task: "reframe" }, { task: "k2-reframe" }] },
 ];
 
 // Family-free tools (engine/index.mjs buildUtility), with their own status.

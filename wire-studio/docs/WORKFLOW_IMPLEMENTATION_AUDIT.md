@@ -144,3 +144,48 @@ Not run on a GPU: all new Z-Image workflows (†). Deferred to later phases of t
 object remove / replace, background replace, structure-preserving and controlled regional edits
 (built with the editing phases on each family's masked redraw), Control + Reframe (Phase 8 reuses
 Outpaint, so it inherits the guide).
+
+## Phase 3 — Krea 2 Identity Edit Suite
+
+Research: [WORKFLOW_RESEARCH.md § Phase 3](WORKFLOW_RESEARCH.md#phase-3--krea-2-identity-edit-suite).
+Implementation: `engine/families/krea2-edit.mjs` (part of the Krea 2 family: it receives
+`krea2.mjs`'s own loaders; one shared `identityEdit()` graph, no second architecture).
+
+| Task | Status | Distinct from the others by | Export |
+|---|---|---|---|
+| Smart Edit | READY † | free instruction, optional image 2 | `krea2/edit.json` |
+| Object Remove | READY † | RAW preferred + removal preset (20 steps, CFG 3), ref_boost 1, grounding 512, locality mask | `krea2/k2-remove.json` |
+| Object Replace | READY † | object → replacement, optional object photo as image 2, locality mask | `krea2/k2-replace.json` |
+| Background Swap | READY † (text) / EXPERIMENTAL (with a background photo: order inferred) | background photo becomes image 1 | `krea2/k2-background.json` |
+| Person Replace | READY † | who → new person (text or photo), grounding 1024 | `krea2/k2-person.json` |
+| Insert Person | READY † | scene + person (documented two-image case) | `krea2/k2-insert.json` |
+| Face Replace | READY † | documented face-swap sentence, face-focused `ref_boost_mask` | `krea2/k2-face.json` |
+| Head Replace | READY † | head + hair sentence, wider focus region | `krea2/k2-head.json` |
+| Eye Replace | READY † | eyes only, text or reference | `krea2/k2-eyes.json` |
+| Outfit Change | READY † | outfit + layering words | `krea2/k2-outfit.json` |
+| Virtual Try-On | READY † | person + garment, garment fidelity on image 2 | `krea2/k2-tryon.json` |
+| Identity Inpaint | EXPERIMENTAL † | required mask, masked latent + differential diffusion, paste-back | `krea2/k2-inpaint.json` |
+| Identity Outpaint | EXPERIMENTAL † | padded canvas, masked latent, euler advice | `krea2/k2-outpaint.json` |
+| Identity Reframe | EXPERIMENTAL † | target aspect + alignment → computed extension, then Identity Outpaint | `krea2/k2-reframe.json` |
+| Character Variation | EXPERIMENTAL † | ref_boost 0.7 (below 1 frees), batch of 4, free size | `krea2/k2-variation.json` |
+| Character Restage | READY † | "Create a photo of this person …", free size | `krea2/k2-restage.json` |
+| Character Sheet | READY † | views / expressions, wide default (1536×1024) | `krea2/k2-sheet.json` |
+| Scene Change | READY † | whole setting + light, grounding 512 | `krea2/k2-scene.json` |
+| Pose Restage | EXPERIMENTAL † | pose photo as image 1 (inferred order) or text pose | `krea2/k2-pose.json` |
+
+Requirements for all: Krea 2 model, Qwen3-VL 4B (`krea2`), Qwen Image VAE, `Krea2EditModelPatch`
++ `Krea2EditGroundedEncode` (comfyui-krea2edit ≥ v1.2.5 — `source_image_b`, `ref_boost`,
+`ref_boost_mask`, `target_latent`), `krea2_identity_edit_v1_2.safetensors`. Recommended: Impact
+Pack + Subpack + `face_yolov8m.pt` (face focus), `DifferentialDiffusion` (masked tasks),
+comfyui-inpaint-nodes (outpaint pre-fill).
+
+Changes to the existing Smart Edit (intended, from the author's v1.2 workflow): Turbo 10 steps
+(was 8), `ref_boost` 4 (was 1), slider range 0–10 (was 0.5–1.5); the unused negative-prompt field
+was removed. UI: optional masks, single-line fields, task-level Turbo / RAW presets, a preferred
+model type per task, collapsible task groups (desktop).
+
+Tests: a "not an alias" test builds all 19 tasks and fails if two produce the same graph; order,
+defaults, RAW preference, locality, face focus (with and without Impact), masked latent,
+`target_latent` wiring, reframe geometry and the reframe calculator have dedicated tests.
+Results: `npm test` 210/210 · browser checks 15/15 · live ComfyUI validator 95/95.
+Not run on a GPU: all 19 tasks (†). Sources of uncertainty are listed in the research report.

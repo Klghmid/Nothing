@@ -5,10 +5,61 @@
       "image": "input.png"
     },
     "_meta": {
-      "title": "Image to edit"
+      "title": "Image"
     }
   },
   "2": {
+    "class_type": "ImagePadForOutpaint",
+    "inputs": {
+      "image": [
+        "1",
+        0
+      ],
+      "left": 400,
+      "right": 400,
+      "top": 0,
+      "bottom": 0,
+      "feathering": 48
+    },
+    "_meta": {
+      "title": "Extend canvas"
+    }
+  },
+  "3": {
+    "class_type": "INPAINT_MaskedFill",
+    "inputs": {
+      "image": [
+        "2",
+        0
+      ],
+      "mask": [
+        "2",
+        1
+      ],
+      "fill": "navier-stokes",
+      "falloff": 0
+    },
+    "_meta": {
+      "title": "Pre-fill new area"
+    }
+  },
+  "4": {
+    "class_type": "ImageScale",
+    "inputs": {
+      "image": [
+        "3",
+        0
+      ],
+      "upscale_method": "lanczos",
+      "width": 1824,
+      "height": 1024,
+      "crop": "disabled"
+    },
+    "_meta": {
+      "title": "Fit to the trained range"
+    }
+  },
+  "5": {
     "class_type": "UNETLoader",
     "inputs": {
       "unet_name": "krea2_turbo_fp8_scaled.safetensors",
@@ -18,7 +69,7 @@
       "title": "Krea 2 model"
     }
   },
-  "3": {
+  "6": {
     "class_type": "CLIPLoader",
     "inputs": {
       "clip_name": "qwen3vl_4b_fp8_scaled.safetensors",
@@ -29,7 +80,7 @@
       "title": "Text encoder (Qwen3-VL 4B)"
     }
   },
-  "4": {
+  "7": {
     "class_type": "VAELoader",
     "inputs": {
       "vae_name": "qwen_image_vae.safetensors"
@@ -38,11 +89,11 @@
       "title": "Qwen Image VAE"
     }
   },
-  "5": {
+  "8": {
     "class_type": "LoraLoaderModelOnly",
     "inputs": {
       "model": [
-        "2",
+        "5",
         0
       ],
       "lora_name": "krea2/editor/krea2_identity_edit_v1_2.safetensors",
@@ -52,26 +103,59 @@
       "title": "Krea 2 Identity Edit LoRA"
     }
   },
-  "6": {
-    "class_type": "EmptySD3LatentImage",
+  "9": {
+    "class_type": "DifferentialDiffusion",
     "inputs": {
-      "width": 1024,
-      "height": 1024,
-      "batch_size": 1
+      "model": [
+        "8",
+        0
+      ]
     },
     "_meta": {
-      "title": "Output canvas"
+      "title": "Differential diffusion"
     }
   },
-  "7": {
+  "10": {
     "class_type": "VAEEncode",
     "inputs": {
       "pixels": [
-        "1",
+        "4",
         0
       ],
       "vae": [
+        "7",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "Encode image"
+    }
+  },
+  "11": {
+    "class_type": "SetLatentNoiseMask",
+    "inputs": {
+      "samples": [
+        "10",
+        0
+      ],
+      "mask": [
+        "2",
+        1
+      ]
+    },
+    "_meta": {
+      "title": "Limit to the masked area"
+    }
+  },
+  "12": {
+    "class_type": "VAEEncode",
+    "inputs": {
+      "pixels": [
         "4",
+        0
+      ],
+      "vae": [
+        "7",
         0
       ]
     },
@@ -79,46 +163,46 @@
       "title": "Encode image 1"
     }
   },
-  "8": {
+  "13": {
     "class_type": "Krea2EditModelPatch",
     "inputs": {
       "model": [
-        "5",
+        "9",
         0
       ],
       "source_latent": [
-        "7",
+        "12",
         0
       ],
       "vae": [
-        "4",
+        "7",
         0
       ],
       "source_image": [
-        "1",
+        "4",
         0
       ],
       "target_latent": [
-        "6",
+        "11",
         0
       ],
       "fit_mode": "fit",
-      "ref_boost": 4
+      "ref_boost": 1
     },
     "_meta": {
       "title": "Inject source image"
     }
   },
-  "9": {
+  "14": {
     "class_type": "Krea2EditGroundedEncode",
     "inputs": {
       "clip": [
-        "3",
+        "6",
         0
       ],
-      "prompt": "e.g. make the jacket red leather, keep everything else",
+      "prompt": "Extend the picture outward into the new area, continuing the scene naturally with matching light, perspective and style. The new area shows Optional: what the new area shows.",
       "image": [
-        "1",
+        "4",
         0
       ],
       "grounding_px": 768
@@ -127,11 +211,11 @@
       "title": "Instruction (image-grounded)"
     }
   },
-  "10": {
+  "15": {
     "class_type": "ConditioningZeroOut",
     "inputs": {
       "conditioning": [
-        "9",
+        "14",
         0
       ]
     },
@@ -139,23 +223,23 @@
       "title": "No negative (CFG 1)"
     }
   },
-  "11": {
+  "16": {
     "class_type": "KSampler",
     "inputs": {
       "model": [
-        "8",
+        "13",
         0
       ],
       "positive": [
-        "9",
+        "14",
         0
       ],
       "negative": [
-        "10",
+        "15",
         0
       ],
       "latent_image": [
-        "6",
+        "11",
         0
       ],
       "seed": 123456789,
@@ -169,15 +253,15 @@
       "title": "Sampler"
     }
   },
-  "12": {
+  "17": {
     "class_type": "VAEDecode",
     "inputs": {
       "samples": [
-        "11",
+        "16",
         0
       ],
       "vae": [
-        "4",
+        "7",
         0
       ]
     },
@@ -185,14 +269,53 @@
       "title": "Decode"
     }
   },
-  "13": {
+  "18": {
+    "class_type": "ImageScale",
+    "inputs": {
+      "image": [
+        "17",
+        0
+      ],
+      "upscale_method": "lanczos",
+      "width": 1824,
+      "height": 1024,
+      "crop": "disabled"
+    },
+    "_meta": {
+      "title": "Back to the original size"
+    }
+  },
+  "19": {
+    "class_type": "ImageCompositeMasked",
+    "inputs": {
+      "destination": [
+        "3",
+        0
+      ],
+      "source": [
+        "18",
+        0
+      ],
+      "mask": [
+        "2",
+        1
+      ],
+      "x": 0,
+      "y": 0,
+      "resize_source": false
+    },
+    "_meta": {
+      "title": "Paste result into original"
+    }
+  },
+  "20": {
     "class_type": "SaveImage",
     "inputs": {
       "images": [
-        "12",
+        "19",
         0
       ],
-      "filename_prefix": "WireStudio/krea2-edit"
+      "filename_prefix": "WireStudio/krea2-k2-reframe"
     },
     "_meta": {
       "title": "Save image"

@@ -134,7 +134,8 @@ for (const [familyId, fam] of Object.entries(FAMILIES)) {
       continue;
     }
     test(`${familyId}/${taskId} builds a valid, family-pure workflow`, () => {
-      const { prompt } = buildWorkflow(familyId, taskId, sampleParams(taskId), ctx);
+      const needsMask = task.fields.some((f) => f.type === "mask" && !f.optional);
+      const { prompt } = buildWorkflow(familyId, taskId, { ...sampleParams(taskId), ...(needsMask ? { mask: "mask.png" } : {}), ...(task.example || {}) }, ctx);
       assert.ok(nodesOf(prompt, "SaveImage").length === 1);
       for (const [id, n] of Object.entries(prompt)) {
         const spec = info[n.class_type];
@@ -457,4 +458,116 @@ test("Z-Image Outpaint guide comes from a separate image of the whole canvas; Im
   assert.ok(types(i2i).includes("HEDPreprocessor"));
   const shift = nodesOf(i2i, "ModelSamplingAuraFlow")[0];
   assert.equal(i2i[shift.inputs.model[0]].class_type, "ZImageFunControlnet", "control before the shift (template order)");
+});
+
+// ---- Krea 2 Identity Edit suite --------------------------------------------------------------
+const k2 = (task, extra = {}) => {
+  const def = FAMILIES.krea2.tasks[task];
+  const mask = def.fields.some((f) => f.type === "mask" && !f.optional) ? { mask: "mask.png" } : {};
+  return buildWorkflow("krea2", task, { ...sampleParams(task), ...mask, ...(def.example || {}), ...extra }, ctx);
+};
+const loadName = (prompt, link) => (link ? prompt[link[0]]?.inputs?.image : undefined);
+function editParts(prompt) {
+  const patch = nodesOf(prompt, "Krea2EditModelPatch")[0].inputs;
+  const enc = nodesOf(prompt, "Krea2EditGroundedEncode");
+  return { patch, a: loadName(prompt, patch.source_image), b: loadName(prompt, patch.source_image_b), instruction: enc[0].inputs.prompt, grounding: enc[0].inputs.grounding_px, ks: nodesOf(prompt, "KSampler")[0].inputs };
+}
+
+test("Krea 2 edit suite: every task is its own graph (references, defaults, instruction), not an alias", () => {
+  const seen = new Map();
+  for (const [task, def] of Object.entries(FAMILIES.krea2.tasks)) {
+    if (!(task === "edit" || task.startsWith("k2-"))) continue;
+    const { prompt } = k2(task);
+    // Reframe reuses Identity Outpaint's graph by design; what it adds is the computed extension.
+    const pad = nodesOf(prompt, "ImagePadForOutpaint")[0]?.inputs;
+    const shape = JSON.stringify([...new Set(types(prompt))].sort()) + JSON.stringify(editParts(prompt).patch.ref_boost) + editParts(prompt).instruction + JSON.stringify(pad && [pad.left, pad.right, pad.top, pad.bottom]);
+    assert.ok(!seen.has(shape), `${task} builds the same graph as ${seen.get(shape)}`);
+    seen.set(shape, task);
+    assert.ok(def.evidence && def.verified && def.fields.length, task);
+  }
+  assert.equal(seen.size, 19, "19 Identity Edit tasks");
+});
+
+test("Krea 2 edit suite: reference order follows training (image 1 = scene / edited image, image 2 = subject)", () => {
+  const insert = editParts(k2("k2-insert", { person: "person.png" }).prompt);
+  assert.deepEqual([insert.a, insert.b], ["example.png", "person.png"]);
+  assert.match(insert.instruction, /^Place this person/);
+  const face = editParts(k2("k2-face", { prompt: "" }).prompt);
+  assert.deepEqual([face.a, face.b], ["example.png", "face.png"]);
+  assert.equal(face.instruction, "A seamless face swap. Replace only the facial features of the subject in the input image with the identity from image_b.", "the documented sentence");
+  const tryon = editParts(k2("k2-tryon").prompt);
+  assert.deepEqual([tryon.a, tryon.b], ["example.png", "garment.png"]);
+  const bg = editParts(k2("k2-background", { bg: "bg.png" }).prompt);
+  assert.deepEqual([bg.a, bg.b], ["bg.png", "example.png"], "a background photo becomes the scene, the subject image 2");
+  const bgText = editParts(k2("k2-background").prompt);
+  assert.deepEqual([bgText.a, bgText.b], ["example.png", undefined]);
+  const pose = editParts(k2("k2-pose").prompt);
+  assert.deepEqual([pose.a, pose.b], ["pose.png", "example.png"], "the pose scene first, the character second");
+  for (const t of ["k2-remove", "k2-outfit", "k2-scene", "k2-restage", "k2-sheet"]) assert.equal(editParts(k2(t).prompt).b, undefined, `${t} uses one reference`);
+});
+
+test("Krea 2 edit suite: per-task defaults from the author's guidance", () => {
+  const boost = (t, x) => editParts(k2(t, x).prompt).patch.ref_boost;
+  assert.equal(boost("edit"), 4, "4 = recommended likeness");
+  assert.equal(boost("k2-remove"), 1, "removals fail with a strong reference");
+  assert.equal(boost("k2-variation"), 0.7, "below 1 frees the result");
+  assert.equal(editParts(k2("k2-scene").prompt).grounding, 512, "512 for stubborn scene changes");
+  assert.equal(editParts(k2("k2-face").prompt).grounding, 1024, "1024 for people");
+  assert.equal(editParts(k2("edit").prompt).ks.steps, 10, "Turbo 10 steps (author's workflow)");
+  // Object Remove prefers a RAW model and the removal settings (CFG 3, ~20 steps) when none was chosen.
+  const remove = k2("k2-remove", { model: "" }).prompt;
+  assert.equal(nodesOf(remove, "UNETLoader")[0].inputs.unet_name, "krea2_raw_bf16.safetensors");
+  const ks = editParts(remove).ks;
+  assert.deepEqual([ks.steps, ks.cfg], [20, 3]);
+  assert.equal(nodesOf(remove, "Krea2EditGroundedEncode").length, 2, "at CFG > 1 the negative is an empty grounded encode");
+  assert.equal(nodesOf(remove, "Krea2EditGroundedEncode")[1].inputs.prompt, "");
+  assert.equal(schema().families.krea2.tasks["k2-remove"].preferVariant, "regular");
+  assert.equal(schema().families.krea2.tasks["k2-remove"].presets.regular.cfg, 3);
+  assert.equal(nodesOf(k2("k2-remove", { model: "krea2_turbo_fp8_scaled.safetensors" }).prompt, "UNETLoader")[0].inputs.unet_name, "krea2_turbo_fp8_scaled.safetensors", "your choice wins");
+});
+
+test("Krea 2 edit suite: locality mask, face focus, masked latent and reframe geometry", () => {
+  const plain = k2("k2-remove").prompt;
+  assert.ok(!types(plain).includes("ImageCompositeMasked"), "no mask → the edit output as is");
+  const local = k2("k2-remove", { mask: "mask.png" }).prompt;
+  const paste = nodesOf(local, "ImageCompositeMasked")[0].inputs;
+  assert.equal(local[paste.destination[0]].inputs.image, "example.png", "pasted back into the original");
+  const back = local[paste.source[0]].inputs;
+  assert.deepEqual([back.width, back.height], [832, 1216], "at the original size");
+  const face = k2("k2-face").prompt;
+  const focus = editParts(face).patch.ref_boost_mask;
+  assert.equal(face[focus[0]].class_type, "SegsToCombinedMask", "ref_boost focused on the identity photo's face");
+  const det = nodesOf(face, "BboxDetectorSEGS")[0].inputs;
+  assert.equal(face[det.image[0]].inputs.image, "face.png");
+  assert.equal(nodesOf(k2("k2-head").prompt, "BboxDetectorSEGS")[0].inputs.dilation, 64, "head: wider region (hair)");
+  assert.ok(!("ref_boost_mask" in editParts(k2("k2-face", { focus: false }).prompt).patch));
+  const lean = objectInfo(undefined, { without: ["BboxDetectorSEGS", "SegsToCombinedMask"] });
+  const noImpact = buildWorkflow("krea2", "k2-face", { ...sampleParams("k2-face"), face: "face.png" }, { info: lean, inv: readInventory(lean) });
+  assert.ok(noImpact.notes.some((n) => /Face focus skipped/.test(n)));
+  const inpaint = k2("k2-inpaint", { mask: "mask.png" }).prompt;
+  const ks = editParts(inpaint).ks;
+  assert.equal(inpaint[ks.latent_image[0]].class_type, "SetLatentNoiseMask", "masked latent: unmasked pixels are kept");
+  assert.ok(types(inpaint).includes("DifferentialDiffusion"));
+  assert.deepEqual(editParts(inpaint).patch.target_latent, ks.latent_image, "target_latent = the sampler latent");
+  const out = k2("k2-outpaint").prompt;
+  assert.ok(types(out).includes("ImagePadForOutpaint") && out[editParts(out).ks.latent_image[0]].class_type === "SetLatentNoiseMask");
+  const reframe = k2("k2-reframe", { imageW: 1024, imageH: 1024, aspect: "16:9", align: "center" }).prompt;
+  const pad = nodesOf(reframe, "ImagePadForOutpaint")[0].inputs;
+  assert.deepEqual([pad.left, pad.right, pad.top, pad.bottom], [400, 400, 0, 0], "1:1 → 16:9 centred");
+  assert.throws(() => k2("k2-reframe", { imageW: 1920, imageH: 1080, aspect: "16:9" }), /already 16:9/);
+  const variation = k2("k2-variation").prompt;
+  assert.equal(nodesOf(variation, "EmptySD3LatentImage")[0].inputs.batch_size, 4);
+  const sheet = nodesOf(k2("k2-sheet", { width: undefined, height: undefined }).prompt, "EmptySD3LatentImage")[0].inputs;
+  assert.ok(sheet.width > sheet.height, "a sheet is wide");
+  assert.throws(() => k2("k2-remove", { object: "" }), /Say what to remove/);
+  assert.throws(() => k2("k2-insert", { person: null }), /Add the person to insert/);
+});
+
+test("reframe calculator: extends only, by alignment, in multiples of 8", async () => {
+  const { reframeEdges } = await import("../engine/common.mjs");
+  assert.deepEqual(reframeEdges(1024, 1024, 16 / 9, "left"), { left: 0, right: 800, top: 0, bottom: 0 }, "picture on the left grows to the right");
+  assert.deepEqual(reframeEdges(1024, 1024, 16 / 9, "right"), { left: 800, right: 0, top: 0, bottom: 0 });
+  assert.deepEqual(reframeEdges(1920, 1080, 9 / 16, "top"), { left: 0, right: 0, top: 0, bottom: 2336 }, "landscape → vertical");
+  assert.deepEqual(reframeEdges(1000, 1000, 1, "center"), { left: 0, right: 0, top: 0, bottom: 0 });
+  for (const v of Object.values(reframeEdges(833, 1217, 4 / 3, "center"))) assert.equal(v % 8, 0);
 });

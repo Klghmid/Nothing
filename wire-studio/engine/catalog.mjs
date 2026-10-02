@@ -32,6 +32,8 @@ export const CORE_NODES = [
 
 export const NODE_PACK = {
   FaceDetailer: "impact",
+  BboxDetectorSEGS: "impact",
+  SegsToCombinedMask: "impact",
   UltralyticsDetectorProvider: "impactSub",
   DWPreprocessor: "aux",
   OpenposePreprocessor: "aux",
@@ -61,13 +63,31 @@ export const packOf = (type) => PACKS[NODE_PACK[type] || "core"];
 // single list in model-list.mjs (which also generates the ComfyUI models guide).
 export const MODELS = Object.fromEntries(MODEL_LIST.filter((m) => m.key).map((m) => [m.key, { key: m.key, file: m.display || m.file, folder: m.path, url: m.url }]));
 
-export const TASK_GROUPS = ["Create", "Edit", "Fix", "Control", "Finish"];
+export const TASK_GROUPS = ["Create", "Edit", "Identity Edit", "Fix", "Control", "Finish"];
 
 // Task metadata shared by every family (each family decides if and how it runs a task).
 export const TASKS = {
   generate: { label: "Text to Image", group: "Create", icon: "sparkles", run: "Generate", about: "Create a new image from a prompt." },
   img2img: { label: "Image to Image", group: "Create", icon: "layers", run: "Redraw", about: "Redraw an existing image; strength decides how much changes." },
-  edit: { label: "Smart Edit", group: "Edit", icon: "wand", run: "Apply edit", about: "Describe a change in words; the subject's identity is kept." },
+  edit: { label: "Smart Edit", group: "Identity Edit", icon: "wand", run: "Apply edit", about: "Describe a change in words; the subject's identity is kept." },
+  "k2-remove": { label: "Object Remove", group: "Identity Edit", icon: "eraser", run: "Remove", about: "Remove an object or person; the rest of the picture is kept." },
+  "k2-replace": { label: "Object Replace", group: "Identity Edit", icon: "swap", run: "Replace", about: "Replace one object with another, described or from a photo." },
+  "k2-background": { label: "Background Swap", group: "Identity Edit", icon: "image", run: "Swap background", about: "Put the subject in front of a new background, described or from a photo." },
+  "k2-person": { label: "Person Replace", group: "Identity Edit", icon: "face", run: "Replace person", about: "Replace a person in a scene, keeping the pose and framing." },
+  "k2-insert": { label: "Insert Person", group: "Identity Edit", icon: "plus", run: "Insert", about: "Place a person from one photo into another scene." },
+  "k2-face": { label: "Face Replace", group: "Identity Edit", icon: "face", run: "Replace face", about: "Give a picture the face of the identity photo; hair, body and scene stay." },
+  "k2-head": { label: "Head Replace", group: "Identity Edit", icon: "face", run: "Replace head", about: "Replace the whole head (face and hair) with the one in a photo." },
+  "k2-eyes": { label: "Eye Replace", group: "Identity Edit", icon: "eye", run: "Replace eyes", about: "Change only the eyes, described or from a reference photo." },
+  "k2-outfit": { label: "Outfit Change", group: "Identity Edit", icon: "layers", run: "Change outfit", about: "Dress the person differently; face and pose are kept." },
+  "k2-tryon": { label: "Virtual Try-On", group: "Identity Edit", icon: "layers", run: "Try on", about: "Put a garment from a photo onto the person." },
+  "k2-inpaint": { label: "Identity Inpaint", group: "Identity Edit", icon: "brush", run: "Inpaint", about: "Change a painted area by instruction; everything else stays pixel-identical." },
+  "k2-outpaint": { label: "Identity Outpaint", group: "Identity Edit", icon: "expand", run: "Extend", about: "Extend the canvas while the picture keeps its look." },
+  "k2-reframe": { label: "Identity Reframe", group: "Identity Edit", icon: "expand", run: "Reframe", about: "Change the aspect ratio by extending the picture, keeping its look." },
+  "k2-variation": { label: "Character Variation", group: "Identity Edit", icon: "sparkles", run: "Make variations", about: "Variations of a character with more creative freedom." },
+  "k2-restage": { label: "Character Restage", group: "Identity Edit", icon: "sparkles", run: "Restage", about: "The same person in a new scene, relit, with a new camera angle." },
+  "k2-sheet": { label: "Character Sheet", group: "Identity Edit", icon: "grid", run: "Make sheet", about: "A reference sheet of a character: views or expressions." },
+  "k2-scene": { label: "Scene Change", group: "Identity Edit", icon: "image", run: "Change scene", about: "Change the setting and its light while keeping the people." },
+  "k2-pose": { label: "Pose Restage", group: "Identity Edit", icon: "pose", run: "Restage pose", about: "Put the character in a new pose, described or from a photo." },
   inpaint: { label: "Inpaint", group: "Edit", icon: "brush", run: "Inpaint", about: "Paint over an area and describe what should be there." },
   outpaint: { label: "Outpaint", group: "Edit", icon: "expand", run: "Extend", about: "Extend the canvas beyond its borders." },
   face: { label: "Face Fix", group: "Fix", icon: "face", run: "Fix face", about: "Find faces (or eyes / lips) and redraw them in more detail." },

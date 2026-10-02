@@ -1,0 +1,350 @@
+{
+  "1": {
+    "class_type": "LoadImage",
+    "inputs": {
+      "image": "input.png"
+    },
+    "_meta": {
+      "title": "Image"
+    }
+  },
+  "2": {
+    "class_type": "LoadImage",
+    "inputs": {
+      "image": "mask.png"
+    },
+    "_meta": {
+      "title": "Painted mask"
+    }
+  },
+  "3": {
+    "class_type": "ImageToMask",
+    "inputs": {
+      "image": [
+        "2",
+        0
+      ],
+      "channel": "red"
+    },
+    "_meta": {
+      "title": "Mask"
+    }
+  },
+  "4": {
+    "class_type": "ImageScale",
+    "inputs": {
+      "image": [
+        "1",
+        0
+      ],
+      "upscale_method": "lanczos",
+      "width": 1024,
+      "height": 1024,
+      "crop": "disabled"
+    },
+    "_meta": {
+      "title": "Fit to the trained range"
+    }
+  },
+  "5": {
+    "class_type": "UNETLoader",
+    "inputs": {
+      "unet_name": "krea2_turbo_fp8_scaled.safetensors",
+      "weight_dtype": "default"
+    },
+    "_meta": {
+      "title": "Krea 2 model"
+    }
+  },
+  "6": {
+    "class_type": "CLIPLoader",
+    "inputs": {
+      "clip_name": "qwen3vl_4b_fp8_scaled.safetensors",
+      "type": "krea2",
+      "device": "default"
+    },
+    "_meta": {
+      "title": "Text encoder (Qwen3-VL 4B)"
+    }
+  },
+  "7": {
+    "class_type": "VAELoader",
+    "inputs": {
+      "vae_name": "qwen_image_vae.safetensors"
+    },
+    "_meta": {
+      "title": "Qwen Image VAE"
+    }
+  },
+  "8": {
+    "class_type": "LoraLoaderModelOnly",
+    "inputs": {
+      "model": [
+        "5",
+        0
+      ],
+      "lora_name": "krea2/editor/krea2_identity_edit_v1_2.safetensors",
+      "strength_model": 1
+    },
+    "_meta": {
+      "title": "Krea 2 Identity Edit LoRA"
+    }
+  },
+  "9": {
+    "class_type": "DifferentialDiffusion",
+    "inputs": {
+      "model": [
+        "8",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "Differential diffusion"
+    }
+  },
+  "10": {
+    "class_type": "VAEEncode",
+    "inputs": {
+      "pixels": [
+        "4",
+        0
+      ],
+      "vae": [
+        "7",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "Encode image"
+    }
+  },
+  "11": {
+    "class_type": "SetLatentNoiseMask",
+    "inputs": {
+      "samples": [
+        "10",
+        0
+      ],
+      "mask": [
+        "3",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "Limit to the masked area"
+    }
+  },
+  "12": {
+    "class_type": "VAEEncode",
+    "inputs": {
+      "pixels": [
+        "4",
+        0
+      ],
+      "vae": [
+        "7",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "Encode image 1"
+    }
+  },
+  "13": {
+    "class_type": "Krea2EditModelPatch",
+    "inputs": {
+      "model": [
+        "9",
+        0
+      ],
+      "source_latent": [
+        "12",
+        0
+      ],
+      "vae": [
+        "7",
+        0
+      ],
+      "source_image": [
+        "4",
+        0
+      ],
+      "target_latent": [
+        "11",
+        0
+      ],
+      "fit_mode": "fit",
+      "ref_boost": 2
+    },
+    "_meta": {
+      "title": "Inject source image"
+    }
+  },
+  "14": {
+    "class_type": "Krea2EditGroundedEncode",
+    "inputs": {
+      "clip": [
+        "6",
+        0
+      ],
+      "prompt": "e.g. give her a wide-brimmed straw hat.",
+      "image": [
+        "4",
+        0
+      ],
+      "grounding_px": 768
+    },
+    "_meta": {
+      "title": "Instruction (image-grounded)"
+    }
+  },
+  "15": {
+    "class_type": "ConditioningZeroOut",
+    "inputs": {
+      "conditioning": [
+        "14",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "No negative (CFG 1)"
+    }
+  },
+  "16": {
+    "class_type": "KSampler",
+    "inputs": {
+      "model": [
+        "13",
+        0
+      ],
+      "positive": [
+        "14",
+        0
+      ],
+      "negative": [
+        "15",
+        0
+      ],
+      "latent_image": [
+        "11",
+        0
+      ],
+      "seed": 123456789,
+      "steps": 10,
+      "cfg": 1,
+      "sampler_name": "euler",
+      "scheduler": "simple",
+      "denoise": 1
+    },
+    "_meta": {
+      "title": "Sampler"
+    }
+  },
+  "17": {
+    "class_type": "VAEDecode",
+    "inputs": {
+      "samples": [
+        "16",
+        0
+      ],
+      "vae": [
+        "7",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "Decode"
+    }
+  },
+  "18": {
+    "class_type": "ImageScale",
+    "inputs": {
+      "image": [
+        "17",
+        0
+      ],
+      "upscale_method": "lanczos",
+      "width": 1024,
+      "height": 1024,
+      "crop": "disabled"
+    },
+    "_meta": {
+      "title": "Back to the original size"
+    }
+  },
+  "19": {
+    "class_type": "MaskToImage",
+    "inputs": {
+      "mask": [
+        "3",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "Soft edge"
+    }
+  },
+  "20": {
+    "class_type": "ImageBlur",
+    "inputs": {
+      "image": [
+        "19",
+        0
+      ],
+      "blur_radius": 4,
+      "sigma": 2
+    },
+    "_meta": {
+      "title": "Soft edge blur"
+    }
+  },
+  "21": {
+    "class_type": "ImageToMask",
+    "inputs": {
+      "image": [
+        "20",
+        0
+      ],
+      "channel": "red"
+    },
+    "_meta": {
+      "title": "Soft edge mask"
+    }
+  },
+  "22": {
+    "class_type": "ImageCompositeMasked",
+    "inputs": {
+      "destination": [
+        "1",
+        0
+      ],
+      "source": [
+        "18",
+        0
+      ],
+      "mask": [
+        "21",
+        0
+      ],
+      "x": 0,
+      "y": 0,
+      "resize_source": false
+    },
+    "_meta": {
+      "title": "Paste result into original"
+    }
+  },
+  "23": {
+    "class_type": "SaveImage",
+    "inputs": {
+      "images": [
+        "22",
+        0
+      ],
+      "filename_prefix": "WireStudio/krea2-k2-inpaint"
+    },
+    "_meta": {
+      "title": "Save image"
+    }
+  }
+}

@@ -9,7 +9,6 @@ export const EXAMPLE = {
   prompt: "",
   seed: 123456789,
   image: "input.png",
-  mask: "mask.png",
   face: "face.png",
   imageW: 1024,
   imageH: 1024,
@@ -22,7 +21,8 @@ export const EXAMPLE = {
 };
 
 export function variantParams(familyId, taskId, task) {
-  const params = { ...EXAMPLE, prompt: task.fields?.find((f) => f.type === "prompt")?.placeholder || "", ...(task.example || {}) };
+  const needsMask = task.fields?.some((f) => f.type === "mask" && !f.optional);
+  const params = { ...EXAMPLE, ...(needsMask ? { mask: "mask.png" } : {}), prompt: task.fields?.find((f) => f.type === "prompt")?.placeholder || "", ...(task.example || {}) };
   if (task.variants) return task.variants.map((v) => ({ label: v.label, file: v.file || v.label, params: { ...params, ...v.params } }));
   const kind = task.fields?.find((f) => f.key === "kind");
   if (kind && Array.isArray(kind.choices)) return kind.choices.map((c) => ({ label: String(c.value), file: String(c.value), params: { ...params, kind: c.value } }));

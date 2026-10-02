@@ -44,6 +44,13 @@ real hardware in this form (Anima Studio's live tests). See
 | Remove Background | READY † | READY † | READY † | READY † |
 | Style Reference | UNSUPPORTED | MISSING | MISSING | READY † |
 | Identity Editing | UNSUPPORTED | MISSING | MISSING | READY † |
+| Object Remove | MISSING | MISSING | MISSING | READY † |
+| Object Replace | MISSING | MISSING | MISSING | READY † |
+| Background Replace | MISSING | MISSING | MISSING | READY † |
+| Face / Head Replace (identity) | MISSING | MISSING | MISSING | READY † |
+| Virtual Try-On | MISSING | MISSING | MISSING | READY † |
+| Character Restage / Sheet | MISSING | MISSING | MISSING | READY † |
+| Reframe | MISSING | MISSING | MISSING | EXPERIMENTAL † |
 
 **Where each cell comes from**
 
@@ -68,6 +75,13 @@ real hardware in this form (Anima Studio's live tests). See
   - Remove Background: READY — shared tool (no model family); community model or node pack; graph validated, not yet run on a GPU; ComfyUI-RMBG BiRefNet / RMBG; no model family involved
   - Style Reference: UNSUPPORTED — No IPAdapter or style-reference model exists for Anima, and Anima rejects area conditioning (Anima Studio live test).
   - Identity Editing: UNSUPPORTED — No identity-preserving edit or reference model exists for Anima.
+  - Object Remove: MISSING
+  - Object Replace: MISSING
+  - Background Replace: MISSING
+  - Face / Head Replace (identity): MISSING
+  - Virtual Try-On: MISSING
+  - Character Restage / Sheet: MISSING
+  - Reframe: MISSING
 - **SDXL**
   - Generate: READY — task `generate`; official template / model author; run on a GPU
   - Img2Img: READY — task `img2img`; Wire Studio composition of documented nodes; run on a GPU
@@ -89,6 +103,13 @@ real hardware in this form (Anima Studio's live tests). See
   - Remove Background: READY — shared tool (no model family); community model or node pack; graph validated, not yet run on a GPU; ComfyUI-RMBG BiRefNet / RMBG; no model family involved
   - Style Reference: MISSING — IPAdapter style / composition reference (roadmap).
   - Identity Editing: MISSING — InstantID identity-preserving generation (roadmap).
+  - Object Remove: MISSING
+  - Object Replace: MISSING
+  - Background Replace: MISSING
+  - Face / Head Replace (identity): MISSING
+  - Virtual Try-On: MISSING
+  - Character Restage / Sheet: MISSING
+  - Reframe: MISSING
 - **Z-Image**
   - Generate: READY — task `generate`; official template / model author; run on a GPU
   - Img2Img: READY — task `img2img`; Wire Studio composition of documented nodes; run on a GPU
@@ -110,6 +131,13 @@ real hardware in this form (Anima Studio's live tests). See
   - Remove Background: READY — shared tool (no model family); community model or node pack; graph validated, not yet run on a GPU; ComfyUI-RMBG BiRefNet / RMBG; no model family involved
   - Style Reference: MISSING — No style-reference model for Z-Image was found.
   - Identity Editing: MISSING — Z-Image-Edit is announced but not released.
+  - Object Remove: MISSING
+  - Object Replace: MISSING
+  - Background Replace: MISSING
+  - Face / Head Replace (identity): MISSING
+  - Virtual Try-On: MISSING
+  - Character Restage / Sheet: MISSING
+  - Reframe: MISSING
 - **Krea 2**
   - Generate: READY — task `generate`; official template / model author; graph validated, not yet run on a GPU
   - Img2Img: READY — task `img2img`; Wire Studio composition of documented nodes; graph validated, not yet run on a GPU
@@ -131,6 +159,13 @@ real hardware in this form (Anima Studio's live tests). See
   - Remove Background: READY — shared tool (no model family); community model or node pack; graph validated, not yet run on a GPU; ComfyUI-RMBG BiRefNet / RMBG; no model family involved
   - Style Reference: READY — task `generate`; official template / model author; graph validated, not yet run on a GPU
   - Identity Editing: READY — task `edit`; community model or node pack; graph validated, not yet run on a GPU
+  - Object Remove: READY — task `k2-remove`; community model or node pack; graph validated, not yet run on a GPU
+  - Object Replace: READY — task `k2-replace`; community model or node pack; graph validated, not yet run on a GPU
+  - Background Replace: READY — task `k2-background`; community model or node pack; graph validated, not yet run on a GPU
+  - Face / Head Replace (identity): READY — task `k2-face`; community model or node pack; graph validated, not yet run on a GPU
+  - Virtual Try-On: READY — task `k2-tryon`; community model or node pack; graph validated, not yet run on a GPU
+  - Character Restage / Sheet: READY — task `k2-restage`; community model or node pack; graph validated, not yet run on a GPU
+  - Reframe: EXPERIMENTAL — task `k2-reframe`; community model or node pack; graph validated, not yet run on a GPU; Reframing extends the canvas with Identity Outpaint (experimental)
 <!-- /generated:matrix -->
 
 Research and sources for every workflow: [WORKFLOW_RESEARCH.md](WORKFLOW_RESEARCH.md).

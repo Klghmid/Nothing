@@ -72,6 +72,11 @@ const R = {
       fld.optional ? null : h("div", { class: "hint" }, famSchema().promptStyle),
     );
   },
+  line(fld, v) {
+    const inp = h("input", { type: "text", placeholder: fld.placeholder || "", "aria-label": fld.label, oninput: (e) => setValue(fld.key, e.target.value, { silent: true }) });
+    inp.value = v[fld.key] ?? "";
+    return h("div", { class: "field" }, h("label", {}, fld.label), inp, fld.hint ? h("div", { class: "hint" }, fld.hint) : null);
+  },
   text(fld, v) {
     const ta = h("textarea", { rows: 3, oninput: (e) => setValue(fld.key, e.target.value, { silent: true }) });
     ta.value = v[fld.key] ?? "";
@@ -109,11 +114,12 @@ const R = {
   },
   mask(fld, v) {
     const has = v.image && S.masks.get(v.image.name)?.painted;
+    const idle = fld.optional ? "Optional: paint on the image to keep the change inside that area." : "Paint the area to change directly on the image in the canvas.";
     return h(
       "div",
       { class: "field" },
-      h("label", {}, fld.label),
-      h("div", { class: "notice" + (has ? "" : " warn") }, icon(has ? "check" : "brush"), h("span", {}, has ? "Area painted. Adjust it on the canvas." : v.image ? "Paint the area to change directly on the image in the canvas." : "Add the image first, then paint on it.")),
+      h("label", {}, fld.label, fld.optional ? h("span", { class: "hint" }, "  optional") : null),
+      h("div", { class: "notice" + (has || fld.optional ? "" : " warn") }, icon(has ? "check" : "brush"), h("span", {}, has ? "Area painted. Adjust it on the canvas." : v.image ? idle : "Add the image first, then paint on it.")),
     );
   },
   model(fld, v) {
@@ -276,7 +282,8 @@ const folderOf = (n) => (String(n).includes("/") ? String(n).split("/").slice(0,
 // reads turbo/ and regular/ folders or the file name).
 function applyPreset(v, name) {
   const variant = famInventory().variants?.[name];
-  const preset = variant && famSchema().presets?.[variant];
+  // A task may have its own Turbo / Regular settings (e.g. Krea 2 edits: 10 steps, RAW CFG 3.5).
+  const preset = variant && (taskSchema().presets?.[variant] || famSchema().presets?.[variant]);
   if (!preset) return null;
   const changed = ["steps", "cfg", "sampler", "scheduler"].some((k) => v[k] !== preset[k]);
   Object.assign(v, { steps: preset.steps, cfg: preset.cfg, sampler: preset.sampler, scheduler: preset.scheduler });
@@ -292,7 +299,9 @@ function onModel(name) {
 // A form without a model starts on the family's automatic pick, with its preset.
 function ensureModel(v, t) {
   if (v.model || !(t.fields || []).some((f) => f.type === "model")) return;
-  const auto = famInventory().auto;
+  // A task can prefer a model type (Object Remove prefers RAW), else the family's own pick.
+  const inv = famInventory();
+  const auto = (t.preferVariant && (inv.models || []).find((m) => inv.variants?.[m] === t.preferVariant)) || inv.auto;
   if (!auto) return;
   v.model = auto;
   applyPreset(v, auto);

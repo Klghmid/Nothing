@@ -39,6 +39,7 @@ function defaultsFor(f, t) {
     if (fld.default !== undefined) out[fld.key] = fld.default;
     if (fld.type === "image") out[fld.key] = null;
     if (fld.type === "edges") Object.assign(out, { left: 0, right: 0, top: 0, bottom: 0 });
+    if (fld.type === "size" && fld.width) Object.assign(out, { width: fld.width, height: fld.height });
   }
   return out;
 }

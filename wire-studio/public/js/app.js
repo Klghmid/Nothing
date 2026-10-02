@@ -33,6 +33,20 @@ function renderFamilies() {
   );
   document.documentElement.dataset.family = S.family;
 }
+const collapsed = new Set((() => {
+  try {
+    return JSON.parse(localStorage.getItem("wire-folded") || "[]");
+  } catch {
+    return [];
+  }
+})());
+function toggleGroup(group) {
+  collapsed.has(group) ? collapsed.delete(group) : collapsed.add(group);
+  try {
+    localStorage.setItem("wire-folded", JSON.stringify([...collapsed]));
+  } catch {}
+  renderTasks();
+}
 function renderTasks() {
   const aside = document.getElementById("tasks");
   const fam = famSchema();
@@ -40,7 +54,11 @@ function renderTasks() {
   for (const group of S.schema.groups) {
     const tasks = Object.entries(S.schema.tasks).filter(([id, t]) => t.group === group && fam.tasks[id]);
     if (!tasks.length) continue;
-    items.push(h("div", { class: "group-title" }, group));
+    // Long groups (Krea 2's Identity Edit) fold; the current task's group always stays open.
+    const phone = typeof matchMedia === "function" && matchMedia("(max-width: 900px)").matches; // titles are hidden there
+    const folded = !phone && collapsed.has(group) && !tasks.some(([id]) => id === S.task);
+    items.push(h("button", { class: "group-title", "aria-expanded": String(!folded), onclick: () => toggleGroup(group) }, group, tasks.length > 6 ? h("span", { class: "count" }, String(tasks.length)) : null));
+    if (folded) continue;
     for (const [id, t] of tasks) {
       const r = readiness(S.family, id);
       const off = !!fam.tasks[id].unavailable;
@@ -95,11 +113,13 @@ async function buildParams() {
   const primary = primaryField();
   if (primary && v[primary.key]) Object.assign(params, { imageW: v[primary.key].w, imageH: v[primary.key].h });
   if (v.randomSeed !== false) params.seed = Math.floor(Math.random() * 2 ** 32);
-  if (t.fields.some((f) => f.type === "mask")) {
+  const maskField = t.fields.find((f) => f.type === "mask");
+  if (maskField) {
     if (!v.image) throw new Error("Add the image first");
-    if (!maskHasPaint(v.image)) throw new Error("Paint the area to change on the image first");
-    const blob = await exportMask(v.image);
-    params.mask = (await api.upload(blob, `wire-mask-${Date.now()}.png`)).name;
+    // An optional mask (e.g. "Limit to an area") is sent only when something was painted.
+    if (maskHasPaint(v.image)) params.mask = (await api.upload(await exportMask(v.image), `wire-mask-${Date.now()}.png`)).name;
+    else if (!maskField.optional) throw new Error("Paint the area to change on the image first");
+    else delete params.mask;
   }
   return params;
 }

@@ -120,6 +120,11 @@ a.btn, a.ghost, a.icon-btn { text-decoration: none; }
 
 /* ---------- task list ---------- */
 .group-title { font-size: 11px; font-weight: 650; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-3); padding: 12px 10px 6px; }
+button.group-title { display: flex; align-items: center; gap: 6px; width: 100%; background: none; border: 0; text-align: left; cursor: pointer; font-family: inherit; }
+button.group-title:hover { color: var(--text-2); }
+button.group-title::after { content: "▾"; margin-left: auto; font-size: 10px; }
+button.group-title[aria-expanded="false"]::after { content: "▸"; }
+button.group-title .count { font-weight: 500; letter-spacing: 0; color: var(--text-3); }
 .task {
   width: 100%; display: flex; align-items: center; gap: 10px; padding: 7px 10px; border-radius: var(--radius-s);
   border: 0; background: transparent; color: var(--text-2); text-align: left;

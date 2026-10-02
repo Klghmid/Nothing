@@ -10,6 +10,7 @@ import { field, choice, need } from "../fields.mjs";
 import { MODELS, PACKS } from "../catalog.mjs";
 import * as c from "../common.mjs";
 import { detailerNeeds, swapNeeds, mapNeeds, upscaleNeeds, outpaintNeeds } from "../needs.mjs";
+import { createEditTasks } from "./krea2-edit.mjs";
 
 const TURBO = { steps: 8, cfg: 1, sampler: "euler", scheduler: "simple" };
 const RAW = { steps: 52, cfg: 4, sampler: "euler", scheduler: "simple" };
@@ -19,14 +20,18 @@ const fam = (ctx) => ctx.inv.families.krea2;
 const PREFER = /krea2_turbo|turbo/i;
 const defaultsFor = (ctx, name) => (fam(ctx).variants?.[name] === "regular" ? RAW : TURBO);
 
-function loaders(g, p, ctx, { userLoras = true } = {}) {
+// `presets` overrides the family's Turbo / RAW defaults for a task (e.g. the edit suite);
+// `prefer: "regular"` picks a RAW model when none was chosen (removals need real guidance).
+function loaders(g, p, ctx, { userLoras = true, presets = null, prefer = null } = {}) {
   const f = fam(ctx);
-  const unet = c.pick(f.models, p.model, PREFER, "Krea 2 model", MODELS.krea2Turbo);
+  const preferred = !p.model && prefer ? f.models.find((n) => f.variants?.[n] === prefer) : null;
+  const unet = preferred || c.pick(f.models, p.model, PREFER, "Krea 2 model", MODELS.krea2Turbo);
   let model = g.add("UNETLoader", { unet_name: unet, weight_dtype: "default" }, "Krea 2 model");
   const clip = g.add("CLIPLoader", { clip_name: c.pick(f.clips, null, /qwen3vl_4b/i, "Krea 2 text encoder (Qwen3-VL 4B)", MODELS.krea2Clip), type: "krea2", device: "default" }, "Text encoder (Qwen3-VL 4B)");
   const vae = g.add("VAELoader", { vae_name: c.pick(f.vaes, null, /qwen_image_vae/i, "Qwen Image VAE", MODELS.qwenImageVae) }, "Qwen Image VAE");
   if (userLoras) ({ model } = c.applyLoras(g, { model, clip }, p.loras, f.loras, "Krea 2 LoRA", false));
-  return { model, clip, vae, sample: c.sampling(p, defaultsFor(ctx, unet)) };
+  const variant = f.variants?.[unet] === "regular" ? "regular" : "turbo";
+  return { model, clip, vae, sample: c.sampling(p, presets?.[variant] || defaultsFor(ctx, unet)) };
 }
 function negativeFor(g, m, p, positive) {
   return m.sample.cfg > 1.01 ? g.add("CLIPTextEncode", { text: String(p.negative ?? NEGATIVE), clip: m.clip }, "Negative prompt") : g.add("ConditioningZeroOut", { conditioning: positive }, "No negative (CFG 1)");
@@ -133,50 +138,6 @@ export default {
         Object.assign(m, prompts(g, m, p));
         const latent = c.repeatLatent(g, c.encode(g, c.loadImage(g, p.image, "Source image"), m.vae), c.int(p.batch, 1, 1, 4));
         return finish(g, m, latent, c.clamp(p.denoise, 0.55, 0.05, 1));
-      },
-    },
-    edit: {
-      evidence: "community",
-      verified: "graph",
-      badge: "Add-on",
-      notes: ["Uses the Krea 2 Identity Edit LoRA and its nodes. Turbo at CFG 1 handles most edits; removals work better on RAW at CFG 3, ~20 steps."],
-      fields: [
-        field.image("image", "Image to edit"),
-        field.prompt({ label: "Instruction", placeholder: "e.g. make the jacket red leather, keep everything else" }),
-        field.image("image2", "Second image", { optional: true, hint: "Optional: a person to place into the first image" }),
-        field.slider("refBoost", "Keep identity", 0.5, 1.5, 0.05, 1, { hint: "Higher stays closer to the original appearance" }),
-        field.slider("grounding", "Grounding size", 384, 1536, 64, 768, { advanced: true, hint: "Lower follows the instruction more, higher keeps likeness (try 1024 for people)" }),
-        ...common,
-        ...advanced,
-      ],
-      needs: (ctx) => [
-        ...baseNeeds(ctx),
-        need.node(ctx, "Krea2EditModelPatch", PACKS.krea2edit, "Injects the source image"),
-        need.node(ctx, "Krea2EditGroundedEncode", PACKS.krea2edit, "Lets the text encoder see the image"),
-        need.model(fam(ctx).editLora, MODELS.krea2Edit, "Krea 2 Identity Edit LoRA", "The editing LoRA (loras/krea2/editor/)"),
-      ],
-      build(g, p, ctx) {
-        for (const t of ["Krea2EditModelPatch", "Krea2EditGroundedEncode"]) c.needNode(g, t, "Smart Edit");
-        if (!fam(ctx).editLora) throw c.missing("Krea 2 Identity Edit LoRA", MODELS.krea2Edit);
-        const m = loaders(g, p, ctx);
-        m.model = g.add("LoraLoaderModelOnly", { model: m.model, lora_name: fam(ctx).editLora, strength_model: 1 }, "Krea 2 Identity Edit LoRA");
-        const src = c.loadImage(g, p.image, "Image to edit");
-        const second = p.image2 ? c.loadImage(g, p.image2, "Second image") : undefined;
-        // Output size follows the source, capped at ~2 MP (the LoRA's trained range).
-        const { w, h } = c.sourceSize(p);
-        const k = Math.min(1, Math.sqrt((2048 * 1024) / (w * h)));
-        const latent = g.add("EmptySD3LatentImage", { width: c.round(w * k, 16), height: c.round(h * k, 16), batch_size: 1 }, "Output canvas");
-        m.model = g.add(
-          "Krea2EditModelPatch",
-          // With vae + source_image (the pixel path) the node replaces its source list with the
-          // images it is given, so the second image must also arrive as source_image_b.
-          { model: m.model, source_latent: c.encode(g, src, m.vae), source_latent_b: second && c.encode(g, second, m.vae, "Encode second image"), vae: m.vae, source_image: src, source_image_b: second, target_latent: latent, fit_mode: "fit", ref_boost: c.clamp(p.refBoost, 1, 0, 3) },
-          "Inject source image",
-        );
-        const grounding = c.int(p.grounding, 768, 256, 2048);
-        const positive = g.add("Krea2EditGroundedEncode", { clip: m.clip, prompt: String(p.prompt || ""), image: src, image_b: second, grounding_px: grounding }, "Instruction (image-grounded)");
-        const negative = m.sample.cfg > 1.01 ? g.add("Krea2EditGroundedEncode", { clip: m.clip, prompt: "", image: src, image_b: second, grounding_px: grounding }, "Empty instruction") : g.add("ConditioningZeroOut", { conditioning: positive }, "No negative (CFG 1)");
-        return finish(g, { ...m, positive, negative }, latent);
       },
     },
     inpaint: {
@@ -321,5 +282,7 @@ export default {
         return c.upscaleRefine(g, src, p, ctx, { ...m, refineSteps: 8 });
       },
     },
+    // Identity Edit suite (Smart Edit and 18 dedicated edit tasks): krea2-edit.mjs.
+    ...createEditTasks({ fam, loaders, baseNeeds }),
   },
 };

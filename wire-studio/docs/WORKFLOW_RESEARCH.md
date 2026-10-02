@@ -178,3 +178,79 @@ metadata or hashes, so nothing stronger is available remotely (recorded as a lim
 (2602); Lite as a model choice READY †; Img2Img + Control, Inpaint + Control, Outpaint + Control
 READY † (native combined call / composed img2img); Tile RESEARCH_ONLY.
 **VRAM:** not measured here; the card positions lite (2.0 GB) for lower-VRAM machines vs 6.7 GB.
+
+---
+
+## Phase 3 — Krea 2 Identity Edit Suite
+
+**Family:** Krea 2 only (Turbo or RAW). **Architecture:** the community *Krea 2 Identity Edit*
+LoRA (`krea2_identity_edit_v1_2.safetensors`, an ai-toolkit fine-tune of Krea 2 RAW by
+conradlocke) with its node pack **comfyui-krea2edit v1.2.5** (`86f886d`). Dual conditioning,
+"matching how the LoRA was trained" (README):
+
+1. *Appearance path* — `Krea2EditModelPatch(model, source_latent, source_latent_b?, ref_boost,
+   ref_boost_a, fit_mode, ref_boost_mask?, vae, source_image, source_image_b?, target_latent)` →
+   `MODEL`. It wraps the DiT forward so the VAE-encoded source(s) are prepended as clean tokens
+   (RoPE frame 1, 2; target frame 0). With `vae` + `source_image` (the "pixel path", required for
+   `fit`) the node re-encodes **only** `source_image` / `source_image_b` at the target size — so a
+   second reference must arrive as `source_image_b` (Phase 0 finding #1).
+2. *Semantic path* — `Krea2EditGroundedEncode(clip, prompt, image?, image_b?, grounding_px,
+   system_prompt?)` → `CONDITIONING`: Qwen3-VL reads the instruction **while seeing** the image(s).
+   At CFG > 1 the negative is a second grounded encode with an **empty** prompt and the same
+   images (the trained unconditional).
+
+| Setting | Author's guidance | Source |
+|---|---|---|
+| LoRA | `LoraLoaderModelOnly(krea2_identity_edit_v1_2, 1.0)` on the Krea 2 UNet, before the patch | README, workflow |
+| Turbo | 10 steps, CFG 1, euler / simple (8 = more adherence, 12 = more face detail) | workflow note |
+| RAW | 40 steps, CFG 3–4 (negative matters); **removals**: RAW, CFG 3, ~20 steps — Turbo at CFG 1 "will usually re-render the subject instead of removing it" | workflow note, README |
+| `ref_boost` | 1 = v1.1 behaviour; **4 = recommended** ("much stronger face + body likeness, more reliable edits"); > 10 "over-copy: removals / replacements start failing"; < 1 suppresses the reference ("creative freedom"). Applies to the **last** reference; `ref_boost_a` to the first in two-reference edits | workflow note, node tooltips |
+| `ref_boost_mask` | "optional region on the (last) reference to boost, e.g. the face" | node tooltip, `_ref_attn_bias` |
+| `grounding_px` | trained 384–768; 1024 for people (likeness), 512 for stubborn scene changes; lower it if compositions double | README, workflow |
+| Geometry | `fit_mode: fit` + pixel path handles mismatched aspect ratios; wire `target_latent` = the sampler latent; ≤ 2 MP (1 MP sweet spot; two people ≤ 1.5 MP) | README |
+| Two references | order is fixed: **image 1 = the scene / the image being edited, image 2 = the person (subject)**; swapping "sharply degrades results"; place two people in one pass | README, workflow, *(card, via search)* |
+| Sampler | prefer euler (ODE) over er_sde for outpainting | CHANGELOG 1.2.4 |
+| v1.2 capabilities | better likeness, character sheets (use and create), head / face / eye / person swap (stablellama MIT dataset), outpainting, inpainting, try-on, better person removal, 1024 pass | CHANGELOG |
+| Phrasing | plain English imperatives ("Change her outfit to a red raincoat.", "Place this person at the cafe table, holding a coffee.", "Relight the scene with warm golden hour sunlight."); face swap: "A seamless face swap. Replace only the facial features of the subject in the input image with the identity from image_b." | workflow note, *(card, via search)* |
+| Not documented | the exact instruction / input format the v1.2 inpainting and outpainting were trained on; try-on reference order beyond the general rule | — |
+
+**What genuinely differs between the 19 tasks** (so none is an alias of another):
+
+| Task | References (image 1 · image 2) | Mask | Instruction | Geometry | Defaults (ref_boost · grounding) | Extra topology |
+|---|---|---|---|---|---|---|
+| Smart Edit | edited image · optional person | — | free | from image 1 | 4 · 768 | — |
+| Object Remove | edited image | optional locality mask | "Remove the …" | from image 1 | 1 · 512 | RAW preset (CFG 3, 20 steps); paste-back inside the mask |
+| Object Replace | edited image · optional object photo | optional | "Replace the … with …" / "…with the object from image 2" | from image 1 | 2 · 768 | paste-back |
+| Background Swap | (text) photo · — / (image) **new background · subject** | — | "Change the background to …" / "Place this person in this scene…" | from the subject photo | 4 · 768 | reference order flips with a background image |
+| Person Replace | scene · optional new person | optional | "Replace the … with …" / "…with the person from image 2" | from image 1 | 4 · 1024 | paste-back |
+| Insert Person | scene · person | — | "Place this person …" | from the scene | 4 (person) / 1 (scene) · 768 | — |
+| Face Replace | target photo · identity photo | optional | documented face-swap sentence | from image 1 | 4 · 1024 | **face-focused boost**: `ref_boost_mask` from a face detector on image 2 (Impact); paste-back |
+| Head Replace | target · identity | optional | face-swap sentence adapted to the whole head + hair | from image 1 | 4 · 1024 | face-focused boost (larger dilation); paste-back |
+| Eye Replace | target · optional eyes reference | optional | "Replace only the eyes …" / "Change the eyes to …" | from image 1 | 3 · 1024 | paste-back |
+| Outfit Change | person | — | "Change their outfit to …" (+ layering words) | from image 1 | 4 · 1024 | — |
+| Virtual Try-On | person · garment | — | "Dress the person in the garment from image 2 …" | from the person | 3 (garment) / 1 (person) · 1024 | — |
+| Identity Inpaint | edited image | **required** | free | from image 1 | 2 · 768 | **masked latent**: encoded image + noise mask + differential diffusion; paste-back |
+| Identity Outpaint | padded, pre-filled canvas | new area | "Extend the picture outward …" + description | padded canvas | 1 · 768 | masked latent on the padded canvas; euler |
+| Identity Reframe | as outpaint | new area | as outpaint | **computed from a target aspect + alignment** | 1 · 768 | shared reframe calculator (Phase 8) |
+| Character Variation | character | — | "Create a variation of this character …" | free size | **0.3–1 (below 1 frees it)** · 768 | batch of variations |
+| Character Restage | character | — | "Create a photo of this person …" | free size | 4 · 1024 | — |
+| Character Sheet | character | — | reference-sheet sentence (views, plain background) | wide (3:2) | 4 · 1024 | — |
+| Scene Change | edited image | — | free scene / lighting change, people kept | from image 1 | 2 · 512 | — |
+| Pose Restage | **pose reference · character** | — | "Make this person take the pose …" / text pose | free size | 4 · 1024 | reference order puts the pose scene first |
+
+**Statuses.** Documented by the LoRA author → READY † (Smart Edit, Object Remove, Object Replace,
+Insert Person, Outfit Change, Character Restage, Character Sheet, Face / Head / Eye / Person Replace,
+Try-On, Scene Change, Background Swap by text). EXPERIMENTAL † — the method is Wire Studio's:
+Identity Inpaint / Outpaint / Reframe (the v1.2 training format for in/outpainting is not
+documented; the masked-latent composition guarantees untouched pixels), Pose Restage with a pose
+image (reference order inferred from the scene-first rule), Character Variation (ref_boost < 1 is
+documented as "creative freedom", the task is composed), Background Swap with a background image
+(order inferred). The face-focused boost uses the documented `ref_boost_mask` input with a face
+detector mask (Impact Subpack), skipped with a note when Impact is not installed.
+
+**Safety and scope.** The LoRA author states it is SFW-only and asks that it not be used for
+non-consensual imagery or deepfakes of real people; Wire Studio shows this notice on the face,
+head, eye and person replacement tasks.
+
+**VRAM:** not measured here; the README explains the pixel path's VRAM interaction and why
+`target_latent` must be wired (every Wire Studio edit graph wires it).

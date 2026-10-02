@@ -116,12 +116,12 @@
         "3",
         0
       ],
-      "prompt": "e.g. make the jacket red leather, keep everything else",
+      "prompt": "Change their outfit to a red raincoat. Keep their face, hair, pose and the background. Optional: e.g. keep the shoes.",
       "image": [
         "1",
         0
       ],
-      "grounding_px": 768
+      "grounding_px": 1024
     },
     "_meta": {
       "title": "Instruction (image-grounded)"
@@ -192,7 +192,7 @@
         "12",
         0
       ],
-      "filename_prefix": "WireStudio/krea2-edit"
+      "filename_prefix": "WireStudio/krea2-k2-outfit"
     },
     "_meta": {
       "title": "Save image"

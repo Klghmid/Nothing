@@ -84,6 +84,21 @@ try {
     assert.ok(models.includes("Z-Image-Turbo-Fun-Controlnet-Union-2.1-lite-2602-8steps") && !models.some((m) => /Tile/.test(m)), models.join());
     await page.click("details.advanced summary:has-text('Advanced')");
   });
+  await check("Krea 2 Identity Edit: folding group, Object Remove picks RAW with removal settings, optional mask", async () => {
+    await page.click(".family:has-text('Krea 2')");
+    assert.equal(await page.locator("button.group-title:has-text('Identity Edit')").count(), 1);
+    assert.equal(await page.locator(".task:has-text('Virtual Try-On')").count(), 1);
+    await page.click("button.group-title:has-text('Identity Edit')");
+    assert.equal(await page.locator(".task:has-text('Virtual Try-On')").count(), 0, "folded");
+    await page.click("button.group-title:has-text('Identity Edit')");
+    await page.click(".task:has-text('Object Remove')");
+    await page.waitForSelector(".panel-head h1:has-text('Object Remove')");
+    assert.equal(await page.inputValue(".field:has(label:text-is('Model')) select"), "krea2_raw_bf16.safetensors", "RAW preferred for removals");
+    assert.match(await page.textContent("details.advanced summary .sum"), /20 steps · CFG 3/);
+    assert.equal(await page.locator(".field:has(label:text-is('What to remove')) input[type=text]").count(), 1);
+    assert.ok((await page.textContent(".field:has(label:has-text('Limit to an area'))")).includes("optional"));
+    assert.equal(await page.locator(".task:has-text('Smart Edit')").count(), 1);
+  });
   await check("generate shows live progress, then the result", async () => {
     await page.click(".family:has-text('Anima')");
     await page.click(".task:has-text('Text to Image')");

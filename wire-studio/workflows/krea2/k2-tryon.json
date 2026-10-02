@@ -5,10 +5,19 @@
       "image": "input.png"
     },
     "_meta": {
-      "title": "Image to edit"
+      "title": "Photo of the person"
     }
   },
   "2": {
+    "class_type": "LoadImage",
+    "inputs": {
+      "image": "garment.png"
+    },
+    "_meta": {
+      "title": "Garment"
+    }
+  },
+  "3": {
     "class_type": "UNETLoader",
     "inputs": {
       "unet_name": "krea2_turbo_fp8_scaled.safetensors",
@@ -18,7 +27,7 @@
       "title": "Krea 2 model"
     }
   },
-  "3": {
+  "4": {
     "class_type": "CLIPLoader",
     "inputs": {
       "clip_name": "qwen3vl_4b_fp8_scaled.safetensors",
@@ -29,7 +38,7 @@
       "title": "Text encoder (Qwen3-VL 4B)"
     }
   },
-  "4": {
+  "5": {
     "class_type": "VAELoader",
     "inputs": {
       "vae_name": "qwen_image_vae.safetensors"
@@ -38,11 +47,11 @@
       "title": "Qwen Image VAE"
     }
   },
-  "5": {
+  "6": {
     "class_type": "LoraLoaderModelOnly",
     "inputs": {
       "model": [
-        "2",
+        "3",
         0
       ],
       "lora_name": "krea2/editor/krea2_identity_edit_v1_2.safetensors",
@@ -52,7 +61,7 @@
       "title": "Krea 2 Identity Edit LoRA"
     }
   },
-  "6": {
+  "7": {
     "class_type": "EmptySD3LatentImage",
     "inputs": {
       "width": 1024,
@@ -63,7 +72,7 @@
       "title": "Output canvas"
     }
   },
-  "7": {
+  "8": {
     "class_type": "VAEEncode",
     "inputs": {
       "pixels": [
@@ -71,7 +80,7 @@
         0
       ],
       "vae": [
-        "4",
+        "5",
         0
       ]
     },
@@ -79,59 +88,88 @@
       "title": "Encode image 1"
     }
   },
-  "8": {
-    "class_type": "Krea2EditModelPatch",
+  "9": {
+    "class_type": "VAEEncode",
     "inputs": {
-      "model": [
-        "5",
-        0
-      ],
-      "source_latent": [
-        "7",
+      "pixels": [
+        "2",
         0
       ],
       "vae": [
-        "4",
+        "5",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "Encode image 2"
+    }
+  },
+  "10": {
+    "class_type": "Krea2EditModelPatch",
+    "inputs": {
+      "model": [
+        "6",
+        0
+      ],
+      "source_latent": [
+        "8",
+        0
+      ],
+      "source_latent_b": [
+        "9",
+        0
+      ],
+      "vae": [
+        "5",
         0
       ],
       "source_image": [
         "1",
         0
       ],
+      "source_image_b": [
+        "2",
+        0
+      ],
       "target_latent": [
-        "6",
+        "7",
         0
       ],
       "fit_mode": "fit",
-      "ref_boost": 4
+      "ref_boost": 3,
+      "ref_boost_a": 1
     },
     "_meta": {
-      "title": "Inject source image"
+      "title": "Inject source images"
     }
   },
-  "9": {
+  "11": {
     "class_type": "Krea2EditGroundedEncode",
     "inputs": {
       "clip": [
-        "3",
+        "4",
         0
       ],
-      "prompt": "e.g. make the jacket red leather, keep everything else",
+      "prompt": "Dress the person in the garment from image_b. Keep their face, body, pose and the background. Optional: anything else to change or keep.",
       "image": [
         "1",
         0
       ],
-      "grounding_px": 768
+      "image_b": [
+        "2",
+        0
+      ],
+      "grounding_px": 1024
     },
     "_meta": {
       "title": "Instruction (image-grounded)"
     }
   },
-  "10": {
+  "12": {
     "class_type": "ConditioningZeroOut",
     "inputs": {
       "conditioning": [
-        "9",
+        "11",
         0
       ]
     },
@@ -139,23 +177,23 @@
       "title": "No negative (CFG 1)"
     }
   },
-  "11": {
+  "13": {
     "class_type": "KSampler",
     "inputs": {
       "model": [
-        "8",
-        0
-      ],
-      "positive": [
-        "9",
-        0
-      ],
-      "negative": [
         "10",
         0
       ],
+      "positive": [
+        "11",
+        0
+      ],
+      "negative": [
+        "12",
+        0
+      ],
       "latent_image": [
-        "6",
+        "7",
         0
       ],
       "seed": 123456789,
@@ -169,15 +207,15 @@
       "title": "Sampler"
     }
   },
-  "12": {
+  "14": {
     "class_type": "VAEDecode",
     "inputs": {
       "samples": [
-        "11",
+        "13",
         0
       ],
       "vae": [
-        "4",
+        "5",
         0
       ]
     },
@@ -185,14 +223,14 @@
       "title": "Decode"
     }
   },
-  "13": {
+  "15": {
     "class_type": "SaveImage",
     "inputs": {
       "images": [
-        "12",
+        "14",
         0
       ],
-      "filename_prefix": "WireStudio/krea2-edit"
+      "filename_prefix": "WireStudio/krea2-k2-tryon"
     },
     "_meta": {
       "title": "Save image"

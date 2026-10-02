@@ -41,7 +41,7 @@ themselves live in code (`engine/families/*.mjs`) and as exported files (`../wor
 |---|---|---|---|---|
 | Text to Image | ✓ (+ official Turbo LoRA) | ✓ | ✓ | ✓ (+ official style reference) |
 | Image to Image | ✓ | ✓ | ✓ | ✓ |
-| Smart Edit (instruction) | — | — | — | ✓ add-on (Identity Edit LoRA) |
+| Smart Edit (instruction) | — | — | — | ✓ add-on (Identity Edit LoRA) + 18 dedicated edit tasks |
 | Inpaint | ✓ LLLite inpaint v2 context | ✓ Union ProMax *repaint* context | ✓ Fun Union 2.x inpaint context | ✓ differential diffusion |
 | Outpaint | ✓ | ✓ | ✓ | ✓ |
 | Face Fix (face / eyes / lips) | ✓ | ✓ | ✓ | ✓ |
@@ -164,10 +164,23 @@ or a RAW file), `text_encoders/qwen3vl_4b_fp8_scaled.safetensors`, `vae/qwen_ima
 - **Style reference** (official): `krea2_style_reference` LoRA + `TextEncodeQwenImageEditPlus`
   (1–2 images) → `FluxKontextMultiReferenceLatentMethod(index_timestep_zero)` →
   `ModelSamplingFlux(1.15, 0.5, w, h)`, CFG 1.
-- **Smart Edit** (add-on, [comfyui-krea2edit](https://github.com/lbouaraba/comfyui-krea2edit)):
-  Identity Edit LoRA (`loras/krea2/editor/`) + `Krea2EditModelPatch` (source as in-context tokens, `fit` geometry) +
-  `Krea2EditGroundedEncode` (the text encoder sees the image). Turbo / CFG 1 for most edits;
-  removals work better on RAW at CFG 3, ~20 steps (pack README). Output capped at ~2 MP.
+- **Identity Edit suite** (add-on, [comfyui-krea2edit](https://github.com/lbouaraba/comfyui-krea2edit)
+  v1.2.5 + `krea2_identity_edit_v1_2` in `loras/krea2/editor/`): one shared graph —
+  `Krea2EditModelPatch` (sources as in-context tokens, pixel path, `fit` geometry, `target_latent`
+  wired) + `Krea2EditGroundedEncode` (the text encoder sees the images; at CFG > 1 the negative is
+  an empty grounded encode) — and 19 tasks that differ in their references (image 1 = scene / the
+  edited image, image 2 = subject, the trained order), masks, instruction, geometry and defaults:
+  **Smart Edit, Object Remove** (RAW preferred, CFG 3, 20 steps, `ref_boost` 1), **Object Replace,
+  Background Swap** (text, or a background photo as image 1), **Person Replace, Insert Person,
+  Face / Head Replace** (the documented face-swap sentence; `ref_boost_mask` focused on the identity
+  photo's face via the Impact face detector), **Eye Replace, Outfit Change, Virtual Try-On, Scene
+  Change, Character Restage, Character Sheet** (wide), **Character Variation** (`ref_boost` < 1,
+  batch), **Pose Restage** (text, or a pose photo as image 1 — experimental), **Identity Inpaint /
+  Outpaint / Reframe** (masked latent + differential diffusion on the image's own geometry,
+  pasted back — experimental). An optional *Limit to an area* mask keeps everything outside it
+  pixel-identical. Turbo 10 steps / CFG 1; RAW 40 steps / CFG 3.5; `ref_boost` 4 for likeness;
+  `grounding_px` 1024 for people, 512 for scene changes; ≤ 2 MP. Details and sources:
+  `WORKFLOW_RESEARCH.md`, Phase 3.
 - **ControlNet**: only a **depth** Control-LoRA exists publicly
   ([Patil/Krea-2-depth-controlnet](https://huggingface.co/Patil/Krea-2-depth-controlnet)) through
   [comfyui-krea2-controlnet](https://github.com/facok/comfyui-krea2-controlnet):

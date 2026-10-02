@@ -100,11 +100,43 @@ export function softEdge(g, mask, w = 1024, h = 1024) {
 export const hardMask = (g, mask) => (g.has("ThresholdMask") ? g.add("ThresholdMask", { mask, value: 0.5 }, "Binary mask") : mask);
 export const composite = (g, destination, source, mask) =>
   g.add("ImageCompositeMasked", { destination, source, mask, x: 0, y: 0, resize_source: false }, "Paste result into original");
+// Keep every pixel outside the mask: the result (possibly at another size) is scaled back to the
+// original size and pasted in through a soft-edged mask.
+export function pasteBack(g, original, result, mask, w, h) {
+  return composite(g, original, scaleImage(g, result, w, h, "disabled", "Back to the original size"), softEdge(g, mask, w, h));
+}
+
+// Reframe: how far to extend each side so an image reaches a target aspect ratio (never
+// cropping), placed by `align` (horizontal: left / center / right; vertical: top / center /
+// bottom). Values are multiples of 8, as ImagePadForOutpaint needs.
+export const ALIGN = ["center", "left", "right", "top", "bottom", "top-left", "top-right", "bottom-left", "bottom-right"];
+export const ASPECT_CHOICES = ["16:9", "9:16", "1:1", "4:3", "3:4", "3:2", "2:3", "4:5", "21:9"].map((r) => ({ value: r, label: r }));
+export function reframeEdges(w, h, ratio, align = "center") {
+  const e = { left: 0, right: 0, top: 0, bottom: 0 };
+  if (!(w > 0 && h > 0 && ratio > 0)) return e;
+  const eight = (v) => Math.max(0, Math.round(v / 8) * 8);
+  if (w / h < ratio - 1e-3) {
+    const extra = eight(h * ratio - w);
+    const share = /left/.test(align) ? 0 : /right/.test(align) ? 1 : 0.5; // image placed left → grow right
+    e.left = eight(extra * share);
+    e.right = extra - e.left;
+  } else if (w / h > ratio + 1e-3) {
+    const extra = eight(w / ratio - h);
+    const share = /top/.test(align) ? 0 : /bottom/.test(align) ? 1 : 0.5;
+    e.top = eight(extra * share);
+    e.bottom = extra - e.top;
+  }
+  return e;
+}
+export const parseRatio = (s) => {
+  const m = /^(\d+(?:\.\d+)?)\s*[:x×/]\s*(\d+(?:\.\d+)?)$/.exec(String(s || "").trim());
+  return m && Number(m[2]) > 0 ? Number(m[1]) / Number(m[2]) : null;
+};
 
 export function padCanvas(g, image, p) {
   const { w, h } = sourceSize(p);
   const e = {};
-  for (const k of ["left", "right", "top", "bottom"]) e[k] = Math.floor(int(p[k], 0, 0, 1024) / 8) * 8;
+  for (const k of ["left", "right", "top", "bottom"]) e[k] = Math.floor(int(p[k], 0, 0, 2048) / 8) * 8;
   if (!e.left && !e.right && !e.top && !e.bottom) throw fail("Choose at least one side to extend");
   const padded = g.add("ImagePadForOutpaint", { image, ...e, feathering: int(p.feather, 48, 0, 256) }, "Extend canvas");
   return { image: padded, mask: out(padded, 1), width: w + e.left + e.right, height: h + e.top + e.bottom };
@@ -223,6 +255,19 @@ export function detailer(g, image, ctx, m, p, target = "face", title) {
     },
     title || (hand ? "Hand fix" : "Face fix"),
   );
+}
+
+// A mask of the faces in an image (Impact Pack detector → segments → one mask), or null when the
+// nodes or a face detector are missing. Used to focus an identity reference on the face.
+export function faceMask(g, image, ctx, { dilation = 10, why = "Face focus" } = {}) {
+  const detector = (ctx.inv.detectors || []).find((n) => DETECTORS.face.test(n));
+  if (!detector || !["UltralyticsDetectorProvider", "BboxDetectorSEGS", "SegsToCombinedMask"].every((t) => g.has(t))) {
+    g.note(`${why} skipped: it needs ${PACKS.impact.name} + ${PACKS.impactSub.name} and a face detector`);
+    return null;
+  }
+  const provider = g.add("UltralyticsDetectorProvider", { model_name: detector }, "Face detector");
+  const segs = g.add("BboxDetectorSEGS", { bbox_detector: provider, image, threshold: 0.4, dilation: int(dilation, 10, 0, 256), crop_factor: 1, drop_size: 10, labels: "all" }, "Find the face");
+  return g.add("SegsToCombinedMask", { segs }, "Face mask");
 }
 
 // ReActor (InsightFace inswapper) swap. Pixel-level, so the calling family follows it with a

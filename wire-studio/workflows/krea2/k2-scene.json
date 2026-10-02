@@ -103,7 +103,7 @@
         0
       ],
       "fit_mode": "fit",
-      "ref_boost": 4
+      "ref_boost": 2
     },
     "_meta": {
       "title": "Inject source image"
@@ -116,12 +116,12 @@
         "3",
         0
       ],
-      "prompt": "e.g. make the jacket red leather, keep everything else",
+      "prompt": "e.g. relight the scene with warm golden-hour sunlight; it is now autumn in Kyoto. Keep the people, their faces, clothing and poses.",
       "image": [
         "1",
         0
       ],
-      "grounding_px": 768
+      "grounding_px": 512
     },
     "_meta": {
       "title": "Instruction (image-grounded)"
@@ -192,7 +192,7 @@
         "12",
         0
       ],
-      "filename_prefix": "WireStudio/krea2-edit"
+      "filename_prefix": "WireStudio/krea2-k2-scene"
     },
     "_meta": {
       "title": "Save image"

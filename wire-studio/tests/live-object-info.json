@@ -83,6 +83,74 @@
    ],
    "python_module": "custom_nodes.comfyui_controlnet_aux"
   },
+  "BboxDetectorSEGS": {
+   "input": {
+    "required": {
+     "bbox_detector": [
+      "BBOX_DETECTOR"
+     ],
+     "image": [
+      "IMAGE"
+     ],
+     "threshold": [
+      "FLOAT",
+      {
+       "default": 0.5,
+       "min": 0,
+       "max": 1,
+       "step": 0.01
+      }
+     ],
+     "dilation": [
+      "INT",
+      {
+       "default": 10,
+       "min": -512,
+       "max": 512,
+       "step": 1
+      }
+     ],
+     "crop_factor": [
+      "FLOAT",
+      {
+       "default": 3,
+       "min": 1,
+       "max": 100,
+       "step": 0.1
+      }
+     ],
+     "drop_size": [
+      "INT",
+      {
+       "min": 1,
+       "max": 16384,
+       "step": 1,
+       "default": 10
+      }
+     ],
+     "labels": [
+      "STRING",
+      {
+       "multiline": true,
+       "default": "all",
+       "placeholder": "List the types of segments to be allowed, separated by commas"
+      }
+     ]
+    },
+    "optional": {
+     "detailer_hook": [
+      "DETAILER_HOOK"
+     ]
+    }
+   },
+   "output": [
+    "SEGS"
+   ],
+   "output_name": [
+    "SEGS"
+   ],
+   "python_module": "custom_nodes.ComfyUI-Impact-Pack"
+  },
   "BiRefNetRMBG": {
    "input": {
     "required": {
@@ -3020,6 +3088,22 @@
     "images"
    ],
    "python_module": "nodes"
+  },
+  "SegsToCombinedMask": {
+   "input": {
+    "required": {
+     "segs": [
+      "SEGS"
+     ]
+    }
+   },
+   "output": [
+    "MASK"
+   ],
+   "output_name": [
+    "MASK"
+   ],
+   "python_module": "custom_nodes.ComfyUI-Impact-Pack"
   },
   "SetLatentNoiseMask": {
    "input": {
