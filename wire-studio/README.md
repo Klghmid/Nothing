@@ -48,6 +48,7 @@ Models are sorted into families by **folder** first (at any depth), then by file
 models/checkpoints/SDXL/regular/        models/checkpoints/SDXL/turbo/
 models/diffusion_models/anima/…         models/diffusion_models/z-image/turbo/   …/krea2/regular/
 models/loras/anima/<any sub-folders>    models/loras/SDXL/…   models/loras/z-image/…   models/loras/krea2/…
+models/loras/krea2/editor/   ← Smart Edit LoRA       models/loras/krea2/control/   ← Krea 2 Control-LoRAs
 ```
 
 The full layout, every file and where it goes, is in the **ComfyUI models guide** (every model, its folder and a sample folder tree):
@@ -85,7 +86,7 @@ input/output folders. Writes are atomic with a `.bak` copy, so a crash cannot co
 ## Development
 
 ```bash
-npm test                    # 72 tests: every workflow + the server against a mock ComfyUI
+npm test                    # 73 tests: every workflow + the server against a mock ComfyUI
 npm run dev:mock            # the app on :5180 against a mock ComfyUI on :8199 (no GPU)
 npm i --no-save playwright-core && npm run test:ui     # 12 browser checks (desktop + phone)
 npm run export-workflows    # regenerate workflows/

@@ -59,6 +59,7 @@ test("following the guide gives a fully detected setup: right family, right type
     if (top === "controlnet") assert.ok(fam.controlnets.includes(m._name), `${m._name} is an SDXL ControlNet`);
   }
   assert.ok(inv.families.krea2.controlLoras.some((n) => n.startsWith("krea2/control/")), "loras/krea2/control/ holds control LoRAs");
+  assert.equal(inv.families.krea2.editLora, "krea2/editor/krea2_identity_edit_v1_2.safetensors", "loras/krea2/editor/ holds the edit LoRA");
   assert.deepEqual(inv.unsortedLoras, []);
   assert.deepEqual(inv.misplaced, []);
   const ready = readiness({ info, inv });

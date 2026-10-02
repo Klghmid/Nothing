@@ -36,7 +36,7 @@
         "1",
         0
       ],
-      "lora_name": "krea2_identity_edit_v1_2.safetensors",
+      "lora_name": "krea2/editor/krea2_identity_edit_v1_2.safetensors",
       "strength_model": 1
     },
     "_meta": {

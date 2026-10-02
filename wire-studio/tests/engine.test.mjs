@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { buildWorkflow, buildUtility, readiness, readInventory, suggestions, FAMILIES, schema } from "../engine/index.mjs";
 import { classify, variantOf } from "../engine/inventory.mjs";
-import { objectInfo, sampleParams, CUSTOM_NODES } from "./fixtures.mjs";
+import { objectInfo, sampleParams, CUSTOM_NODES, FILES } from "./fixtures.mjs";
 
 const info = objectInfo();
 const ctx = { info, inv: readInventory(info) };
@@ -55,6 +55,24 @@ test("Setup names the suggested file and the installed file used for each requir
   const lean = objectInfo({ checkpoints: [], unets: [], loras: [], clips: [], vaes: [], patches: [], controlnets: [], upscalers: [], detectors: [], inputs: ["example.png"] });
   const leanCtx = { info: lean, inv: readInventory(lean) };
   assert.ok(suggestions(leanCtx, readiness(leanCtx)).filter((m) => m.family !== "Shared").every((m) => m.status === "missing" && !m.found.length));
+});
+
+test("Krea 2 edit LoRAs: loras/krea2/editor/ with any name, never in the LoRA picker", () => {
+  const files = (loras) => {
+    const i = objectInfo({ ...FILES, loras });
+    return readInventory(i).families.krea2;
+  };
+  const k = files(["krea2/editor/my_edit_v2.safetensors", "krea2_identity_edit_v1_2.safetensors", "krea2/styles/ink.safetensors", "krea2/control/depth_v1.safetensors"]);
+  assert.equal(k.editLora, "krea2/editor/my_edit_v2.safetensors", "the editor/ folder wins");
+  assert.deepEqual(k.editLoras.sort(), ["krea2/editor/my_edit_v2.safetensors", "krea2_identity_edit_v1_2.safetensors"]);
+  assert.deepEqual(k.loras, ["krea2/styles/ink.safetensors"], "edit and control LoRAs stay out of the picker");
+  assert.deepEqual(k.controlLoras, ["krea2/control/depth_v1.safetensors"]);
+  assert.equal(files(["Krea2/Edit/identity_edit_v1_3.safetensors", "krea2_identity_edit_v1_2.safetensors"]).editLora, "Krea2/Edit/identity_edit_v1_3.safetensors");
+  assert.equal(files(["krea2_identity_edit_v1_1.safetensors", "krea2_identity_edit_v1_10.safetensors"]).editLora, "krea2_identity_edit_v1_10.safetensors", "highest version");
+  const ictx = { info: objectInfo({ ...FILES, loras: ["krea2/editor/my_edit_v2.safetensors"] }) };
+  ictx.inv = readInventory(ictx.info);
+  const prompt = buildWorkflow("krea2", "edit", sampleParams("edit"), ictx).prompt;
+  assert.deepEqual(nodesOf(prompt, "LoraLoaderModelOnly").map((n) => n.inputs.lora_name), ["krea2/editor/my_edit_v2.safetensors"]);
 });
 
 test("family and type come from folders at any depth", () => {

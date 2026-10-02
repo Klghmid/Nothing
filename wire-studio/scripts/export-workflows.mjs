@@ -13,7 +13,7 @@ const outDir = path.join(root, "workflows");
 const files = {
   checkpoints: ["sd_xl_base_1.0.safetensors"],
   unets: ["anima-base-v1.0.safetensors", "z_image_turbo_bf16.safetensors", "krea2_turbo_fp8_scaled.safetensors"],
-  loras: ["anima-turbo-lora-v0.2.safetensors", "krea2_style_reference.safetensors", "krea2/krea2_depth_control_lora.safetensors", "krea2_identity_edit_v1_2.safetensors"],
+  loras: ["anima-turbo-lora-v0.2.safetensors", "krea2_style_reference.safetensors", "krea2/krea2_depth_control_lora.safetensors", "krea2/editor/krea2_identity_edit_v1_2.safetensors"],
   clips: ["qwen_3_06b_base.safetensors", "qwen_3_4b.safetensors", "qwen3vl_4b_fp8_scaled.safetensors"],
   vaes: ["qwen_image_vae.safetensors", "ae.safetensors"],
   patches: ["anima-lllite-inpainting-v2.safetensors", "anima-lllite-any-test-like-v2.safetensors", "anima-lllite-depth-1.safetensors", "anima-lllite-pose-1.safetensors", "Z-Image-Turbo-Fun-Controlnet-Union-2.1-2601-8steps.safetensors"],

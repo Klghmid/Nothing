@@ -36,7 +36,7 @@ function yourFiles(m, inv) {
     const models = fam.models || [];
     return ["turbo", "regular"].includes(type) ? models.filter((n) => fam.variants?.[n] === type) : models;
   }
-  if (fam && top === "loras") return /control/.test(m.path) ? fam.controlLoras || [] : fam.loras || [];
+  if (fam && top === "loras") return /\/control$/.test(m.path) ? fam.controlLoras || [] : /\/editor$/.test(m.path) ? fam.editLoras || [] : fam.loras || [];
   if (top === "ultralytics") return (inv.detectors || []).filter((n) => !/face|hand/i.test(base(n)));
   return [];
 }

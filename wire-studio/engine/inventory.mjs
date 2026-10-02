@@ -9,7 +9,8 @@
 // Variant — a `turbo/` (lightning, hyper, dmd2, lcm, distilled) or `regular/` (base, raw,
 // standard, full) folder anywhere in the path decides; otherwise the file name does
 // ("turbo", "lightning"… → turbo, else regular). The variant picks the sampling preset.
-// See docs/MODEL-FOLDERS.md for the recommended ComfyUI directory layout.
+// Krea 2 task LoRAs have their own folders: loras/krea2/editor/ (Smart Edit) and
+// loras/krea2/control/ (Control-LoRAs). See docs/MODEL-FOLDERS.md for the full layout.
 import { options } from "./graph.mjs";
 
 export const FAMILY_IDS = ["anima", "sdxl", "zimage", "krea2"];
@@ -69,7 +70,14 @@ export function readInventory(info = {}, overrides = {}) {
   // not run (FLUX, SD 1.5, Qwen-Image, Wan…) are listed apart and never offered.
   const unsortedLoras = fam(loras, "unknown");
   const krea2Loras = fam(loras, "krea2");
-  const isControlLora = (n) => (/depth|control|canny|pose/i.test(parts(n).pop()) || parts(n).slice(0, -1).some((f) => /^control(net)?s?$/i.test(f))) && !/style|edit/i.test(n);
+  // Krea 2 task LoRAs, kept out of the LoRA picker: loras/krea2/editor/ (Smart Edit) and
+  // loras/krea2/control/ (Control-LoRAs) take any file name; elsewhere the name must say it.
+  const folders = (n) => parts(n).slice(0, -1);
+  const inEditor = (n) => folders(n).some((f) => /^(editor|editors|edit|edits|editing)$/i.test(f));
+  const isEditLora = (n) => /krea2[-_]?identity[-_]?edit/i.test(n) || (classify(n, overrides) === "krea2" && (inEditor(n) || /identity[-_]?edit/i.test(parts(n).pop())));
+  const isControlLora = (n) => !isEditLora(n) && (/depth|control|canny|pose/i.test(parts(n).pop()) || folders(n).some((f) => /^control(net)?s?$/i.test(f))) && !/style|edit/i.test(n);
+  // Several edit LoRAs: the one in editor/ wins, then the highest version.
+  const editLoras = loras.filter(isEditLora).sort((a, b) => inEditor(a) - inEditor(b) || parts(a).pop().localeCompare(parts(b).pop(), "en", { numeric: true }));
   const sdxlModels = ckpts.filter((n) => ["sdxl", "unknown"].includes(classify(n, overrides)) && !/sdpose|inpaint.*sd15/i.test(n));
   const unetModels = Object.fromEntries(UNET_FAMILIES.map((id) => [id, fam(unets, id)]));
   // Anima / Z-Image / Krea 2 files are diffusion models (UNETLoader reads models/diffusion_models
@@ -119,10 +127,11 @@ export function readInventory(info = {}, overrides = {}) {
       krea2: {
         models: unetModels.krea2,
         variants: variants(unetModels.krea2),
-        loras: krea2Loras.filter((n) => !isControlLora(n) && !/identity[-_]?edit|style[-_]?reference/i.test(n)),
+        loras: krea2Loras.filter((n) => !isControlLora(n) && !isEditLora(n) && !/style[-_]?reference/i.test(n)),
         controlLoras: krea2Loras.filter((n) => isControlLora(n)),
         styleLora: loras.find((n) => /krea2[-_]?style[-_]?reference/i.test(n)) || null,
-        editLora: loras.filter((n) => /krea2[-_]?identity[-_]?edit/i.test(n)).sort().at(-1) || null,
+        editLora: editLoras.at(-1) || null,
+        editLoras,
         clips: clips.filter((n) => /qwen3[-_]?vl/i.test(n)),
         vaes: vaes.filter((n) => /qwen_image_vae/i.test(n)),
       },

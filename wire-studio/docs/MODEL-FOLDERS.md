@@ -73,12 +73,13 @@ ComfyUI/models/
 │   │   └── people/
 │   │       └── (your Z-Image LoRAs)                      Z-Image · LoRAs (any sub-folders)
 │   └── krea2/
+│       ├── editor/
+│       │   └── krea2_identity_edit_v1_2.safetensors      Krea 2 · Identity Edit LoRA · optional
 │       ├── control/
 │       │   └── (your Krea 2 depth Control-LoRA, any file name)  Krea 2 · Depth Control-LoRA · optional
 │       ├── styles/
 │       │   └── krea2_darkbrush.safetensors               Krea 2 · Example style LoRA
-│       ├── krea2_style_reference.safetensors             Krea 2 · Style reference LoRA · optional
-│       └── krea2_identity_edit_v1_2.safetensors          Krea 2 · Identity Edit LoRA · optional
+│       └── krea2_style_reference.safetensors             Krea 2 · Style reference LoRA · optional
 ├── text_encoders/                                        ← shared, picked by file name
 │   ├── qwen_3_06b_base.safetensors                       Anima · Text encoder (Qwen3 0.6B)
 │   ├── qwen_3_4b.safetensors                             Z-Image · Text encoder (Qwen3 4B)
@@ -185,7 +186,7 @@ page* links go to the model's own page where a direct link could not be verified
 | `qwen3vl_4b_fp8_scaled.safetensors` | `text_encoders/` | Text encoder (Qwen3-VL 4B): All Krea 2 tasks | Required | [Download](https://huggingface.co/Comfy-Org/Krea-2/resolve/main/text_encoders/qwen3vl_4b_fp8_scaled.safetensors) |
 | `qwen_image_vae.safetensors` | `vae/` | VAE (the same file as Anima): All Krea 2 tasks | Required | [Download](https://huggingface.co/Comfy-Org/Krea-2/resolve/main/vae/qwen_image_vae.safetensors) |
 | `krea2_style_reference.safetensors` | `loras/krea2/` | Style reference LoRA: Text to Image → Style reference | Optional | [Download](https://huggingface.co/Comfy-Org/Krea-2/resolve/main/loras/krea2_style_reference.safetensors) |
-| `krea2_identity_edit_v1_2.safetensors` | `loras/krea2/` | Identity Edit LoRA: Smart Edit (with the comfyui-krea2edit nodes) | Optional | [Project page](https://github.com/lbouaraba/comfyui-krea2edit) |
+| `krea2_identity_edit_v1_2.safetensors` | `loras/krea2/editor/` | Identity Edit LoRA: Smart Edit (with the comfyui-krea2edit nodes) | Optional | [Project page](https://github.com/lbouaraba/comfyui-krea2edit) |
 | *your Krea 2 depth Control-LoRA, any file name* | `loras/krea2/control/` | Depth Control-LoRA: ControlNet: depth, Pose (with comfyui-krea2-controlnet) | Optional | [Project page](https://huggingface.co/Patil/Krea-2-depth-controlnet) |
 | `krea2_darkbrush.safetensors` | `loras/krea2/styles/` | Example style LoRA: Any Krea 2 task | Your files | [Download](https://huggingface.co/Comfy-Org/Krea-2/resolve/main/loras/krea2_darkbrush.safetensors) |
 
@@ -230,7 +231,7 @@ page* links go to the model's own page where a direct link could not be verified
 | `hand_yolov8s.pt` | `models/ultralytics/bbox/` | Shared |
 | `inswapper_128.onnx` | `models/insightface/` | Shared |
 | `krea2_darkbrush.safetensors` | `models/loras/krea2/styles/` | Krea 2 |
-| `krea2_identity_edit_v1_2.safetensors` | `models/loras/krea2/` | Krea 2 |
+| `krea2_identity_edit_v1_2.safetensors` | `models/loras/krea2/editor/` | Krea 2 |
 | `krea2_style_reference.safetensors` | `models/loras/krea2/` | Krea 2 |
 | `krea2_turbo_fp8_scaled.safetensors` | `models/diffusion_models/krea2/turbo/` | Krea 2 |
 | `krea2_turbo_int8_convrot.safetensors` | `models/diffusion_models/krea2/turbo/` | Krea 2 |
@@ -276,6 +277,17 @@ says nothing (or the wrong thing) can be put into the right folder.
 
 **3. Shared folders** (`text_encoders`, `vae`, `model_patches`, `upscale_models`, detectors) are
 read by file name, so keep the original names there.
+
+**4. Krea 2 task LoRAs have their own folders** under `loras/krea2/`, so they never appear in the
+LoRA picker and any file name works:
+
+| Folder | Holds | Used by |
+|---|---|---|
+| `loras/krea2/editor/` (also `edit/`, `editing/`) | the Identity Edit LoRA (`krea2_identity_edit_v1_2.safetensors`) | Smart Edit |
+| `loras/krea2/control/` | Control-LoRAs (depth) | ControlNet, Pose |
+
+Outside these folders they are still found by name (`krea2_identity_edit…`, `…depth…control…`).
+With several edit LoRAs, the one in `editor/` wins, then the highest version.
 
 ## Presets
 

@@ -145,7 +145,7 @@ or a RAW file), `text_encoders/qwen3vl_4b_fp8_scaled.safetensors`, `vae/qwen_ima
   (1–2 images) → `FluxKontextMultiReferenceLatentMethod(index_timestep_zero)` →
   `ModelSamplingFlux(1.15, 0.5, w, h)`, CFG 1.
 - **Smart Edit** (add-on, [comfyui-krea2edit](https://github.com/lbouaraba/comfyui-krea2edit)):
-  Identity Edit LoRA + `Krea2EditModelPatch` (source as in-context tokens, `fit` geometry) +
+  Identity Edit LoRA (`loras/krea2/editor/`) + `Krea2EditModelPatch` (source as in-context tokens, `fit` geometry) +
   `Krea2EditGroundedEncode` (the text encoder sees the image). Turbo / CFG 1 for most edits;
   removals work better on RAW at CFG 3, ~20 steps (pack README). Output capped at ~2 MP.
 - **ControlNet**: only a **depth** Control-LoRA exists publicly

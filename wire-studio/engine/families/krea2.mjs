@@ -143,7 +143,7 @@ export default {
         ...baseNeeds(ctx),
         need.node(ctx, "Krea2EditModelPatch", PACKS.krea2edit, "Injects the source image"),
         need.node(ctx, "Krea2EditGroundedEncode", PACKS.krea2edit, "Lets the text encoder see the image"),
-        need.model(fam(ctx).editLora, MODELS.krea2Edit, "Krea 2 Identity Edit LoRA", "The editing LoRA"),
+        need.model(fam(ctx).editLora, MODELS.krea2Edit, "Krea 2 Identity Edit LoRA", "The editing LoRA (loras/krea2/editor/)"),
       ],
       build(g, p, ctx) {
         for (const t of ["Krea2EditModelPatch", "Krea2EditGroundedEncode"]) c.needNode(g, t, "Smart Edit");
