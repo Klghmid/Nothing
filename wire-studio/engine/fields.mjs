@@ -9,7 +9,7 @@ export const field = {
   prompt: (o = {}) => ({ type: "prompt", key: "prompt", label: o.label || "Prompt", placeholder: o.placeholder || "", optional: !!o.optional, hint: o.hint, when: o.when }),
   negative: (def) => ({ type: "text", key: "negative", label: "Negative prompt", default: def || "", advanced: true }),
   image: (key = "image", label = "Image", o = {}) => ({ type: "image", key, label, hint: o.hint, optional: !!o.optional, advanced: !!o.advanced, when: o.when }),
-  mask: (o = {}) => ({ type: "mask", key: "mask", label: o.label || "Area to change", hint: o.hint || "Paint on the image in the canvas", optional: !!o.optional }),
+  mask: (o = {}) => ({ type: "mask", key: "mask", label: o.label || "Area to change", hint: o.hint || "Paint on the image in the canvas", optional: !!o.optional, when: o.when }),
   line: (key, label, placeholder = "", o = {}) => ({ type: "line", key, label, placeholder, ...o }),
   model: (o = {}) => ({ type: "model", key: "model", label: "Model", when: o.when }),
   loras: () => ({ type: "loras", key: "loras", label: "LoRAs" }),

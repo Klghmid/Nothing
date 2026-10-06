@@ -242,6 +242,9 @@ export default {
   missing: {
     canny: "No public Krea 2 canny Control-LoRA.",
     lineart: "No public Krea 2 line-art Control-LoRA (one is announced by tori29umai).",
+    reference: "Style only (Style Reference); for a person or object use the Identity Edit suite.",
+    "identity-ref": "Use the Identity Edit suite (Character Restage / Sheet / Variation) with a photo of the person.",
+    "multi-control": "Only depth control exists (two implementations that cannot be combined); pose uses a separate path.",
   },
   tasks: withSceneTasks({
     generate: {

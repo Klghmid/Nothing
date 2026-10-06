@@ -119,7 +119,7 @@
       "control_net_name": "controlnet-union-sdxl-1.0-promax.safetensors"
     },
     "_meta": {
-      "title": "ControlNet · repaint"
+      "title": "ControlNet · Union"
     }
   },
   "11": {

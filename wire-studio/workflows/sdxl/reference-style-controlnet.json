@@ -11,7 +11,7 @@
   "2": {
     "class_type": "CLIPTextEncode",
     "inputs": {
-      "text": "Describe the new picture",
+      "text": "Describe the picture",
       "clip": [
         "1",
         1
@@ -35,19 +35,76 @@
     }
   },
   "4": {
+    "class_type": "IPAdapterModelLoader",
+    "inputs": {
+      "ipadapter_file": "ip-adapter-plus_sdxl_vit-h.safetensors"
+    },
+    "_meta": {
+      "title": "IPAdapter"
+    }
+  },
+  "5": {
+    "class_type": "CLIPVisionLoader",
+    "inputs": {
+      "clip_name": "CLIP-ViT-H-14-laion2B-s32B-b79K.safetensors"
+    },
+    "_meta": {
+      "title": "CLIP Vision"
+    }
+  },
+  "6": {
+    "class_type": "LoadImage",
+    "inputs": {
+      "image": "ref.png"
+    },
+    "_meta": {
+      "title": "Reference image"
+    }
+  },
+  "7": {
+    "class_type": "IPAdapterAdvanced",
+    "inputs": {
+      "ipadapter": [
+        "4",
+        0
+      ],
+      "clip_vision": [
+        "5",
+        0
+      ],
+      "start_at": 0,
+      "end_at": 1,
+      "embeds_scaling": "V only",
+      "combine_embeds": "concat",
+      "model": [
+        "1",
+        0
+      ],
+      "image": [
+        "6",
+        0
+      ],
+      "weight": 1,
+      "weight_type": "style transfer"
+    },
+    "_meta": {
+      "title": "Style only reference"
+    }
+  },
+  "8": {
     "class_type": "LoadImage",
     "inputs": {
       "image": "input.png"
     },
     "_meta": {
-      "title": "Control image"
+      "title": "Control 1 image"
     }
   },
-  "5": {
+  "9": {
     "class_type": "DepthAnythingV2Preprocessor",
     "inputs": {
       "image": [
-        "4",
+        "8",
         0
       ],
       "resolution": 1024
@@ -56,11 +113,11 @@
       "title": "Make depth map"
     }
   },
-  "6": {
+  "10": {
     "class_type": "ImageScale",
     "inputs": {
       "image": [
-        "5",
+        "9",
         0
       ],
       "upscale_method": "lanczos",
@@ -72,7 +129,7 @@
       "title": "Fit map to output size"
     }
   },
-  "7": {
+  "11": {
     "class_type": "ControlNetLoader",
     "inputs": {
       "control_net_name": "controlnet-union-sdxl-1.0-promax.safetensors"
@@ -81,11 +138,11 @@
       "title": "ControlNet · Union"
     }
   },
-  "8": {
+  "12": {
     "class_type": "SetUnionControlNetType",
     "inputs": {
       "control_net": [
-        "7",
+        "11",
         0
       ],
       "type": "depth"
@@ -94,7 +151,7 @@
       "title": "Union type: depth"
     }
   },
-  "9": {
+  "13": {
     "class_type": "ControlNetApplyAdvanced",
     "inputs": {
       "positive": [
@@ -106,14 +163,14 @@
         0
       ],
       "control_net": [
-        "8",
+        "12",
         0
       ],
       "image": [
-        "6",
+        "10",
         0
       ],
-      "strength": 0.7,
+      "strength": 0.6,
       "start_percent": 0,
       "end_percent": 0.8,
       "vae": [
@@ -125,7 +182,7 @@
       "title": "Apply depth control"
     }
   },
-  "10": {
+  "14": {
     "class_type": "EmptyLatentImage",
     "inputs": {
       "width": 1024,
@@ -136,23 +193,23 @@
       "title": "Empty canvas"
     }
   },
-  "11": {
+  "15": {
     "class_type": "KSampler",
     "inputs": {
       "model": [
-        "1",
+        "7",
         0
       ],
       "positive": [
-        "9",
+        "13",
         0
       ],
       "negative": [
-        "9",
+        "13",
         1
       ],
       "latent_image": [
-        "10",
+        "14",
         0
       ],
       "seed": 123456789,
@@ -166,11 +223,11 @@
       "title": "Sampler"
     }
   },
-  "12": {
+  "16": {
     "class_type": "VAEDecode",
     "inputs": {
       "samples": [
-        "11",
+        "15",
         0
       ],
       "vae": [
@@ -182,14 +239,14 @@
       "title": "Decode"
     }
   },
-  "13": {
+  "17": {
     "class_type": "SaveImage",
     "inputs": {
       "images": [
-        "12",
+        "16",
         0
       ],
-      "filename_prefix": "WireStudio/sdxl-control"
+      "filename_prefix": "WireStudio/sdxl-reference"
     },
     "_meta": {
       "title": "Save image"

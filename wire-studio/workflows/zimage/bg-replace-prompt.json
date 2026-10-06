@@ -9,36 +9,47 @@
     }
   },
   "2": {
-    "class_type": "BiRefNetRMBG",
+    "class_type": "LoadBackgroundRemovalModel",
     "inputs": {
+      "bg_removal_name": "birefnet.safetensors"
+    },
+    "_meta": {
+      "title": "BiRefNet"
+    }
+  },
+  "3": {
+    "class_type": "RemoveBackground",
+    "inputs": {
+      "bg_removal_model": [
+        "2",
+        0
+      ],
       "image": [
         "1",
         0
-      ],
-      "background": "Alpha",
-      "model": "BiRefNet-general"
+      ]
     },
     "_meta": {
       "title": "Find the subject"
     }
   },
-  "3": {
+  "4": {
     "class_type": "InvertMask",
     "inputs": {
       "mask": [
-        "2",
-        1
+        "3",
+        0
       ]
     },
     "_meta": {
       "title": "Background area"
     }
   },
-  "4": {
+  "5": {
     "class_type": "GrowMask",
     "inputs": {
       "mask": [
-        "3",
+        "4",
         0
       ],
       "expand": 4,
@@ -48,11 +59,11 @@
       "title": "Tighten around the subject"
     }
   },
-  "5": {
+  "6": {
     "class_type": "MaskToImage",
     "inputs": {
       "mask": [
-        "4",
+        "5",
         0
       ]
     },
@@ -60,11 +71,11 @@
       "title": "Feather"
     }
   },
-  "6": {
+  "7": {
     "class_type": "ImageBlur",
     "inputs": {
       "image": [
-        "5",
+        "6",
         0
       ],
       "blur_radius": 6,
@@ -74,11 +85,11 @@
       "title": "Feather blur"
     }
   },
-  "7": {
+  "8": {
     "class_type": "ImageToMask",
     "inputs": {
       "image": [
-        "6",
+        "7",
         0
       ],
       "channel": "red"
@@ -87,7 +98,7 @@
       "title": "Feathered mask"
     }
   },
-  "8": {
+  "9": {
     "class_type": "UNETLoader",
     "inputs": {
       "unet_name": "z_image_turbo_bf16.safetensors",
@@ -97,7 +108,7 @@
       "title": "Z-Image model"
     }
   },
-  "9": {
+  "10": {
     "class_type": "CLIPLoader",
     "inputs": {
       "clip_name": "qwen_3_4b.safetensors",
@@ -108,7 +119,7 @@
       "title": "Text encoder (Qwen3 4B)"
     }
   },
-  "10": {
+  "11": {
     "class_type": "VAELoader",
     "inputs": {
       "vae_name": "ae.safetensors"
@@ -117,12 +128,12 @@
       "title": "Z-Image VAE (ae)"
     }
   },
-  "11": {
+  "12": {
     "class_type": "CLIPTextEncode",
     "inputs": {
       "text": "Describe the new background",
       "clip": [
-        "9",
+        "10",
         0
       ]
     },
@@ -130,11 +141,11 @@
       "title": "Prompt"
     }
   },
-  "12": {
+  "13": {
     "class_type": "ConditioningZeroOut",
     "inputs": {
       "conditioning": [
-        "11",
+        "12",
         0
       ]
     },
@@ -142,7 +153,7 @@
       "title": "No negative (CFG 1)"
     }
   },
-  "13": {
+  "14": {
     "class_type": "ModelPatchLoader",
     "inputs": {
       "name": "Z-Image-Turbo-Fun-Controlnet-Union-2.1-2602-8steps.safetensors"
@@ -151,19 +162,19 @@
       "title": "Fun ControlNet Union"
     }
   },
-  "14": {
+  "15": {
     "class_type": "ZImageFunControlnet",
     "inputs": {
       "model": [
-        "8",
+        "9",
         0
       ],
       "model_patch": [
-        "13",
+        "14",
         0
       ],
       "vae": [
-        "10",
+        "11",
         0
       ],
       "inpaint_image": [
@@ -171,7 +182,7 @@
         0
       ],
       "mask": [
-        "4",
+        "5",
         0
       ],
       "strength": 0.9
@@ -180,7 +191,7 @@
       "title": "Inpaint context (Fun Union)"
     }
   },
-  "15": {
+  "16": {
     "class_type": "VAEEncode",
     "inputs": {
       "pixels": [
@@ -188,7 +199,7 @@
         0
       ],
       "vae": [
-        "10",
+        "11",
         0
       ]
     },
@@ -196,15 +207,15 @@
       "title": "Encode image"
     }
   },
-  "16": {
+  "17": {
     "class_type": "SetLatentNoiseMask",
     "inputs": {
       "samples": [
-        "15",
+        "16",
         0
       ],
       "mask": [
-        "4",
+        "5",
         0
       ]
     },
@@ -212,11 +223,11 @@
       "title": "Limit to painted area"
     }
   },
-  "17": {
+  "18": {
     "class_type": "ModelSamplingAuraFlow",
     "inputs": {
       "model": [
-        "14",
+        "15",
         0
       ],
       "shift": 3
@@ -225,23 +236,23 @@
       "title": "Sampling shift"
     }
   },
-  "18": {
+  "19": {
     "class_type": "KSampler",
     "inputs": {
       "model": [
-        "17",
+        "18",
         0
       ],
       "positive": [
-        "11",
-        0
-      ],
-      "negative": [
         "12",
         0
       ],
+      "negative": [
+        "13",
+        0
+      ],
       "latent_image": [
-        "16",
+        "17",
         0
       ],
       "seed": 123456789,
@@ -255,15 +266,15 @@
       "title": "Sampler"
     }
   },
-  "19": {
+  "20": {
     "class_type": "VAEDecode",
     "inputs": {
       "samples": [
-        "18",
+        "19",
         0
       ],
       "vae": [
-        "10",
+        "11",
         0
       ]
     },
@@ -271,7 +282,7 @@
       "title": "Decode"
     }
   },
-  "20": {
+  "21": {
     "class_type": "ImageCompositeMasked",
     "inputs": {
       "destination": [
@@ -279,11 +290,11 @@
         0
       ],
       "source": [
-        "19",
+        "20",
         0
       ],
       "mask": [
-        "7",
+        "8",
         0
       ],
       "x": 0,
@@ -294,11 +305,11 @@
       "title": "Paste result into original"
     }
   },
-  "21": {
+  "22": {
     "class_type": "SaveImage",
     "inputs": {
       "images": [
-        "20",
+        "21",
         0
       ],
       "filename_prefix": "WireStudio/zimage-bg-replace"

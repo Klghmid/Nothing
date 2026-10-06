@@ -9,6 +9,7 @@ import { MODELS, PACKS } from "../catalog.mjs";
 import * as c from "../common.mjs";
 import { detailerNeeds, swapNeeds, mapNeeds, upscaleNeeds, outpaintNeeds } from "../needs.mjs";
 import { withSceneTasks } from "../scene.mjs";
+import { createReferenceTasks } from "./sdxl-reference.mjs";
 
 const SAMPLE = { steps: 28, cfg: 6, sampler: "euler_ancestral", scheduler: "normal" };
 // Few-step SDXL models (Turbo / Lightning / Hyper / DMD2): low CFG, euler + sgm_uniform as in the
@@ -47,12 +48,14 @@ export function pickNet(nets, kind, wanted) {
   const union = nets.find((n) => /promax/i.test(n)) || nets.find((n) => /union/i.test(n));
   return union ? { name: union, union: true } : null;
 }
-function applyNet(g, m, net, kind, image, strength, end) {
-  let cn = g.add("ControlNetLoader", { control_net_name: net.name }, "ControlNet · " + kind);
+// One ControlNetLoader per file in a graph: several controls on one Union model share it.
+function applyNet(g, m, net, kind, image, strength, end, start = 0) {
+  g.nets ||= {};
+  let cn = (g.nets[net.name] ||= g.add("ControlNetLoader", { control_net_name: net.name }, "ControlNet · " + (net.union ? "Union" : kind)));
   if (net.union) cn = g.add("SetUnionControlNetType", { control_net: cn, type: UNION_TYPE[kind] }, "Union type: " + kind);
   const applied = g.add(
     "ControlNetApplyAdvanced",
-    { positive: m.positive, negative: m.negative, control_net: cn, image, strength, start_percent: 0, end_percent: end, vae: m.vae },
+    { positive: m.positive, negative: m.negative, control_net: cn, image, strength, start_percent: start, end_percent: end, vae: m.vae },
     "Apply " + kind + " control",
   );
   return { positive: applied, negative: out(applied, 1) };
@@ -88,6 +91,8 @@ const netNeeds = (ctx, why, level = "required") => need.model(fam(ctx).controlne
 const common = [field.model(), field.loras()];
 const advanced = [field.negative(NEGATIVE), field.seed(), field.sampling()];
 const KINDS = [choice("canny", "Canny edges"), choice("lineart", "Line art"), choice("scribble", "Scribble / soft edge"), choice("depth", "Depth"), choice("pose", "Pose (skeleton)")];
+// Image Reference, Identity Reference and the extra control slots (sdxl-reference.mjs).
+const extras = createReferenceTasks({ fam, loaders, prompts, applyNet, pickNet, maskedRedraw, baseNeeds, common, advanced, KINDS, SAMPLE });
 
 export default {
   id: "sdxl",
@@ -102,6 +107,42 @@ export default {
     style: "IPAdapter style / composition reference (roadmap).",
     identity: "InstantID identity-preserving generation (roadmap).",
   },
+  // Combinations asked for in the expansion plan (Phases 10–12); evidence in
+  // docs/WORKFLOW_RESEARCH.md, "Phases 10–12".
+  combinations: [
+    { label: "Reference: subject", from: { task: "reference", choice: { key: "mode", value: "subject" } } },
+    { label: "Reference: style", from: { task: "reference", choice: { key: "mode", value: "style" } } },
+    { label: "Reference: composition", from: { task: "reference", choice: { key: "mode", value: "composition" } } },
+    { label: "Reference: style + composition", from: { task: "reference", choice: { key: "mode", value: "style-composition" } } },
+    { label: "Reference: precise style", from: { task: "reference", choice: { key: "mode", value: "precise-style" } } },
+    { label: "Reference: precise composition", from: { task: "reference", choice: { key: "mode", value: "precise-composition" } } },
+    { label: "Reference: regional (two references)", from: { task: "reference", choice: { key: "mode", value: "regional" } }, note: "Left / right, top / bottom, or a painted area and the rest, through IPAdapter's attention masks" },
+    { label: "Reference: masked (painted area)", from: { task: "reference", choice: { key: "base", value: "image" } }, note: "The painted area is IPAdapter's attn_mask" },
+    { label: "Reference: multiple references", from: { task: "reference", field: "ref2" }, note: "Batched into one IPAdapter (concat or average)" },
+    { label: "Reference: tiled", from: { task: "reference", field: "tiled" } },
+    { label: "Reference + Img2Img", from: { task: "reference", choice: { key: "base", value: "image" } } },
+    { label: "Reference + Inpaint", from: { task: "reference", choice: { key: "base", value: "inpaint" } } },
+    { label: "Reference + ControlNet", from: { task: "reference", choice: { key: "c1Kind", value: "depth" } }, note: "Any control type, up to two" },
+    { label: "Identity (InstantID) + prompt", from: { task: "identity" } },
+    { label: "Identity + Img2Img", from: { task: "identity", choice: { key: "base", value: "image" } } },
+    { label: "Identity + head pose", from: { task: "identity", field: "pose" }, note: "InstantID's own image_kps input (author's posed example)" },
+    { label: "Identity + depth", from: { task: "identity", choice: { key: "c1Kind", value: "depth" } }, note: "Author's depth example: 0.65, until 0.35" },
+    { label: "Identity + canny", from: { task: "identity", choice: { key: "c1Kind", value: "canny" } } },
+    { label: "Identity + style", from: { task: "identity", choice: { key: "styleMode", value: "style transfer" } } },
+    { label: "Identity + composition", from: { task: "identity", choice: { key: "styleMode", value: "composition" } } },
+    { label: "Identity + multi-control", from: { task: "identity", field: "c2Kind" } },
+    { label: "Multi-Control (up to three ControlNets)", from: { task: "control", choice: { key: "c2Kind", value: "depth" } }, note: "Each with its own map, strength and start / end; a Union model is loaded once. Three is a UI limit: VRAM not measured (no GPU)" },
+    {
+      label: "Identity with PuLID",
+      status: "research",
+      note: "PuLID_ComfyUI's EVA-CLIP loader has no file input and downloads EVA02-CLIP-L-14-336 at first use, and facexlib downloads its parsing models too, outside ComfyUI's model folders; Wire Studio cannot detect or check them. InstantID is offered instead.",
+    },
+    {
+      label: "Identity with IPAdapter FaceID",
+      status: "research",
+      note: "Needs insightface plus a FaceID LoRA paired to each model file; InstantID covers SDXL identity with fixed, detectable files.",
+    },
+  ],
   tasks: withSceneTasks({
     generate: {
       evidence: "official",
@@ -244,11 +285,18 @@ export default {
         field.prompt({ placeholder: "Describe the new picture" }),
         field.size({ fromImage: true }),
         field.slider("strength", "Control strength", 0.1, 1.5, 0.05, 0.7),
+        field.slider("start", "Control from", 0, 0.9, 0.05, 0, { advanced: true }),
         field.slider("end", "Release control at", 0.3, 1, 0.05, 0.8, { advanced: true, hint: "Lower lets the model finish details freely" }),
         field.select("controlnet", "ControlNet", "controlnets", "", { advanced: true }),
         field.toggle("invertMap", "Invert map", false, { advanced: true, hint: "SDXL nets expect white lines on black" }),
+        // Multi-control: up to two more ControlNets, each with its own map, strength and range.
+        ...extras.controlFields([2, 3]),
         ...common,
         ...advanced,
+      ],
+      variants: [
+        ...KINDS.map((k) => ({ label: k.value, file: k.value, params: { kind: k.value } })),
+        { label: "multi", file: "multi", params: { kind: "pose", c2Kind: "depth", c2Image: "input.png", c3Kind: "canny", c3Image: "input.png" } },
       ],
       needs: (ctx) => [...baseNeeds(ctx), netNeeds(ctx, "Union ProMax covers every type"), need.node(ctx, "SetUnionControlNetType", PACKS.core, "Selects the mode of Union models", "recommended"), ...mapNeeds(ctx, ["lineart", "depth", "pose", "scribble"])],
       build(g, p, ctx) {
@@ -259,7 +307,9 @@ export default {
         Object.assign(m, prompts(g, m, p));
         const { width, height, batch } = c.outputSize(p);
         const map = c.controlMap(g, kind, c.loadImage(g, p.image, "Control image"), p, { width, height });
-        Object.assign(m, applyNet(g, m, net, kind, map, c.clamp(p.strength, 0.7, 0, 2), c.clamp(p.end, 0.8, 0.1, 1)));
+        const start = c.clamp(p.start, 0, 0, 0.9);
+        Object.assign(m, applyNet(g, m, net, kind, map, c.clamp(p.strength, 0.7, 0, 2), Math.max(start + 0.05, c.clamp(p.end, 0.8, 0.1, 1)), start));
+        extras.applyControls(g, m, p, ctx, { width, height }, [2, 3]);
         return sampleAndDecode(g, m, g.add("EmptyLatentImage", { width, height, batch_size: batch }, "Empty canvas"), p);
       },
     },
@@ -276,5 +326,7 @@ export default {
         return c.upscaleRefine(g, src, p, ctx, { ...m, sample: c.sampling(p, { ...SAMPLE, sampler: "dpmpp_2m", scheduler: "karras" }), refineSteps: 12 });
       },
     },
-  }, { redraw: redraw, baseNeeds, common, advanced, label: "SDXL" }),
+    // Image Reference (IPAdapter) and Identity Reference (InstantID): sdxl-reference.mjs.
+    ...extras.tasks,
+  }, { redraw, baseNeeds, common, advanced, label: "SDXL" }),
 };

@@ -1,0 +1,264 @@
+{
+  "1": {
+    "class_type": "CheckpointLoaderSimple",
+    "inputs": {
+      "ckpt_name": "sd_xl_base_1.0.safetensors"
+    },
+    "_meta": {
+      "title": "SDXL checkpoint"
+    }
+  },
+  "2": {
+    "class_type": "CLIPTextEncode",
+    "inputs": {
+      "text": "Describe the picture",
+      "clip": [
+        "1",
+        1
+      ]
+    },
+    "_meta": {
+      "title": "Prompt"
+    }
+  },
+  "3": {
+    "class_type": "CLIPTextEncode",
+    "inputs": {
+      "text": "lowres, worst quality, low quality, bad anatomy, bad hands, extra fingers, text, watermark, jpeg artifacts, blurry",
+      "clip": [
+        "1",
+        1
+      ]
+    },
+    "_meta": {
+      "title": "Negative prompt"
+    }
+  },
+  "4": {
+    "class_type": "IPAdapterModelLoader",
+    "inputs": {
+      "ipadapter_file": "ip-adapter-plus_sdxl_vit-h.safetensors"
+    },
+    "_meta": {
+      "title": "IPAdapter"
+    }
+  },
+  "5": {
+    "class_type": "CLIPVisionLoader",
+    "inputs": {
+      "clip_name": "CLIP-ViT-H-14-laion2B-s32B-b79K.safetensors"
+    },
+    "_meta": {
+      "title": "CLIP Vision"
+    }
+  },
+  "6": {
+    "class_type": "LoadImage",
+    "inputs": {
+      "image": "ref.png"
+    },
+    "_meta": {
+      "title": "Reference 1"
+    }
+  },
+  "7": {
+    "class_type": "LoadImage",
+    "inputs": {
+      "image": "style.png"
+    },
+    "_meta": {
+      "title": "Reference 2"
+    }
+  },
+  "8": {
+    "class_type": "SolidMask",
+    "inputs": {
+      "value": 0,
+      "width": 1024,
+      "height": 1024
+    },
+    "_meta": {
+      "title": "Empty mask"
+    }
+  },
+  "9": {
+    "class_type": "SolidMask",
+    "inputs": {
+      "value": 1,
+      "width": 512,
+      "height": 1024
+    },
+    "_meta": {
+      "title": "Left half"
+    }
+  },
+  "10": {
+    "class_type": "MaskComposite",
+    "inputs": {
+      "destination": [
+        "8",
+        0
+      ],
+      "source": [
+        "9",
+        0
+      ],
+      "x": 0,
+      "y": 0,
+      "operation": "add"
+    },
+    "_meta": {
+      "title": "Region 1"
+    }
+  },
+  "11": {
+    "class_type": "InvertMask",
+    "inputs": {
+      "mask": [
+        "10",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "Region 2"
+    }
+  },
+  "12": {
+    "class_type": "IPAdapterAdvanced",
+    "inputs": {
+      "ipadapter": [
+        "4",
+        0
+      ],
+      "clip_vision": [
+        "5",
+        0
+      ],
+      "start_at": 0,
+      "end_at": 1,
+      "embeds_scaling": "V only",
+      "combine_embeds": "concat",
+      "model": [
+        "1",
+        0
+      ],
+      "image": [
+        "6",
+        0
+      ],
+      "weight": 0.7,
+      "weight_type": "linear",
+      "attn_mask": [
+        "10",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "Reference 1 (region 1)"
+    }
+  },
+  "13": {
+    "class_type": "IPAdapterAdvanced",
+    "inputs": {
+      "ipadapter": [
+        "4",
+        0
+      ],
+      "clip_vision": [
+        "5",
+        0
+      ],
+      "start_at": 0,
+      "end_at": 1,
+      "embeds_scaling": "V only",
+      "combine_embeds": "concat",
+      "model": [
+        "12",
+        0
+      ],
+      "image": [
+        "7",
+        0
+      ],
+      "weight": 0.7,
+      "weight_type": "linear",
+      "attn_mask": [
+        "11",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "Reference 2 (region 2)"
+    }
+  },
+  "14": {
+    "class_type": "EmptyLatentImage",
+    "inputs": {
+      "width": 1024,
+      "height": 1024,
+      "batch_size": 1
+    },
+    "_meta": {
+      "title": "Empty canvas"
+    }
+  },
+  "15": {
+    "class_type": "KSampler",
+    "inputs": {
+      "model": [
+        "13",
+        0
+      ],
+      "positive": [
+        "2",
+        0
+      ],
+      "negative": [
+        "3",
+        0
+      ],
+      "latent_image": [
+        "14",
+        0
+      ],
+      "seed": 123456789,
+      "steps": 28,
+      "cfg": 6,
+      "sampler_name": "euler_ancestral",
+      "scheduler": "normal",
+      "denoise": 1
+    },
+    "_meta": {
+      "title": "Sampler"
+    }
+  },
+  "16": {
+    "class_type": "VAEDecode",
+    "inputs": {
+      "samples": [
+        "15",
+        0
+      ],
+      "vae": [
+        "1",
+        2
+      ]
+    },
+    "_meta": {
+      "title": "Decode"
+    }
+  },
+  "17": {
+    "class_type": "SaveImage",
+    "inputs": {
+      "images": [
+        "16",
+        0
+      ],
+      "filename_prefix": "WireStudio/sdxl-reference"
+    },
+    "_meta": {
+      "title": "Save image"
+    }
+  }
+}

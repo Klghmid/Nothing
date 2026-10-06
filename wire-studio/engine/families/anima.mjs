@@ -118,6 +118,11 @@ export default {
   unsupported: {
     style: "No IPAdapter or style-reference model exists for Anima, and Anima rejects area conditioning (Anima Studio live test).",
     identity: "No identity-preserving edit or reference model exists for Anima.",
+    reference: "No IPAdapter or image-reference model exists for Anima.",
+    "identity-ref": "No face-identity model exists for Anima (photo face models do not detect anime faces).",
+  },
+  missing: {
+    "multi-control": "Not built: several LLLite patches in one graph are untested.",
   },
   tasks: withSceneTasks({
     generate: {

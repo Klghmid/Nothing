@@ -16,6 +16,8 @@ export const PACKS = {
   krea2edit: { name: "comfyui-krea2edit", url: "https://github.com/lbouaraba/comfyui-krea2edit" },
   krea2unidepth: { name: "ComfyUI-Krea2-UniDepth", url: "https://github.com/cicalooo/ComfyUI-Krea2-UniDepth" },
   krea2ostris: { name: "ComfyUI-Krea2-Ostris-Edit", url: "https://github.com/ostris/ComfyUI-Krea2-Ostris-Edit" },
+  ipadapter: { name: "ComfyUI_IPAdapter_plus", url: "https://github.com/cubiq/ComfyUI_IPAdapter_plus" },
+  instantid: { name: "ComfyUI_InstantID (needs insightface + the antelopev2 face model)", url: "https://github.com/cubiq/ComfyUI_InstantID" },
   core: { name: "a newer ComfyUI (update ComfyUI)", url: "https://github.com/Comfy-Org/ComfyUI" },
 };
 
@@ -31,6 +33,7 @@ export const CORE_NODES = [
   "DifferentialDiffusion", "TextEncodeQwenImageEditPlus", "FluxKontextMultiReferenceLatentMethod",
   "LoadDA3Model", "DA3Inference", "DA3Render",
   "LoadBackgroundRemovalModel", "RemoveBackground", "InvertMask", "GrowMask", "MaskComposite", "JoinImageWithAlpha",
+  "CLIPVisionLoader", "ImageBatch", "SolidMask",
 ];
 
 export const NODE_PACK = {
@@ -64,6 +67,15 @@ export const NODE_PACK = {
   Krea2UniDepthReferenceStack: "krea2unidepth",
   Krea2OstrisEditModelPatch: "krea2ostris",
   TextEncodeKrea2OstrisEdit: "krea2ostris",
+  IPAdapterModelLoader: "ipadapter",
+  IPAdapterAdvanced: "ipadapter",
+  IPAdapterTiled: "ipadapter",
+  IPAdapterStyleComposition: "ipadapter",
+  IPAdapterPreciseStyleTransfer: "ipadapter",
+  IPAdapterPreciseComposition: "ipadapter",
+  InstantIDModelLoader: "instantid",
+  InstantIDFaceAnalysis: "instantid",
+  ApplyInstantIDAdvanced: "instantid",
 };
 export const packOf = (type) => PACKS[NODE_PACK[type] || "core"];
 
@@ -105,6 +117,8 @@ export const TASKS = {
   hands: { label: "Hand Fix", group: "Fix", icon: "hand", run: "Fix hands", about: "Find hands and redraw them at higher detail." },
   faceswap: { label: "Face Swap", group: "Fix", icon: "swap", run: "Swap face", about: "Put a face from a photo onto an image, then blend it in with this model." },
   pose: { label: "Pose", group: "Control", icon: "pose", run: "Generate in pose", about: "Make a new image that copies the pose of a reference." },
+  reference: { label: "Image Reference", group: "Create", icon: "palette", run: "Generate", about: "Use a picture's subject, style or composition (IPAdapter)." },
+  identity: { label: "Identity Reference", group: "Create", icon: "face", run: "Generate", about: "New pictures of the person in a face photo (InstantID)." },
   control: { label: "ControlNet", group: "Control", icon: "grid", run: "Generate", about: "Guide a new image with edges, line art, depth or a pose map." },
   "img2img-control": { label: "Img2Img + Control", group: "Control", icon: "layers", run: "Redraw", about: "Redraw an image while a control map keeps its structure (lines, depth, pose…)." },
   upscale: { label: "Upscale", group: "Finish", icon: "zoom", run: "Upscale", about: "Enlarge with an upscale model and optionally re-add detail." },

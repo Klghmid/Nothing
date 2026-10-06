@@ -11,7 +11,7 @@
   "2": {
     "class_type": "CLIPTextEncode",
     "inputs": {
-      "text": "Describe the new picture",
+      "text": "Describe the picture",
       "clip": [
         "1",
         1
@@ -40,63 +40,89 @@
       "image": "input.png"
     },
     "_meta": {
-      "title": "Control image"
+      "title": "Source image"
     }
   },
   "5": {
-    "class_type": "DepthAnythingV2Preprocessor",
+    "class_type": "IPAdapterModelLoader",
     "inputs": {
-      "image": [
-        "4",
-        0
-      ],
-      "resolution": 1024
+      "ipadapter_file": "ip-adapter-plus_sdxl_vit-h.safetensors"
     },
     "_meta": {
-      "title": "Make depth map"
+      "title": "IPAdapter"
     }
   },
   "6": {
-    "class_type": "ImageScale",
+    "class_type": "CLIPVisionLoader",
     "inputs": {
-      "image": [
-        "5",
-        0
-      ],
-      "upscale_method": "lanczos",
-      "width": 1024,
-      "height": 1024,
-      "crop": "center"
+      "clip_name": "CLIP-ViT-H-14-laion2B-s32B-b79K.safetensors"
     },
     "_meta": {
-      "title": "Fit map to output size"
+      "title": "CLIP Vision"
     }
   },
   "7": {
-    "class_type": "ControlNetLoader",
+    "class_type": "LoadImage",
     "inputs": {
-      "control_net_name": "controlnet-union-sdxl-1.0-promax.safetensors"
+      "image": "ref.png"
     },
     "_meta": {
-      "title": "ControlNet · Union"
+      "title": "Reference image"
     }
   },
   "8": {
-    "class_type": "SetUnionControlNetType",
+    "class_type": "IPAdapterAdvanced",
     "inputs": {
-      "control_net": [
+      "ipadapter": [
+        "5",
+        0
+      ],
+      "clip_vision": [
+        "6",
+        0
+      ],
+      "start_at": 0,
+      "end_at": 1,
+      "embeds_scaling": "V only",
+      "combine_embeds": "concat",
+      "model": [
+        "1",
+        0
+      ],
+      "image": [
         "7",
         0
       ],
-      "type": "depth"
+      "weight": 1,
+      "weight_type": "style transfer"
     },
     "_meta": {
-      "title": "Union type: depth"
+      "title": "Style only reference"
     }
   },
   "9": {
-    "class_type": "ControlNetApplyAdvanced",
+    "class_type": "VAEEncode",
     "inputs": {
+      "pixels": [
+        "4",
+        0
+      ],
+      "vae": [
+        "1",
+        2
+      ]
+    },
+    "_meta": {
+      "title": "Encode image"
+    }
+  },
+  "10": {
+    "class_type": "KSampler",
+    "inputs": {
+      "model": [
+        "8",
+        0
+      ],
       "positive": [
         "2",
         0
@@ -105,54 +131,8 @@
         "3",
         0
       ],
-      "control_net": [
-        "8",
-        0
-      ],
-      "image": [
-        "6",
-        0
-      ],
-      "strength": 0.7,
-      "start_percent": 0,
-      "end_percent": 0.8,
-      "vae": [
-        "1",
-        2
-      ]
-    },
-    "_meta": {
-      "title": "Apply depth control"
-    }
-  },
-  "10": {
-    "class_type": "EmptyLatentImage",
-    "inputs": {
-      "width": 1024,
-      "height": 1024,
-      "batch_size": 1
-    },
-    "_meta": {
-      "title": "Empty canvas"
-    }
-  },
-  "11": {
-    "class_type": "KSampler",
-    "inputs": {
-      "model": [
-        "1",
-        0
-      ],
-      "positive": [
-        "9",
-        0
-      ],
-      "negative": [
-        "9",
-        1
-      ],
       "latent_image": [
-        "10",
+        "9",
         0
       ],
       "seed": 123456789,
@@ -160,17 +140,17 @@
       "cfg": 6,
       "sampler_name": "euler_ancestral",
       "scheduler": "normal",
-      "denoise": 1
+      "denoise": 0.6
     },
     "_meta": {
       "title": "Sampler"
     }
   },
-  "12": {
+  "11": {
     "class_type": "VAEDecode",
     "inputs": {
       "samples": [
-        "11",
+        "10",
         0
       ],
       "vae": [
@@ -182,14 +162,14 @@
       "title": "Decode"
     }
   },
-  "13": {
+  "12": {
     "class_type": "SaveImage",
     "inputs": {
       "images": [
-        "12",
+        "11",
         0
       ],
-      "filename_prefix": "WireStudio/sdxl-control"
+      "filename_prefix": "WireStudio/sdxl-reference"
     },
     "_meta": {
       "title": "Save image"

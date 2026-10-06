@@ -408,3 +408,57 @@ whose outpaint has no inpaint model).
 **VRAM:** not measured (no GPU). BiRefNet runs at its own resolution; the inpaint / outpaint cost
 is that of the family's existing task.
 
+---
+
+## Phases 10–12 — SDXL Image Reference, Identity Reference, Multi-Control
+
+**Family:** SDXL only (IPAdapter and InstantID models are trained for SDXL; SD 1.5, FaceID and
+Kolors IPAdapter files are never offered). Both packs are by cubiq and in "maintenance only" mode
+since 2025-04-14; they load and validate on ComfyUI 0.38.0.
+
+### Image Reference (ComfyUI_IPAdapter_plus `a0f451a`)
+
+| Fact | Source |
+|---|---|
+| Models: `models/ipadapter/ip-adapter-plus_sdxl_vit-h.safetensors` (Plus), `ip-adapter_sdxl_vit-h.safetensors`, `ip-adapter_sdxl.safetensors` (ViT-G, **needs the bigG encoder**), `ip_plus_composition_sdxl.safetensors` (community); encoders in `models/clip_vision/`: `CLIP-ViT-H-14-laion2B-s32B-b79K.safetensors`, `CLIP-ViT-bigG-14-laion2B-39B-b160k.safetensors` (download and rename) | `README.md` |
+| Weight types: linear … `style transfer`, `composition`, `strong style transfer`, `style and composition`, `style transfer precise`, `composition precise` | `IPAdapterPlus.py` `WEIGHT_TYPES` |
+| "lower the weight to at least 0.8" | `README.md` |
+| Style + composition: `IPAdapterStyleComposition` 1.2 / 1, expand_style off, combine average | `examples/ipadapter_style_composition.json` |
+| Precise style: `IPAdapterAdvanced(style transfer precise)` or `IPAdapterPreciseStyleTransfer`; precise composition: `IPAdapterPreciseComposition` 0.8, boost 0.35, `K+mean(V) w/ C penalty` | `examples/ipadapter_precise_*.json` |
+| Tiled: `IPAdapterTiled` (whole non-square references) | `examples/ipadapter_tiled.json` |
+| Area-limited references: `attn_mask`; regions: `IPAdapterRegionalConditioning` (example) | node inputs, `examples/ipadapter_regional_conditioning.json` |
+
+Wire Studio picks Plus ViT-H, then ViT-H, then ViT-G (with bigG), and checks the matching encoder.
+*Regional* uses two `IPAdapterAdvanced` with complementary `attn_mask`s (halves via
+`SolidMask` + `MaskComposite`, or a painted area and its inverse) instead of the
+RegionalConditioning chain, which in the example needs an extra pack (`MaskFromRGBCMYBW+`) —
+**EXPERIMENTAL**. Starting from an image, inpainting with a reference, and references with
+ControlNets are Wire Studio's combinations — **EXPERIMENTAL**.
+
+### Identity Reference (ComfyUI_InstantID `72495e8`)
+
+| Fact | Source |
+|---|---|
+| `models/instantid/ip-adapter.bin` + its ControlNet (`ControlNetModel/diffusion_pytorch_model.safetensors`) + InsightFace **antelopev2** in `models/insightface/models/antelopev2` | `README.md` |
+| ApplyInstantID weight 0.8; 30 steps, CFG 4.5, ddpm / karras, 1016 × 1016 ("lower the CFG"; 1016 avoids watermarks) | `examples/InstantID_basic.json`, `README.md` |
+| The basic node = advanced node with `ip_weight = cn_strength = weight`, noise 0.35, combine average | `InstantID.py` `apply_instantid` |
+| Pose: `image_kps` from another photo | `examples/InstantID_posed.json` |
+| Extra ControlNet after InstantID: depth 0.65, end 0.35 | `examples/InstantID_depth.json` |
+| IPAdapter after InstantID for styling: 0.5, linear | `examples/InstantID_IPAdapter.json` |
+
+The antelopev2 folder is not visible through `/object_info` (the face-analysis node only lists
+providers), so Wire Studio names it in the task notes and the models guide but cannot check it.
+
+**RESEARCH_ONLY:** PuLID (`PuLID_ComfyUI` `93e0c4c`) — `PulidEvaClipLoader` has no file input
+and downloads EVA02-CLIP-L-14-336 at first use, and facexlib downloads its parsing models, outside
+ComfyUI's model folders, so they cannot be detected or checked. IPAdapter FaceID — needs
+insightface and a LoRA paired to each model file. InstantID covers SDXL identity with fixed,
+detectable files.
+
+### Multi-Control
+
+Several `ControlNetApplyAdvanced` in a chain is ordinary ComfyUI usage; each has its own
+strength and `start_percent` / `end_percent`. Wire Studio loads each ControlNet file once and gives
+every Union control its own `SetUnionControlNetType`. Three controls (one plus two extra) is a UI
+limit chosen without a GPU to measure VRAM — **EXPERIMENTAL**.
+

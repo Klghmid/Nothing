@@ -37,7 +37,10 @@ export const CAPABILITIES = [
   { id: "upscale", label: "Upscale", from: [{ task: "upscale" }] },
   { id: "tile", label: "Tile Restore", from: [{ task: "tile" }] },
   { id: "remove-bg", label: "Remove Background", tool: "remove-bg" },
-  { id: "style", label: "Style Reference", from: [{ task: "style" }, { task: "generate", field: "style1" }] },
+  { id: "style", label: "Style Reference", from: [{ task: "style" }, { task: "reference", choice: { key: "mode", value: "style" } }, { task: "generate", field: "style1" }] },
+  { id: "reference", label: "Image Reference (subject / composition)", from: [{ task: "reference" }] },
+  { id: "identity-ref", label: "Identity Reference (face ID)", from: [{ task: "identity" }] },
+  { id: "multi-control", label: "Multi-Control", from: [{ task: "control", choice: { key: "c2Kind", value: "depth" } }] },
   { id: "identity", label: "Identity Editing", from: [{ task: "edit" }] },
   { id: "object-remove", label: "Object Remove", from: [{ task: "k2-remove" }, { task: "object-remove" }] },
   { id: "object-replace", label: "Object Replace", from: [{ task: "k2-replace" }, { task: "object-replace" }] },
@@ -61,6 +64,11 @@ function provider(fam, src) {
     const choice = (choicesOf(task, "kind") || []).find?.((c) => c.value === src.kind);
     if (!choice) return null;
     return { task: src.task, kind: src.kind, status: choice.status || task.status || "ready", evidence: choice.evidence || task.evidence, verified: choice.verified || task.verified, note: choice.note || "" };
+  }
+  if (src.choice) {
+    const ch = (choicesOf(task, src.choice.key) || []).find?.((c) => c.value === src.choice.value);
+    if (!ch) return null;
+    return { task: src.task, status: ch.status || task.status || "ready", evidence: ch.evidence || task.evidence, verified: task.verified, note: ch.note || task.statusNote || "" };
   }
   if (src.field && !task.fields?.some((f) => f.key === src.field)) return null;
   return { task: src.task, status: task.status || "ready", evidence: task.evidence, verified: task.verified, note: task.statusNote || task.badgeNote || "" };

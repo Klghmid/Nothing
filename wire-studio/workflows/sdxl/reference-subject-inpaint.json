@@ -11,7 +11,7 @@
   "2": {
     "class_type": "CLIPTextEncode",
     "inputs": {
-      "text": "Describe the scenery to add (avoid repeating the subject)",
+      "text": "Describe the picture",
       "clip": [
         "1",
         1
@@ -40,50 +40,98 @@
       "image": "input.png"
     },
     "_meta": {
-      "title": "Image"
+      "title": "Source image"
     }
   },
   "5": {
-    "class_type": "ImagePadForOutpaint",
+    "class_type": "LoadImage",
     "inputs": {
-      "image": [
-        "4",
-        0
-      ],
-      "left": 0,
-      "right": 768,
-      "top": 0,
-      "bottom": 0,
-      "feathering": 48
+      "image": "mask.png"
     },
     "_meta": {
-      "title": "Extend canvas"
+      "title": "Painted mask"
     }
   },
   "6": {
-    "class_type": "INPAINT_MaskedFill",
+    "class_type": "ImageToMask",
     "inputs": {
       "image": [
         "5",
         0
       ],
-      "mask": [
-        "5",
-        1
-      ],
-      "fill": "navier-stokes",
-      "falloff": 0
+      "channel": "red"
     },
     "_meta": {
-      "title": "Pre-fill new area"
+      "title": "Mask"
     }
   },
   "7": {
+    "class_type": "IPAdapterModelLoader",
+    "inputs": {
+      "ipadapter_file": "ip-adapter-plus_sdxl_vit-h.safetensors"
+    },
+    "_meta": {
+      "title": "IPAdapter"
+    }
+  },
+  "8": {
+    "class_type": "CLIPVisionLoader",
+    "inputs": {
+      "clip_name": "CLIP-ViT-H-14-laion2B-s32B-b79K.safetensors"
+    },
+    "_meta": {
+      "title": "CLIP Vision"
+    }
+  },
+  "9": {
+    "class_type": "LoadImage",
+    "inputs": {
+      "image": "ref.png"
+    },
+    "_meta": {
+      "title": "Reference image"
+    }
+  },
+  "10": {
+    "class_type": "IPAdapterAdvanced",
+    "inputs": {
+      "ipadapter": [
+        "7",
+        0
+      ],
+      "clip_vision": [
+        "8",
+        0
+      ],
+      "start_at": 0,
+      "end_at": 1,
+      "embeds_scaling": "V only",
+      "combine_embeds": "concat",
+      "attn_mask": [
+        "6",
+        0
+      ],
+      "model": [
+        "1",
+        0
+      ],
+      "image": [
+        "9",
+        0
+      ],
+      "weight": 0.8,
+      "weight_type": "linear"
+    },
+    "_meta": {
+      "title": "Subject & look reference"
+    }
+  },
+  "11": {
     "class_type": "ThresholdMask",
     "inputs": {
       "mask": [
-        "5",
-        1
+        "6",
+        0
       ],
       "value": 0.5
     },
@@ -91,10 +139,10 @@
       "title": "Binary mask"
     }
   },
-  "8": {
+  "12": {
     "class_type": "EmptyImage",
     "inputs": {
-      "width": 1792,
+      "width": 1024,
       "height": 1024,
       "batch_size": 1,
       "color": 0
@@ -103,19 +151,19 @@
       "title": "Black fill"
     }
   },
-  "9": {
+  "13": {
     "class_type": "ImageCompositeMasked",
     "inputs": {
       "destination": [
-        "6",
+        "4",
         0
       ],
       "source": [
-        "8",
+        "12",
         0
       ],
       "mask": [
-        "7",
+        "11",
         0
       ],
       "x": 0,
@@ -126,7 +174,7 @@
       "title": "Repaint control image"
     }
   },
-  "10": {
+  "14": {
     "class_type": "ControlNetLoader",
     "inputs": {
       "control_net_name": "controlnet-union-sdxl-1.0-promax.safetensors"
@@ -135,11 +183,11 @@
       "title": "ControlNet · Union"
     }
   },
-  "11": {
+  "15": {
     "class_type": "SetUnionControlNetType",
     "inputs": {
       "control_net": [
-        "10",
+        "14",
         0
       ],
       "type": "repaint"
@@ -148,7 +196,7 @@
       "title": "Union type: repaint"
     }
   },
-  "12": {
+  "16": {
     "class_type": "ControlNetApplyAdvanced",
     "inputs": {
       "positive": [
@@ -160,11 +208,11 @@
         0
       ],
       "control_net": [
-        "11",
+        "15",
         0
       ],
       "image": [
-        "9",
+        "13",
         0
       ],
       "strength": 1,
@@ -179,11 +227,11 @@
       "title": "Apply repaint control"
     }
   },
-  "13": {
+  "17": {
     "class_type": "VAEEncode",
     "inputs": {
       "pixels": [
-        "6",
+        "4",
         0
       ],
       "vae": [
@@ -195,39 +243,39 @@
       "title": "Encode image"
     }
   },
-  "14": {
+  "18": {
     "class_type": "SetLatentNoiseMask",
     "inputs": {
       "samples": [
-        "13",
+        "17",
         0
       ],
       "mask": [
-        "5",
-        1
+        "6",
+        0
       ]
     },
     "_meta": {
       "title": "Limit to painted area"
     }
   },
-  "15": {
+  "19": {
     "class_type": "KSampler",
     "inputs": {
       "model": [
-        "1",
+        "10",
         0
       ],
       "positive": [
-        "12",
+        "16",
         0
       ],
       "negative": [
-        "12",
+        "16",
         1
       ],
       "latent_image": [
-        "14",
+        "18",
         0
       ],
       "seed": 123456789,
@@ -241,11 +289,11 @@
       "title": "Sampler"
     }
   },
-  "16": {
+  "20": {
     "class_type": "VAEDecode",
     "inputs": {
       "samples": [
-        "15",
+        "19",
         0
       ],
       "vae": [
@@ -257,20 +305,59 @@
       "title": "Decode"
     }
   },
-  "17": {
+  "21": {
+    "class_type": "MaskToImage",
+    "inputs": {
+      "mask": [
+        "6",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "Soft edge"
+    }
+  },
+  "22": {
+    "class_type": "ImageBlur",
+    "inputs": {
+      "image": [
+        "21",
+        0
+      ],
+      "blur_radius": 4,
+      "sigma": 2
+    },
+    "_meta": {
+      "title": "Soft edge blur"
+    }
+  },
+  "23": {
+    "class_type": "ImageToMask",
+    "inputs": {
+      "image": [
+        "22",
+        0
+      ],
+      "channel": "red"
+    },
+    "_meta": {
+      "title": "Soft edge mask"
+    }
+  },
+  "24": {
     "class_type": "ImageCompositeMasked",
     "inputs": {
       "destination": [
-        "6",
+        "4",
         0
       ],
       "source": [
-        "16",
+        "20",
         0
       ],
       "mask": [
-        "5",
-        1
+        "23",
+        0
       ],
       "x": 0,
       "y": 0,
@@ -280,30 +367,14 @@
       "title": "Paste result into original"
     }
   },
-  "18": {
-    "class_type": "ImageScale",
-    "inputs": {
-      "image": [
-        "17",
-        0
-      ],
-      "upscale_method": "lanczos",
-      "width": 1344,
-      "height": 768,
-      "crop": "center"
-    },
-    "_meta": {
-      "title": "Resize to the exact size"
-    }
-  },
-  "19": {
+  "25": {
     "class_type": "SaveImage",
     "inputs": {
       "images": [
-        "18",
+        "24",
         0
       ],
-      "filename_prefix": "WireStudio/sdxl-reframe"
+      "filename_prefix": "WireStudio/sdxl-reference"
     },
     "_meta": {
       "title": "Save image"

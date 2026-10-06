@@ -102,8 +102,10 @@ ComfyUI/models/
 │   ├── Z-Image-Turbo-Fun-Controlnet-Union-2.1-lite-2602-8steps.safetensors  Z-Image · Fun ControlNet Union 2.1 lite (2602) · alternative
 │   └── Z-Image-Turbo-Fun-Controlnet-Union-2.1-2601-8steps.safetensors  Z-Image · Fun ControlNet Union 2.1 (2601) · alternative
 ├── controlnet/                                           ← SDXL ControlNets
-│   └── SDXL/
-│       └── controlnet-union-sdxl-1.0-promax.safetensors  SDXL · ControlNet Union ProMax · recommended
+│   ├── SDXL/
+│   │   └── controlnet-union-sdxl-1.0-promax.safetensors  SDXL · ControlNet Union ProMax · recommended
+│   └── instantid/
+│       └── diffusion_pytorch_model.safetensors           SDXL · InstantID ControlNet · optional
 ├── upscale_models/                                       ← all families
 │   └── RealESRGAN_x4plus.safetensors                     Shared · Upscale model
 ├── ultralytics/                                          ← face / hand detectors (Impact Subpack)
@@ -112,6 +114,9 @@ ComfyUI/models/
 │       ├── hand_yolov8s.pt                               Shared · Hand detector (Impact Subpack)
 │       └── (your eyes / lips detectors, e.g. Eyes.pt)    Shared · Extra detectors
 ├── insightface/                                          ← face swap (ReActor)
+│   ├── models/
+│   │   └── antelopev2/
+│   │       └── (antelopev2 face model (folder of .onnx files))  SDXL · InsightFace antelopev2 (cannot be detected; InstantID stops with 'No face detected' or a load error without it) · optional
 │   └── inswapper_128.onnx                                Shared · Face swap model (ReActor)
 ├── facerestore_models/                                   ← face restore (ReActor)
 │   ├── codeformer-v0.1.0.pth                             Shared · Face restore (ReActor) · recommended
@@ -120,9 +125,15 @@ ComfyUI/models/
 │   └── depth_anything_3_mono_large.safetensors           Shared · Depth Anything 3 (native depth maps) · optional
 ├── background_removal/                                   ← native background removal (BiRefNet)
 │   └── birefnet.safetensors                              Shared · BiRefNet background removal (native) · optional
+├── ipadapter/                                            ← SDXL image reference (ComfyUI_IPAdapter_plus)
+│   ├── ip-adapter-plus_sdxl_vit-h.safetensors            SDXL · IPAdapter Plus (SDXL, ViT-H) · optional
+│   └── ip-adapter_sdxl_vit-h.safetensors                 SDXL · IPAdapter (SDXL, ViT-H, lighter) · alternative
+├── clip_vision/                                          ← image encoders for IPAdapter
+│   └── CLIP-ViT-H-14-laion2B-s32B-b79K.safetensors       SDXL · CLIP Vision ViT-H (for the IPAdapter ViT-H models; download model.safetensors and rename) · optional
+├── instantid/                                            ← SDXL identity reference (ComfyUI_InstantID)
+│   └── ip-adapter.bin                                    SDXL · InstantID model · optional
 ├── unet/                                                 ← older name for diffusion_models (also read)
 ├── clip/                                                 ← older name for text_encoders (also read)
-├── clip_vision/                                          ← not used by Wire Studio
 ├── embeddings/                                           ← not used by Wire Studio
 ├── style_models/                                         ← not used by Wire Studio
 ├── hypernetworks/                                        ← not used by Wire Studio
@@ -173,6 +184,12 @@ page* links go to the model's own page where a direct link could not be verified
 | *your Turbo / Lightning / Hyper / DMD2 checkpoints* | `checkpoints/SDXL/turbo/` | Checkpoints (few-step): 8 steps · CFG 1.5 preset | Your files | — |
 | *your SDXL LoRAs* | `loras/SDXL/styles/` | LoRAs (any sub-folders): Any SDXL task | Your files | — |
 | `controlnet-union-sdxl-1.0-promax.safetensors` | `controlnet/SDXL/` | ControlNet Union ProMax: Inpaint and Outpaint context, Pose, ControlNet (all types) | Recommended | [Download](https://huggingface.co/xinsir/controlnet-union-sdxl-1.0/resolve/main/diffusion_pytorch_model_promax.safetensors) |
+| `ip-adapter-plus_sdxl_vit-h.safetensors` | `ipadapter/` | IPAdapter Plus (SDXL, ViT-H): Image Reference, Identity Reference → style | Optional | [Download](https://huggingface.co/h94/IP-Adapter/resolve/main/sdxl_models/ip-adapter-plus_sdxl_vit-h.safetensors) |
+| `ip-adapter_sdxl_vit-h.safetensors` | `ipadapter/` | IPAdapter (SDXL, ViT-H, lighter): Image Reference | Alternative | [Download](https://huggingface.co/h94/IP-Adapter/resolve/main/sdxl_models/ip-adapter_sdxl_vit-h.safetensors) |
+| `CLIP-ViT-H-14-laion2B-s32B-b79K.safetensors` | `clip_vision/` | CLIP Vision ViT-H (for the IPAdapter ViT-H models; download model.safetensors and rename): Image Reference, Identity Reference → style | Optional | [Download](https://huggingface.co/h94/IP-Adapter/resolve/main/models/image_encoder/model.safetensors) |
+| `ip-adapter.bin` | `instantid/` | InstantID model: Identity Reference (with ComfyUI_InstantID) | Optional | [Download](https://huggingface.co/InstantX/InstantID/resolve/main/ip-adapter.bin) |
+| `diffusion_pytorch_model.safetensors` | `controlnet/instantid/` | InstantID ControlNet: Identity Reference | Optional | [Download](https://huggingface.co/InstantX/InstantID/resolve/main/ControlNetModel/diffusion_pytorch_model.safetensors) |
+| *antelopev2 face model (folder of .onnx files)* | `insightface/models/antelopev2/` | InsightFace antelopev2 (cannot be detected; InstantID stops with 'No face detected' or a load error without it): Identity Reference | Optional | [Project page](https://huggingface.co/MonsterMMORPG/tools/tree/main) |
 
 ### Z-Image
 
@@ -245,13 +262,18 @@ page* links go to the model's own page where a direct link could not be verified
 | `anima-preview3-base.safetensors` | `models/diffusion_models/anima/regular/` | Anima |
 | `anima-turbo-lora-v0.2.safetensors` | `models/loras/anima/` | Anima |
 | `birefnet.safetensors` | `models/background_removal/` | Shared |
+| `CLIP-ViT-H-14-laion2B-s32B-b79K.safetensors` | `models/clip_vision/` | SDXL |
 | `codeformer-v0.1.0.pth` | `models/facerestore_models/` | Shared |
 | `controlnet-union-sdxl-1.0-promax.safetensors` | `models/controlnet/SDXL/` | SDXL |
 | `depth_anything_3_mono_large.safetensors` | `models/geometry_estimation/` | Shared |
+| `diffusion_pytorch_model.safetensors` | `models/controlnet/instantid/` | SDXL |
 | `face_yolov8m.pt` | `models/ultralytics/bbox/` | Shared |
 | `GFPGANv1.4.pth` | `models/facerestore_models/` | Shared |
 | `hand_yolov8s.pt` | `models/ultralytics/bbox/` | Shared |
 | `inswapper_128.onnx` | `models/insightface/` | Shared |
+| `ip-adapter_sdxl_vit-h.safetensors` | `models/ipadapter/` | SDXL |
+| `ip-adapter-plus_sdxl_vit-h.safetensors` | `models/ipadapter/` | SDXL |
+| `ip-adapter.bin` | `models/instantid/` | SDXL |
 | `krea2_darkbrush.safetensors` | `models/loras/krea2/styles/` | Krea 2 |
 | `krea2_identity_edit_v1_2.safetensors` | `models/loras/krea2/editor/` | Krea 2 |
 | `krea2_style_reference.safetensors` | `models/loras/krea2/` | Krea 2 |

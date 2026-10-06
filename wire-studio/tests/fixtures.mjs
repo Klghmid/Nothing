@@ -47,14 +47,17 @@ export const FILES = {
   clips: ["qwen_3_06b_base.safetensors", "qwen_3_4b.safetensors", "qwen3vl_4b_fp8_scaled.safetensors", "clip_l.safetensors", "t5xxl_fp8_e4m3fn.safetensors"],
   vaes: ["qwen_image_vae.safetensors", "ae.safetensors", "sdxl_vae.safetensors"],
   patches: ["anima-lllite-inpainting-v2.safetensors", "anima-lllite-any-test-like-v2.safetensors", "anima-lllite-depth-1.safetensors", "anima-lllite-pose-1.safetensors", "Z-Image-Turbo-Fun-Controlnet-Union.safetensors", "Z-Image-Turbo-Fun-Controlnet-Union-2.1-2601-8steps.safetensors", "Z-Image-Turbo-Fun-Controlnet-Union-2.1-2602-8steps.safetensors", "Z-Image-Turbo-Fun-Controlnet-Union-2.1-lite-2602-8steps.safetensors", "Z-Image-Turbo-Fun-Controlnet-Tile-2.1-2601-8steps.safetensors"],
-  controlnets: ["SDXL/controlnet-union-sdxl-1.0-promax.safetensors", "control_v11p_sd15_openpose.pth", "sdxl/diffusers_xl_canny_full.safetensors"],
+  controlnets: ["SDXL/controlnet-union-sdxl-1.0-promax.safetensors", "control_v11p_sd15_openpose.pth", "sdxl/diffusers_xl_canny_full.safetensors", "instantid/diffusion_pytorch_model.safetensors"],
   upscalers: ["RealESRGAN_x4plus.safetensors", "4x-AnimeSharp.pth"],
   detectors: ["bbox/face_yolov8m.pt", "bbox/hand_yolov8s.pt", "bbox/Eyes.pt", "segm/person_yolov8m-seg.pt"],
   da3: ["depth_anything_3_mono_large.safetensors"],
   bgRemoval: ["birefnet.safetensors"],
+  ipadapters: ["ip-adapter-plus_sdxl_vit-h.safetensors", "ip-adapter_sdxl.safetensors", "ip-adapter-plus_sd15.safetensors", "ip-adapter-faceid-plusv2_sdxl.bin"],
+  clipVisions: ["CLIP-ViT-H-14-laion2B-s32B-b79K.safetensors", "CLIP-ViT-bigG-14-laion2B-39B-b160k.safetensors"],
+  instantid: ["ip-adapter.bin"],
   inputs: ["example.png"],
 };
-const SAMPLERS = ["euler", "euler_ancestral", "dpmpp_2m", "dpmpp_2m_sde", "res_multistep", "er_sde", "uni_pc"];
+const SAMPLERS = ["euler", "euler_ancestral", "dpmpp_2m", "dpmpp_2m_sde", "res_multistep", "er_sde", "uni_pc", "ddpm"];
 const SCHEDULERS = ["normal", "karras", "exponential", "simple", "beta", "sgm_uniform"];
 const ONOFF = ["enable", "disable"];
 
@@ -163,6 +166,19 @@ export function objectInfo(files = FILES, { without = [] } = {}) {
     GrowMask: live("GrowMask"),
     MaskComposite: live("MaskComposite"),
     JoinImageWithAlpha: live("JoinImageWithAlpha"),
+    // Image references (ComfyUI_IPAdapter_plus), InstantID and core helpers (real definitions)
+    IPAdapterModelLoader: withCombo(live("IPAdapterModelLoader"), "ipadapter_file", files.ipadapters || []),
+    CLIPVisionLoader: withCombo(live("CLIPVisionLoader"), "clip_name", files.clipVisions || []),
+    IPAdapterAdvanced: live("IPAdapterAdvanced"),
+    IPAdapterTiled: live("IPAdapterTiled"),
+    IPAdapterStyleComposition: live("IPAdapterStyleComposition"),
+    IPAdapterPreciseStyleTransfer: live("IPAdapterPreciseStyleTransfer"),
+    IPAdapterPreciseComposition: live("IPAdapterPreciseComposition"),
+    InstantIDModelLoader: withCombo(live("InstantIDModelLoader"), "instantid_file", files.instantid || []),
+    InstantIDFaceAnalysis: live("InstantIDFaceAnalysis"),
+    ApplyInstantIDAdvanced: live("ApplyInstantIDAdvanced"),
+    ImageBatch: live("ImageBatch"),
+    SolidMask: live("SolidMask"),
     // ComfyUI-RMBG
     BiRefNetRMBG: node({ image: L("IMAGE"), model: C(["BiRefNet-general", "BiRefNet-HR", "BiRefNet-portrait"]) }, { sensitivity: F(1, 0, 1), mask_blur: I(0, 0, 64), mask_offset: I(0, -20, 20), invert_output: B(false), refine_foreground: B(false), unload_model: B(false), background: C(["Alpha", "Color"]), background_color: ["COLORCODE", { default: "#222222" }] }, ["IMAGE", "MASK", "IMAGE"]),
     // comfyui-inpaint-nodes
@@ -206,7 +222,7 @@ export function objectInfo(files = FILES, { without = [] } = {}) {
   return info;
 }
 
-export const CUSTOM_NODES = ["UltralyticsDetectorProvider", "FaceDetailer", "BboxDetectorSEGS", "SegsToCombinedMask", "ReActorFaceSwap", "DWPreprocessor", "DepthAnythingV2Preprocessor", "LineArtPreprocessor", "AnimeLineArtPreprocessor", "HEDPreprocessor", "PiDiNetPreprocessor", "FakeScribblePreprocessor", "M-LSDPreprocessor", "ImageLuminanceDetector", "ImageIntensityDetector", "BiRefNetRMBG", "INPAINT_MaskedFill", "UltimateSDUpscale", "Krea2ControlLoRALoader", "Krea2ControlApply", "Krea2ControlImageEncode", "Krea2EditModelPatch", "Krea2EditGroundedEncode", "Krea2UniDepthLoRALoader", "Krea2UniDepthConditioning", "Krea2UniDepthReferenceStack", "Krea2OstrisEditModelPatch", "TextEncodeKrea2OstrisEdit"];
+export const CUSTOM_NODES = ["UltralyticsDetectorProvider", "FaceDetailer", "BboxDetectorSEGS", "SegsToCombinedMask", "ReActorFaceSwap", "DWPreprocessor", "DepthAnythingV2Preprocessor", "LineArtPreprocessor", "AnimeLineArtPreprocessor", "HEDPreprocessor", "PiDiNetPreprocessor", "FakeScribblePreprocessor", "M-LSDPreprocessor", "ImageLuminanceDetector", "ImageIntensityDetector", "BiRefNetRMBG", "INPAINT_MaskedFill", "UltimateSDUpscale", "Krea2ControlLoRALoader", "Krea2ControlApply", "Krea2ControlImageEncode", "Krea2EditModelPatch", "Krea2EditGroundedEncode", "Krea2UniDepthLoRALoader", "Krea2UniDepthConditioning", "Krea2UniDepthReferenceStack", "Krea2OstrisEditModelPatch", "TextEncodeKrea2OstrisEdit", "IPAdapterModelLoader", "IPAdapterAdvanced", "IPAdapterTiled", "IPAdapterStyleComposition", "IPAdapterPreciseStyleTransfer", "IPAdapterPreciseComposition", "InstantIDModelLoader", "InstantIDFaceAnalysis", "ApplyInstantIDAdvanced"];
 
 // Parameters that make every task buildable (image names are just strings for LoadImage).
 export function sampleParams(task) {

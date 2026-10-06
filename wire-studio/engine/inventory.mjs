@@ -56,7 +56,7 @@ export function variantOf(name) {
   return /turbo|lightning|hyper[-_ ]?sd|hyper|dmd2|(^|[^a-z])lcm([^a-z]|$)|distill/i.test(p.at(-1)) ? "turbo" : "regular";
 }
 
-const SDXL_NET_EXCLUDE = /sd15|sd1[._-]?5|v11[pfe]|control_v1|flux|qwen|z[-_]?image|anima|krea|wan|sd3/i;
+const SDXL_NET_EXCLUDE = /sd15|sd1[._-]?5|v11[pfe]|control_v1|flux|qwen|z[-_]?image|anima|krea|wan|sd3|instantid/i;
 const UNET_FAMILIES = ["anima", "zimage", "krea2"];
 const variants = (list) => Object.fromEntries(list.map((n) => [n, variantOf(n)]));
 
@@ -119,6 +119,12 @@ export function readInventory(info = {}, overrides = {}) {
         unverified: ckpts.filter((n) => classify(n, overrides) === "unknown" && !/sdpose/i.test(n)),
         loras: fam(loras, "sdxl"),
         controlnets: options(info, "ControlNetLoader", "control_net_name").filter((n) => !SDXL_NET_EXCLUDE.test(n)),
+        // Reference / identity add-ons (SDXL only): IPAdapter models (SD 1.5, FaceID and Kolors
+        // files are not offered), CLIP Vision encoders, InstantID and its own ControlNet.
+        ipadapters: options(info, "IPAdapterModelLoader", "ipadapter_file").filter((n) => /sdxl/i.test(n) && !/faceid|kolors|sd15|sd1[._-]?5/i.test(n)),
+        clipVisions: options(info, "CLIPVisionLoader", "clip_name"),
+        instantid: options(info, "InstantIDModelLoader", "instantid_file"),
+        instantidNets: options(info, "ControlNetLoader", "control_net_name").filter((n) => /instantid/i.test(n)),
       },
       zimage: {
         models: unetModels.zimage,

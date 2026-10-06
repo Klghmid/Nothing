@@ -129,6 +129,171 @@
     }
   },
   "10": {
+    "class_type": "LoadImage",
+    "inputs": {
+      "image": "input.png"
+    },
+    "_meta": {
+      "title": "Control 2 image"
+    }
+  },
+  "11": {
+    "class_type": "DepthAnythingV2Preprocessor",
+    "inputs": {
+      "image": [
+        "10",
+        0
+      ],
+      "resolution": 1024
+    },
+    "_meta": {
+      "title": "Make depth map"
+    }
+  },
+  "12": {
+    "class_type": "ImageScale",
+    "inputs": {
+      "image": [
+        "11",
+        0
+      ],
+      "upscale_method": "lanczos",
+      "width": 1024,
+      "height": 1024,
+      "crop": "center"
+    },
+    "_meta": {
+      "title": "Fit map to output size"
+    }
+  },
+  "13": {
+    "class_type": "SetUnionControlNetType",
+    "inputs": {
+      "control_net": [
+        "7",
+        0
+      ],
+      "type": "depth"
+    },
+    "_meta": {
+      "title": "Union type: depth"
+    }
+  },
+  "14": {
+    "class_type": "ControlNetApplyAdvanced",
+    "inputs": {
+      "positive": [
+        "9",
+        0
+      ],
+      "negative": [
+        "9",
+        1
+      ],
+      "control_net": [
+        "13",
+        0
+      ],
+      "image": [
+        "12",
+        0
+      ],
+      "strength": 0.6,
+      "start_percent": 0,
+      "end_percent": 0.8,
+      "vae": [
+        "1",
+        2
+      ]
+    },
+    "_meta": {
+      "title": "Apply depth control"
+    }
+  },
+  "15": {
+    "class_type": "LoadImage",
+    "inputs": {
+      "image": "input.png"
+    },
+    "_meta": {
+      "title": "Control 3 image"
+    }
+  },
+  "16": {
+    "class_type": "Canny",
+    "inputs": {
+      "image": [
+        "15",
+        0
+      ],
+      "low_threshold": 0.15,
+      "high_threshold": 0.4
+    },
+    "_meta": {
+      "title": "Make canny map"
+    }
+  },
+  "17": {
+    "class_type": "ImageScale",
+    "inputs": {
+      "image": [
+        "16",
+        0
+      ],
+      "upscale_method": "lanczos",
+      "width": 1024,
+      "height": 1024,
+      "crop": "center"
+    },
+    "_meta": {
+      "title": "Fit map to output size"
+    }
+  },
+  "18": {
+    "class_type": "SetUnionControlNetType",
+    "inputs": {
+      "control_net": [
+        "7",
+        0
+      ],
+      "type": "canny/lineart/anime_lineart/mlsd"
+    },
+    "_meta": {
+      "title": "Union type: canny"
+    }
+  },
+  "19": {
+    "class_type": "ControlNetApplyAdvanced",
+    "inputs": {
+      "positive": [
+        "14",
+        0
+      ],
+      "negative": [
+        "14",
+        1
+      ],
+      "control_net": [
+        "18",
+        0
+      ],
+      "image": [
+        "17",
+        0
+      ],
+      "strength": 0.6,
+      "start_percent": 0,
+      "end_percent": 0.8,
+      "vae": [
+        "1",
+        2
+      ]
+    },
+    "_meta": {
+      "title": "Apply canny control"
+    }
+  },
+  "20": {
     "class_type": "EmptyLatentImage",
     "inputs": {
       "width": 1024,
@@ -139,7 +304,7 @@
       "title": "Empty canvas"
     }
   },
-  "11": {
+  "21": {
     "class_type": "KSampler",
     "inputs": {
       "model": [
@@ -147,15 +312,15 @@
         0
       ],
       "positive": [
-        "9",
+        "19",
         0
       ],
       "negative": [
-        "9",
+        "19",
         1
       ],
       "latent_image": [
-        "10",
+        "20",
         0
       ],
       "seed": 123456789,
@@ -169,11 +334,11 @@
       "title": "Sampler"
     }
   },
-  "12": {
+  "22": {
     "class_type": "VAEDecode",
     "inputs": {
       "samples": [
-        "11",
+        "21",
         0
       ],
       "vae": [
@@ -185,11 +350,11 @@
       "title": "Decode"
     }
   },
-  "13": {
+  "23": {
     "class_type": "SaveImage",
     "inputs": {
       "images": [
-        "12",
+        "22",
         0
       ],
       "filename_prefix": "WireStudio/sdxl-control"

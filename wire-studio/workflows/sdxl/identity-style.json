@@ -1,0 +1,242 @@
+{
+  "1": {
+    "class_type": "CheckpointLoaderSimple",
+    "inputs": {
+      "ckpt_name": "sd_xl_base_1.0.safetensors"
+    },
+    "_meta": {
+      "title": "SDXL checkpoint"
+    }
+  },
+  "2": {
+    "class_type": "CLIPTextEncode",
+    "inputs": {
+      "text": "Describe the new picture of this person",
+      "clip": [
+        "1",
+        1
+      ]
+    },
+    "_meta": {
+      "title": "Prompt"
+    }
+  },
+  "3": {
+    "class_type": "CLIPTextEncode",
+    "inputs": {
+      "text": "lowres, worst quality, low quality, bad anatomy, bad hands, extra fingers, text, watermark, jpeg artifacts, blurry",
+      "clip": [
+        "1",
+        1
+      ]
+    },
+    "_meta": {
+      "title": "Negative prompt"
+    }
+  },
+  "4": {
+    "class_type": "InstantIDModelLoader",
+    "inputs": {
+      "instantid_file": "ip-adapter.bin"
+    },
+    "_meta": {
+      "title": "InstantID"
+    }
+  },
+  "5": {
+    "class_type": "InstantIDFaceAnalysis",
+    "inputs": {
+      "provider": "CPU"
+    },
+    "_meta": {
+      "title": "Face analysis (antelopev2)"
+    }
+  },
+  "6": {
+    "class_type": "ControlNetLoader",
+    "inputs": {
+      "control_net_name": "instantid/diffusion_pytorch_model.safetensors"
+    },
+    "_meta": {
+      "title": "InstantID ControlNet"
+    }
+  },
+  "7": {
+    "class_type": "LoadImage",
+    "inputs": {
+      "image": "face.png"
+    },
+    "_meta": {
+      "title": "Face photo"
+    }
+  },
+  "8": {
+    "class_type": "ApplyInstantIDAdvanced",
+    "inputs": {
+      "instantid": [
+        "4",
+        0
+      ],
+      "insightface": [
+        "5",
+        0
+      ],
+      "control_net": [
+        "6",
+        0
+      ],
+      "image": [
+        "7",
+        0
+      ],
+      "model": [
+        "1",
+        0
+      ],
+      "positive": [
+        "2",
+        0
+      ],
+      "negative": [
+        "3",
+        0
+      ],
+      "ip_weight": 0.8,
+      "cn_strength": 0.8,
+      "start_at": 0,
+      "end_at": 1,
+      "noise": 0.35,
+      "combine_embeds": "average"
+    },
+    "_meta": {
+      "title": "Apply InstantID"
+    }
+  },
+  "9": {
+    "class_type": "IPAdapterModelLoader",
+    "inputs": {
+      "ipadapter_file": "ip-adapter-plus_sdxl_vit-h.safetensors"
+    },
+    "_meta": {
+      "title": "IPAdapter"
+    }
+  },
+  "10": {
+    "class_type": "CLIPVisionLoader",
+    "inputs": {
+      "clip_name": "CLIP-ViT-H-14-laion2B-s32B-b79K.safetensors"
+    },
+    "_meta": {
+      "title": "CLIP Vision"
+    }
+  },
+  "11": {
+    "class_type": "LoadImage",
+    "inputs": {
+      "image": "style.png"
+    },
+    "_meta": {
+      "title": "Style image"
+    }
+  },
+  "12": {
+    "class_type": "IPAdapterAdvanced",
+    "inputs": {
+      "model": [
+        "8",
+        0
+      ],
+      "ipadapter": [
+        "9",
+        0
+      ],
+      "clip_vision": [
+        "10",
+        0
+      ],
+      "image": [
+        "11",
+        0
+      ],
+      "weight": 0.5,
+      "weight_type": "style transfer",
+      "combine_embeds": "concat",
+      "start_at": 0,
+      "end_at": 1,
+      "embeds_scaling": "V only"
+    },
+    "_meta": {
+      "title": "Style reference"
+    }
+  },
+  "13": {
+    "class_type": "EmptyLatentImage",
+    "inputs": {
+      "width": 1024,
+      "height": 1024,
+      "batch_size": 1
+    },
+    "_meta": {
+      "title": "Empty canvas"
+    }
+  },
+  "14": {
+    "class_type": "KSampler",
+    "inputs": {
+      "model": [
+        "12",
+        0
+      ],
+      "positive": [
+        "8",
+        1
+      ],
+      "negative": [
+        "8",
+        2
+      ],
+      "latent_image": [
+        "13",
+        0
+      ],
+      "seed": 123456789,
+      "steps": 30,
+      "cfg": 4.5,
+      "sampler_name": "ddpm",
+      "scheduler": "karras",
+      "denoise": 1
+    },
+    "_meta": {
+      "title": "Sampler"
+    }
+  },
+  "15": {
+    "class_type": "VAEDecode",
+    "inputs": {
+      "samples": [
+        "14",
+        0
+      ],
+      "vae": [
+        "1",
+        2
+      ]
+    },
+    "_meta": {
+      "title": "Decode"
+    }
+  },
+  "16": {
+    "class_type": "SaveImage",
+    "inputs": {
+      "images": [
+        "15",
+        0
+      ],
+      "filename_prefix": "WireStudio/sdxl-identity"
+    },
+    "_meta": {
+      "title": "Save image"
+    }
+  }
+}

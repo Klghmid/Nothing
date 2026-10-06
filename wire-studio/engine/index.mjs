@@ -58,7 +58,11 @@ export function missingReport(label, items) {
 // Nodes only one family may contain, and the CLIPLoader type each UNET family uses.
 const EXCLUSIVE = {
   anima: ["AnimaLLLiteApply"],
-  sdxl: ["CheckpointLoaderSimple", "LoraLoader", "ControlNetLoader", "ControlNetApplyAdvanced", "SetUnionControlNetType", "VAEEncodeForInpaint"],
+  sdxl: [
+    "CheckpointLoaderSimple", "LoraLoader", "ControlNetLoader", "ControlNetApplyAdvanced", "SetUnionControlNetType", "VAEEncodeForInpaint",
+    "IPAdapterModelLoader", "IPAdapterAdvanced", "IPAdapterTiled", "IPAdapterStyleComposition", "IPAdapterPreciseStyleTransfer", "IPAdapterPreciseComposition",
+    "InstantIDModelLoader", "InstantIDFaceAnalysis", "ApplyInstantID", "ApplyInstantIDAdvanced",
+  ],
   zimage: ["ModelSamplingAuraFlow", "ZImageFunControlnet", "QwenImageDiffsynthControlnet"],
   krea2: [
     "Krea2ControlLoRALoader", "Krea2ControlApply", "Krea2ControlImageEncode", "Krea2EditModelPatch", "Krea2EditGroundedEncode", "ModelSamplingFlux", "TextEncodeQwenImageEditPlus", "FluxKontextMultiReferenceLatentMethod",
@@ -86,7 +90,9 @@ export function assertFamily(family, g, inv) {
     if (t === "LoraLoader" && !own(f.loras, i.lora_name)) problems.push(`LoRA ${i.lora_name} is not an SDXL LoRA`);
     if (t === "CheckpointLoaderSimple" && !own(f.models, i.ckpt_name)) problems.push(`checkpoint ${i.ckpt_name} is not an SDXL checkpoint`);
     if (t === "ModelPatchLoader" && !own(f.patches, i.name)) problems.push(`patch ${i.name} is not a ${family} patch`);
-    if (t === "ControlNetLoader" && !own(f.controlnets, i.control_net_name)) problems.push(`ControlNet ${i.control_net_name} is not an SDXL ControlNet`);
+    if (t === "ControlNetLoader" && !own([...(f.controlnets || []), ...(f.instantidNets || [])], i.control_net_name)) problems.push(`ControlNet ${i.control_net_name} is not an SDXL ControlNet`);
+    if (t === "IPAdapterModelLoader" && !own(f.ipadapters, i.ipadapter_file)) problems.push(`IPAdapter ${i.ipadapter_file} is not an SDXL IPAdapter`);
+    if (t === "InstantIDModelLoader" && !own(f.instantid, i.instantid_file)) problems.push(`InstantID model ${i.instantid_file} is not installed`);
     if (t === "Krea2ControlLoRALoader" && !own(f.controlLoras, i.lora_name)) problems.push(`control LoRA ${i.lora_name} is not a Krea 2 control LoRA`);
   }
   if (problems.length) throw fail("Safety check stopped a mixed workflow: " + [...new Set(problems)].join("; "));

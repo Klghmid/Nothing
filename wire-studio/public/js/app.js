@@ -319,7 +319,9 @@ on("form", ({ name }) => {
   renderPanel();
   const primary = primaryField();
   if (primary && name === primary.key) (S.view[key()] ||= { jobId: null, index: 0 }).mode = "input";
-  if (["left", "right", "top", "bottom", "style1"].includes(name) || /image/i.test(name)) renderStage();
+  // The canvas depends on images, outpaint edges, and choices that show or hide an image / mask field.
+  const steersCanvas = (taskSchema().fields || []).some((f) => (f.type === "image" || f.type === "mask") && f.when && (f.when === name || f.when.key === name));
+  if (["left", "right", "top", "bottom", "style1"].includes(name) || /image/i.test(name) || steersCanvas) renderStage();
 });
 on("mask", () => renderPanel());
 on("cancel", async (id) => {

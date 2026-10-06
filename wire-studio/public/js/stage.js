@@ -2,14 +2,16 @@
 import { h, put, icon, fmtTime } from "./ui.js";
 import { viewUrl, thumb } from "./api.js";
 import { S, key, values, taskSchema, taskMeta, famSchema, jobById, isActive, emit } from "./state.js";
-import { imageSrc, withUpload, pickFile } from "./form.js";
+import { imageSrc, withUpload, pickFile, visible } from "./form.js";
 
-const primaryField = () => (taskSchema().fields || []).find((f) => f.type === "image");
+// The canvas image: the first image field shown for the current values (a "Start from" choice
+// can switch it between a reference and a source image).
+const primaryField = () => (taskSchema().fields || []).find((f) => f.type === "image" && visible(f, values()));
 // What the stage shows is derived from the task's form schema, never from task ids:
 // a mask field → mask painter; an edges field → outpaint preview; a result that redraws its
 // input (an image field, no output size or canvas change) → before/after compare.
 const hasField = (t, type) => !!(t?.fields || []).some((f) => f.type === type);
-export const hasMask = (t = taskSchema()) => hasField(t, "mask");
+export const hasMask = (t = taskSchema(), v = t === taskSchema() ? values() : {}) => (t?.fields || []).some((f) => f.type === "mask" && visible(f, v));
 const comparable = (job) => {
   const t = S.schema.families[job.family]?.tasks?.[job.task];
   return !!t?.fields && hasField(t, "image") && !hasField(t, "size") && !hasField(t, "edges") && !t.noCompare;

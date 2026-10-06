@@ -298,3 +298,37 @@ schema; browser: make a depth map from a ControlNet image, open it, use it in Co
 map switch is on and the type is Depth. Results: `npm test` 256/256 · browser checks 18/18 · live
 validator 123/123 (the map graphs per installed type are part of it).
 
+## Phases 10–12 — SDXL Image Reference, Identity Reference, Multi-Control
+
+Research: [WORKFLOW_RESEARCH.md § Phases 10–12](WORKFLOW_RESEARCH.md#phases-1012--sdxl-image-reference-identity-reference-multi-control).
+Implementation: `engine/families/sdxl-reference.mjs` (part of the SDXL family; it receives
+`sdxl.mjs`'s loaders, prompts, ControlNet helpers and masked redraw) — `applyReference()`,
+the control slots (`controlFields` / `applyControls`), the `reference` and `identity` tasks.
+`applyNet()` now takes a start point and loads each ControlNet file once per graph.
+
+| Workflow | Status | Export |
+|---|---|---|
+| Image Reference: subject / style / composition / style + composition / precise style / precise composition | READY † | `sdxl/reference-<mode>.json` |
+| Image Reference: regional, from an image (masked), inpaint, + ControlNet | EXPERIMENTAL † | `reference-regional`, `-style-img2img`, `-subject-inpaint`, `-style-controlnet` |
+| Image Reference: tiled, multiple references | READY † | `reference-subject-tiled`; any mode with a second reference |
+| Identity Reference (InstantID) + prompt, head pose, depth, general look | READY † | `sdxl/identity.json`, `-pose`, `-depth` |
+| Identity + img2img, canny / other controls, style-only / composition-only, multi-control | EXPERIMENTAL † | `identity-img2img`, `-style`, `-multi-control` |
+| ControlNet with up to two more controls (multi-control) | EXPERIMENTAL † | `sdxl/control-multi.json` |
+
+Inventory: `ipadapters` (SDXL files only), `clipVisions`, `instantid`, `instantidNets` (the InstantID
+ControlNet is kept out of the general ControlNet list). Safety check: IPAdapter / InstantID nodes
+are SDXL-only, an IPAdapter file must be an SDXL one, the InstantID ControlNet is only accepted
+next to InstantID. New model folders `ipadapter/`, `clip_vision/`, `instantid/` in the guide.
+
+UI: the canvas image is now the first image field *shown* for the current values, and the mask
+painter appears only when the mask field is shown, so "Start from: a prompt / an image / a painted
+area" switches the canvas between the reference and the source; a choice that shows or hides an
+image or mask field re-renders the stage.
+
+Tests: every reference mode's node / weight type, model and encoder pick (bigG for ViT-G),
+regions, masked reference, inpaint paste-back, refusals; InstantID defaults equal the basic node,
+author's sampling, pose, depth example values, style after InstantID, img2img, multi-control,
+refusal naming the missing ControlNet file; multi-control ranges and one loader per file; safety
+checks. Results: `npm test` 280/280 · browser checks 19/19 · live validator 141/141. Not run on a
+GPU (†); antelopev2 cannot be checked from Wire Studio.
+

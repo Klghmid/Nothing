@@ -403,6 +403,102 @@ test("Reframe: extends to an aspect ratio or exact size through the family's own
   assert.ok(types(guided).includes("Krea2ControlImageEncode"), "Krea 2 reframe keeps the outpaint depth guide");
 });
 
+test("SDXL Image Reference: IPAdapter modes, models, regions, canvas and extra controls", () => {
+  const base = { prompt: "a portrait", seed: 1, ref1: "ref.png", width: 1024, height: 1024, imageW: 832, imageH: 1216 };
+  const build = (p) => buildWorkflow("sdxl", "reference", { ...base, ...p }, ctx).prompt;
+  const subject = build({ mode: "subject" });
+  assert.equal(nodesOf(subject, "IPAdapterModelLoader")[0].inputs.ipadapter_file, "ip-adapter-plus_sdxl_vit-h.safetensors", "PLUS ViT-H picked; SD 1.5 / FaceID files never offered");
+  assert.ok(!ctx.inv.families.sdxl.ipadapters.some((n) => /sd15|faceid/.test(n)));
+  assert.equal(nodesOf(subject, "CLIPVisionLoader")[0].inputs.clip_name, "CLIP-ViT-H-14-laion2B-s32B-b79K.safetensors");
+  assert.equal(nodesOf(subject, "IPAdapterAdvanced")[0].inputs.weight_type, "linear");
+  const ks = nodesOf(subject, "KSampler")[0].inputs;
+  assert.equal(subject[ks.model[0]].class_type, "IPAdapterAdvanced");
+  const vitg = build({ mode: "subject", ipadapter: "ip-adapter_sdxl.safetensors" });
+  assert.match(nodesOf(vitg, "CLIPVisionLoader")[0].inputs.clip_name, /bigG/, "the ViT-G model gets the bigG encoder");
+  assert.equal(nodesOf(build({ mode: "style" }), "IPAdapterAdvanced")[0].inputs.weight_type, "style transfer");
+  assert.equal(nodesOf(build({ mode: "composition" }), "IPAdapterAdvanced")[0].inputs.weight_type, "composition");
+  assert.ok(types(build({ mode: "precise-style" })).includes("IPAdapterPreciseStyleTransfer"));
+  assert.equal(nodesOf(build({ mode: "precise-composition" }), "IPAdapterPreciseComposition")[0].inputs.composition_boost, 0.35, "the example's boost");
+  assert.equal(nodesOf(build({ mode: "precise-style" }), "IPAdapterPreciseStyleTransfer")[0].inputs.style_boost, 1, "the node's default boost");
+  assert.throws(() => build({ mode: "style-composition" }), /second reference/);
+  const sc = nodesOf(build({ mode: "style-composition", ref2: "comp.png" }), "IPAdapterStyleComposition")[0].inputs;
+  assert.ok(sc.image_style && sc.image_composition);
+  const two = build({ mode: "subject", ref2: "b.png" });
+  assert.equal(two[nodesOf(two, "IPAdapterAdvanced")[0].inputs.image[0]].class_type, "ImageBatch", "two references are batched");
+  assert.ok(types(build({ mode: "subject", tiled: true })).includes("IPAdapterTiled"));
+  const regional = build({ mode: "regional", ref2: "b.png" });
+  const masks = nodesOf(regional, "IPAdapterAdvanced").map((n) => n.inputs.attn_mask);
+  assert.equal(masks.length, 2);
+  assert.equal(regional[masks[1][0]].class_type, "InvertMask", "region 2 is the rest");
+  // Starting from an image: encoded source and partial denoise; a painted area limits the reference.
+  const redraw = build({ mode: "style", base: "image", image: "src.png", mask: "m.png" });
+  const rks = nodesOf(redraw, "KSampler")[0].inputs;
+  assert.equal(redraw[rks.latent_image[0]].class_type, "VAEEncode");
+  assert.equal(rks.denoise, 0.6);
+  assert.ok(nodesOf(redraw, "IPAdapterAdvanced")[0].inputs.attn_mask, "masked reference");
+  const inpaint = build({ mode: "subject", base: "inpaint", image: "src.png", mask: "m.png" });
+  assert.equal(inpaint[Object.values(inpaint).find((n) => n.class_type === "SaveImage").inputs.images[0]].class_type, "ImageCompositeMasked", "inpaint pastes back");
+  assert.throws(() => build({ mode: "subject", base: "inpaint", image: "src.png" }), /Paint the area/);
+  const controlled = build({ mode: "style", c1Kind: "depth", c1Image: "d.png", c1Strength: 0.5, c1Start: 0.1, c1End: 0.7 });
+  const apply = nodesOf(controlled, "ControlNetApplyAdvanced")[0].inputs;
+  assert.deepEqual([apply.strength, apply.start_percent, apply.end_percent], [0.5, 0.1, 0.7]);
+  assert.throws(() => build({ mode: "style", c1Kind: "depth" }), /image for control 1/);
+  const noIpa = objectInfo({ ...FILES, ipadapters: [] });
+  assert.equal(readiness({ info: noIpa, inv: readInventory(noIpa) }).sdxl.reference.state, "missing");
+});
+
+test("SDXL Identity Reference: InstantID as documented, then pose, depth, style and img2img", () => {
+  const base = { prompt: "a painting of this person", seed: 1, face: "face.png", width: 1016, height: 1016 };
+  const build = (p) => buildWorkflow("sdxl", "identity", { ...base, ...p }, ctx).prompt;
+  const id = build({});
+  const apply = nodesOf(id, "ApplyInstantIDAdvanced")[0].inputs;
+  assert.deepEqual([apply.ip_weight, apply.cn_strength, apply.noise, apply.combine_embeds], [0.8, 0.8, 0.35, "average"], "same as the basic node's defaults");
+  assert.equal(id[apply.control_net[0]].inputs.control_net_name, "instantid/diffusion_pytorch_model.safetensors");
+  assert.ok(!("image_kps" in apply));
+  const ks = nodesOf(id, "KSampler")[0].inputs;
+  assert.deepEqual([ks.steps, ks.cfg, ks.sampler_name, ks.scheduler], [30, 4.5, "ddpm", "karras"], "the author's settings");
+  for (const k of ["model", "positive", "negative"]) assert.equal(id[ks[k][0]].class_type, "ApplyInstantIDAdvanced");
+  assert.ok(nodesOf(build({ pose: "pose.png" }), "ApplyInstantIDAdvanced")[0].inputs.image_kps, "head pose from another photo");
+  const depth = build({ c1Kind: "depth", c1Image: "d.png" });
+  const cn = nodesOf(depth, "ControlNetApplyAdvanced")[0].inputs;
+  assert.deepEqual([cn.strength, cn.end_percent], [0.65, 0.35], "the author's depth example");
+  assert.equal(depth[cn.positive[0]].class_type, "ApplyInstantIDAdvanced", "extra control after InstantID");
+  const styled = build({ styleMode: "style transfer", styleImage: "s.png" });
+  const ipa = nodesOf(styled, "IPAdapterAdvanced")[0].inputs;
+  assert.equal(styled[ipa.model[0]].class_type, "ApplyInstantIDAdvanced");
+  assert.deepEqual([ipa.weight, ipa.weight_type], [0.5, "style transfer"]);
+  assert.throws(() => build({ styleMode: "style transfer" }), /style image/);
+  const redraw = build({ base: "image", image: "src.png", imageW: 832, imageH: 1216 });
+  assert.equal(redraw[nodesOf(redraw, "KSampler")[0].inputs.latent_image[0]].class_type, "VAEEncode");
+  const multi = build({ c1Kind: "depth", c1Image: "d.png", c2Kind: "canny", c2Image: "e.png" });
+  assert.equal(nodesOf(multi, "ControlNetApplyAdvanced").length, 2);
+  const noNet = objectInfo({ ...FILES, controlnets: FILES.controlnets.filter((n) => !/instantid/.test(n)) });
+  assert.throws(() => buildWorkflow("sdxl", "identity", base, { info: noNet, inv: readInventory(noNet) }), /diffusion_pytorch_model\.safetensors in models\/controlnet\/instantid/);
+  assert.ok(!ctx.inv.families.sdxl.controlnets.some((n) => /instantid/i.test(n)), "the InstantID ControlNet is not offered as a general ControlNet");
+});
+
+test("SDXL multi-control: up to three ControlNets, one loader per file, each with its own range", () => {
+  const multi = buildWorkflow("sdxl", "control", { ...sampleParams("control"), kind: "pose", start: 0.1, c2Kind: "depth", c2Image: "d.png", c2End: 0.6, c3Kind: "canny", c3Image: "e.png", c3Start: 0.2 }, ctx).prompt;
+  const applies = nodesOf(multi, "ControlNetApplyAdvanced").map((n) => n.inputs);
+  assert.equal(applies.length, 3);
+  assert.deepEqual(applies.map((a) => [a.start_percent, a.end_percent]), [[0.1, 0.8], [0, 0.6], [0.2, 0.8]]);
+  assert.equal(nodesOf(multi, "ControlNetLoader").filter((n) => /promax/.test(n.inputs.control_net_name)).length, 1, "one Union model loaded once");
+  assert.equal(nodesOf(multi, "SetUnionControlNetType").length, 2, "canny uses the dedicated SDXL canny net, the others the shared Union");
+  const single = buildWorkflow("sdxl", "control", sampleParams("control"), ctx).prompt;
+  assert.equal(nodesOf(single, "ControlNetApplyAdvanced").length, 1, "no extra controls by default");
+});
+
+test("SDXL safety check: reference and identity models only for SDXL", async () => {
+  const { assertFamily } = await import("../engine/index.mjs");
+  const { Graph } = await import("../engine/graph.mjs");
+  const g = new Graph({ family: "sdxl", info });
+  g.add("IPAdapterModelLoader", { ipadapter_file: "ip-adapter-plus_sd15.safetensors" });
+  assert.throws(() => assertFamily("sdxl", g, ctx.inv), /not an SDXL IPAdapter/);
+  const k = new Graph({ family: "krea2", info });
+  k.add("ApplyInstantIDAdvanced", {});
+  assert.throws(() => assertFamily("krea2", k, ctx.inv), /belongs to another family/);
+});
+
 test("Krea 2 Smart Edit: a second image reaches both the appearance path and the encoder", () => {
   // comfyui-krea2edit's pixel path (vae + source_image) rebuilds its source list from
   // source_image / source_image_b only, so source_latent_b alone would be silently ignored.

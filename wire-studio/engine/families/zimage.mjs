@@ -138,6 +138,9 @@ export default {
   missing: {
     style: "No style-reference model for Z-Image was found.",
     identity: "Z-Image-Edit is announced but not released.",
+    reference: "No IPAdapter-style reference model for Z-Image was found.",
+    "identity-ref": "No face-identity model for Z-Image was found.",
+    "multi-control": "Fun ControlNet Union takes one control image per call; chaining several is untested.",
   },
   tasks: withSceneTasks({
     generate: {

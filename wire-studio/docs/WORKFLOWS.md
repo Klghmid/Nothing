@@ -42,6 +42,8 @@ themselves live in code (`engine/families/*.mjs`) and as exported files (`../wor
 | Text to Image | ✓ (+ official Turbo LoRA) | ✓ | ✓ | ✓ (+ official style reference) |
 | Style Reference | — | — | — | ✓ official (1–3 references); redraw an image in the style *experimental* |
 | Image to Image | ✓ | ✓ | ✓ | ✓ |
+| Image Reference | — | ✓ IPAdapter: subject, style, composition, style + composition, precise, tiled, regional / masked (*exp.*), + img2img / inpaint / ControlNet (*exp.*) | — | style only (Style Reference) |
+| Identity Reference | — | ✓ InstantID (+ head pose, depth, IPAdapter look; img2img and other controls *exp.*) | — | use the Identity Edit suite |
 | Smart Edit (instruction) | — | — | — | ✓ add-on (Identity Edit LoRA) + 18 dedicated edit tasks |
 | Inpaint | ✓ LLLite inpaint v2 context | ✓ Union ProMax *repaint* context | ✓ Fun Union 2.x inpaint context | ✓ differential diffusion |
 | Outpaint | ✓ | ✓ | ✓ | ✓ (+ depth guide, *experimental*) |
@@ -51,7 +53,7 @@ themselves live in code (`engine/families/*.mjs`) and as exported files (`../wor
 | Hand Fix | ✓ | ✓ | ✓ | ✓ |
 | Face Swap | **not offered** | ✓ ReActor + SDXL blend | ✓ ReActor + Z-Image blend | ✓ ReActor + Krea 2 blend |
 | Pose | ✓ LLLite pose (*weak*) | ✓ OpenPose / Union | ✓ Fun Union pose | *experimental*, OpenPose Control-LoRA (+ optional start image) |
-| ControlNet | line art · canny · scribble · grayscale · any · depth | canny · line art · scribble · depth · pose | canny · HED · depth · pose · M-LSD · scribble (2.1) · gray (2602) | depth (Control-LoRA, or UniDepth with reference images — *experimental*) |
+| ControlNet | line art · canny · scribble · grayscale · any · depth | canny · line art · scribble · depth · pose (+ up to two more controls, *exp.*) | canny · HED · depth · pose · M-LSD · scribble (2.1) · gray (2602) | depth (Control-LoRA, or UniDepth with reference images — *experimental*) |
 | Img2Img + Control | line art · canny · scribble · grayscale · depth · pose (weak) | — | canny · HED · depth · pose · M-LSD · scribble · gray | depth (*experimental*) |
 | Upscale (+ detail) | ✓ | ✓ | ✓ (official 2K upscaler settings) | ✓ |
 

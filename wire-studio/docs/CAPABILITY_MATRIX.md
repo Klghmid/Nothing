@@ -42,7 +42,10 @@ real hardware in this form (Anima Studio's live tests). See
 | Upscale | READY | READY | READY | READY † |
 | Tile Restore | MISSING | MISSING | RESEARCH_ONLY | MISSING |
 | Remove Background | READY † | READY † | READY † | READY † |
-| Style Reference | UNSUPPORTED | MISSING | MISSING | READY † |
+| Style Reference | UNSUPPORTED | READY † | MISSING | READY † |
+| Image Reference (subject / composition) | UNSUPPORTED | READY † | MISSING | MISSING |
+| Identity Reference (face ID) | UNSUPPORTED | READY † | MISSING | MISSING |
+| Multi-Control | MISSING | EXPERIMENTAL † | MISSING | MISSING |
 | Identity Editing | UNSUPPORTED | MISSING | MISSING | READY † |
 | Object Remove | MISSING | MISSING | MISSING | READY † |
 | Object Replace | MISSING | MISSING | MISSING | READY † |
@@ -74,6 +77,9 @@ real hardware in this form (Anima Studio's live tests). See
   - Tile Restore: MISSING
   - Remove Background: READY — shared tool (no model family); official template / model author; graph validated, not yet run on a GPU; Native BiRefNet (official template) when its model is installed, else ComfyUI-RMBG; no model family involved
   - Style Reference: UNSUPPORTED — No IPAdapter or style-reference model exists for Anima, and Anima rejects area conditioning (Anima Studio live test).
+  - Image Reference (subject / composition): UNSUPPORTED — No IPAdapter or image-reference model exists for Anima.
+  - Identity Reference (face ID): UNSUPPORTED — No face-identity model exists for Anima (photo face models do not detect anime faces).
+  - Multi-Control: MISSING — Not built: several LLLite patches in one graph are untested.
   - Identity Editing: UNSUPPORTED — No identity-preserving edit or reference model exists for Anima.
   - Object Remove: MISSING
   - Object Replace: MISSING
@@ -101,7 +107,10 @@ real hardware in this form (Anima Studio's live tests). See
   - Upscale: READY — task `upscale`; Wire Studio composition of documented nodes; run on a GPU
   - Tile Restore: MISSING
   - Remove Background: READY — shared tool (no model family); official template / model author; graph validated, not yet run on a GPU; Native BiRefNet (official template) when its model is installed, else ComfyUI-RMBG; no model family involved
-  - Style Reference: MISSING — IPAdapter style / composition reference (roadmap).
+  - Style Reference: READY — task `reference`; community model or node pack; graph validated, not yet run on a GPU
+  - Image Reference (subject / composition): READY — task `reference`; community model or node pack; graph validated, not yet run on a GPU
+  - Identity Reference (face ID): READY — task `identity`; community model or node pack; graph validated, not yet run on a GPU
+  - Multi-Control: EXPERIMENTAL — task `control`; Wire Studio composition of documented nodes; graph validated, not yet run on a GPU
   - Identity Editing: MISSING — InstantID identity-preserving generation (roadmap).
   - Object Remove: MISSING
   - Object Replace: MISSING
@@ -130,6 +139,9 @@ real hardware in this form (Anima Studio's live tests). See
   - Tile Restore: RESEARCH_ONLY — Z-Image-Turbo-Fun-Controlnet-Tile-2.1 exists, but no official ComfyUI template or documented input preparation could be verified (see WORKFLOW_RESEARCH.md, Phase 2).
   - Remove Background: READY — shared tool (no model family); official template / model author; graph validated, not yet run on a GPU; Native BiRefNet (official template) when its model is installed, else ComfyUI-RMBG; no model family involved
   - Style Reference: MISSING — No style-reference model for Z-Image was found.
+  - Image Reference (subject / composition): MISSING — No IPAdapter-style reference model for Z-Image was found.
+  - Identity Reference (face ID): MISSING — No face-identity model for Z-Image was found.
+  - Multi-Control: MISSING — Fun ControlNet Union takes one control image per call; chaining several is untested.
   - Identity Editing: MISSING — Z-Image-Edit is announced but not released.
   - Object Remove: MISSING
   - Object Replace: MISSING
@@ -158,6 +170,9 @@ real hardware in this form (Anima Studio's live tests). See
   - Tile Restore: MISSING
   - Remove Background: READY — shared tool (no model family); official template / model author; graph validated, not yet run on a GPU; Native BiRefNet (official template) when its model is installed, else ComfyUI-RMBG; no model family involved
   - Style Reference: READY — task `style`; official template / model author; graph validated, not yet run on a GPU
+  - Image Reference (subject / composition): MISSING — Style only (Style Reference); for a person or object use the Identity Edit suite.
+  - Identity Reference (face ID): MISSING — Use the Identity Edit suite (Character Restage / Sheet / Variation) with a photo of the person.
+  - Multi-Control: MISSING — Only depth control exists (two implementations that cannot be combined); pose uses a separate path.
   - Identity Editing: READY — task `edit`; community model or node pack; graph validated, not yet run on a GPU
   - Object Remove: READY — task `k2-remove`; community model or node pack; graph validated, not yet run on a GPU
   - Object Replace: READY — task `k2-replace`; community model or node pack; graph validated, not yet run on a GPU
@@ -175,6 +190,35 @@ per family. Offered ones take their status from the task or option that runs the
 say why they are not offered (evidence in [WORKFLOW_RESEARCH.md](WORKFLOW_RESEARCH.md)).
 
 <!-- generated:combos -->
+**SDXL**
+
+| Combination | Status | How | Notes |
+|---|---|---|---|
+| Reference: subject | READY | task `reference`; community model or node pack; graph validated, not yet run on a GPU |  |
+| Reference: style | READY | task `reference`; community model or node pack; graph validated, not yet run on a GPU |  |
+| Reference: composition | READY | task `reference`; community model or node pack; graph validated, not yet run on a GPU |  |
+| Reference: style + composition | READY | task `reference`; community model or node pack; graph validated, not yet run on a GPU |  |
+| Reference: precise style | READY | task `reference`; community model or node pack; graph validated, not yet run on a GPU |  |
+| Reference: precise composition | READY | task `reference`; community model or node pack; graph validated, not yet run on a GPU |  |
+| Reference: regional (two references) | EXPERIMENTAL | task `reference`; Wire Studio composition of documented nodes; graph validated, not yet run on a GPU | Left / right, top / bottom, or a painted area and the rest, through IPAdapter's attention masks |
+| Reference: masked (painted area) | EXPERIMENTAL | task `reference`; Wire Studio composition of documented nodes; graph validated, not yet run on a GPU | The painted area is IPAdapter's attn_mask |
+| Reference: multiple references | READY | task `reference`; community model or node pack; graph validated, not yet run on a GPU | Batched into one IPAdapter (concat or average) |
+| Reference: tiled | READY | task `reference`; community model or node pack; graph validated, not yet run on a GPU |  |
+| Reference + Img2Img | EXPERIMENTAL | task `reference`; Wire Studio composition of documented nodes; graph validated, not yet run on a GPU |  |
+| Reference + Inpaint | EXPERIMENTAL | task `reference`; Wire Studio composition of documented nodes; graph validated, not yet run on a GPU |  |
+| Reference + ControlNet | EXPERIMENTAL | task `reference`; Wire Studio composition of documented nodes; graph validated, not yet run on a GPU | Any control type, up to two |
+| Identity (InstantID) + prompt | READY | task `identity`; community model or node pack; graph validated, not yet run on a GPU |  |
+| Identity + Img2Img | EXPERIMENTAL | task `identity`; Wire Studio composition of documented nodes; graph validated, not yet run on a GPU |  |
+| Identity + head pose | READY | task `identity`; community model or node pack; graph validated, not yet run on a GPU | InstantID's own image_kps input (author's posed example) |
+| Identity + depth | READY | task `identity`; community model or node pack; graph validated, not yet run on a GPU | Author's depth example: 0.65, until 0.35 |
+| Identity + canny | EXPERIMENTAL | task `identity`; Wire Studio composition of documented nodes; graph validated, not yet run on a GPU |  |
+| Identity + style | EXPERIMENTAL | task `identity`; Wire Studio composition of documented nodes; graph validated, not yet run on a GPU |  |
+| Identity + composition | EXPERIMENTAL | task `identity`; Wire Studio composition of documented nodes; graph validated, not yet run on a GPU |  |
+| Identity + multi-control | READY | task `identity`; community model or node pack; graph validated, not yet run on a GPU |  |
+| Multi-Control (up to three ControlNets) | EXPERIMENTAL | task `control`; Wire Studio composition of documented nodes; graph validated, not yet run on a GPU | Each with its own map, strength and start / end; a Union model is loaded once. Three is a UI limit: VRAM not measured (no GPU) |
+| Identity with PuLID | RESEARCH_ONLY | — | PuLID_ComfyUI's EVA-CLIP loader has no file input and downloads EVA02-CLIP-L-14-336 at first use, and facexlib downloads its parsing models too, outside ComfyUI's model folders; Wire Studio cannot detect or check them. InstantID is offered instead. |
+| Identity with IPAdapter FaceID | RESEARCH_ONLY | — | Needs insightface plus a FaceID LoRA paired to each model file; InstantID covers SDXL identity with fixed, detectable files. |
+
 **Krea 2**
 
 | Combination | Status | How | Notes |

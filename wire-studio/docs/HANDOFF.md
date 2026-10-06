@@ -31,12 +31,18 @@ verified), `docs/CAPABILITY_MATRIX.md` (generated; also the "Workflow combinatio
 | 3 | `f06f21f` | Krea 2 Identity Edit suite (19 tasks, `engine/families/krea2-edit.mjs`) |
 | 4–6 | `becd30a` | Krea 2 Style Reference task, UniDepth depth method, Img2Img + depth, depth-guided outpaint, real pose (OpenPose LoRA via Ostris Edit), combinations table |
 | 7–8 | `4d04304` | Background Replace (describe / photo / blur, edge blend) and Reframe (aspect / exact size, alignment) for every family; native BiRefNet for Remove background |
-| 9 | (this commit) | Control Map Generator UI (installed types, resolution, thresholds, invert, send to Control) |
+| 9 | `5ea6275` | Control Map Generator UI (installed types, resolution, thresholds, invert, send to Control) |
+| 10–12 | (this commit) | SDXL Image Reference (IPAdapter), Identity Reference (InstantID; PuLID research-only), multi-control (3 ControlNets) |
 
-Last full verification (Phase 9): `npm test` 256/256, browser checks 18/18
-(`npm run test:ui`), live ComfyUI 0.38.0 validator 123/123 (`npm run validate:live`).
+Last full verification (Phases 10–12): `npm test` 280/280, browser checks 19/19
+(`npm run test:ui`), live ComfyUI 0.38.0 validator 141/141 (`npm run validate:live`).
 
-## Phases 7–9 — done
+## Phases 7–12 — done
+
+Phases 10–12: `engine/families/sdxl-reference.mjs` (Image Reference, Identity Reference, control
+slots). See the Phases 10–12 sections of the research report and the audit.
+
+### Phases 7–9
 
 Phase 9 (Control Map Generator): *Make map* on Control-task image slots and *Make control map…*
 in the *Use as input* menu; installed types only, resolution, canny thresholds, invert; a map
@@ -50,16 +56,6 @@ of `WORKFLOW_RESEARCH.md` and `WORKFLOW_IMPLEMENTATION_AUDIT.md`.
 
 ## Not started
 
-- **Phases 10–12 — SDXL reference / identity / multi-control.** Research notes already in
-  `WORKFLOW_RESEARCH.md` sources (IPAdapter_plus `a0f451a`: IPAdapterModelLoader,
-  IPAdapterAdvanced weight types style transfer / composition / strong style / precise,
-  IPAdapterStyleComposition, IPAdapterPreciseStyleTransfer/Composition, IPAdapterTiled, encoder /
-  combine embeds; files ip-adapter-plus_sdxl_vit-h + CLIP-ViT-H-14-laion2B-s32B-b79K,
-  ip_plus_composition_sdxl. InstantID `72495e8`: InstantIDModelLoader, InstantIDFaceAnalysis,
-  ControlNetLoader, ApplyInstantID(weight 0.8, start, end, image_kps?, mask?) and Advanced;
-  examples 30 steps CFG 4.5 ddpm/karras; depth example adds ControlNetApplyAdvanced 0.65 / end
-  0.35; antelopev2 in insightface/models is not detectable via object_info. PuLID `93e0c4c`:
-  research only so far). SDXL only. Multi-control: independent strength / start / end per control.
 - **Phase 13 BrushNet SDXL** (only if verified), **Phase 14 automatic masking** (core SAM 3:
   `CheckpointLoaderSimple(sam3.1_multiplex_fp16)` + `SAM3_Detect` — but CheckpointLoaderSimple is
   SDXL-exclusive in `assertFamily`, so masking must be a family-free utility whose MASK result is

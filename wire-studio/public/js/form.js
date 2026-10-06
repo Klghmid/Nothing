@@ -6,7 +6,7 @@ import { S, values, setValue, famSchema, taskSchema, taskMeta, readiness, famInv
 const FALLBACK_SAMPLERS = ["euler", "euler_ancestral", "dpmpp_2m", "dpmpp_2m_sde", "res_multistep", "er_sde", "uni_pc"];
 const FALLBACK_SCHEDULERS = ["simple", "normal", "karras", "exponential", "beta", "sgm_uniform"];
 // Same rule as engine/fields.mjs shown(): a key that must be truthy, or { key, is: [values] }.
-const visible = (fld, v) => !fld.when || (typeof fld.when === "string" ? !!v[fld.when] : (fld.when.is || []).includes(v[fld.when.key]));
+export const visible = (fld, v) => !fld.when || (typeof fld.when === "string" ? !!v[fld.when] : (fld.when.is || []).includes(v[fld.when.key]));
 // A choice that names a runtime feature is offered only when the family reports it installed.
 const offered = (c) => !c.feature || !!famInventory().features?.[c.feature];
 const fmt = (n, step) => (step >= 1 ? String(Math.round(n)) : Number(n).toFixed(String(step).split(".")[1]?.length || 2));

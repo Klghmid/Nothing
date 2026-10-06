@@ -164,6 +164,32 @@ try {
     assert.equal(await page.isChecked("label.switch:has-text('already a map') input"), true, "marked as a ready map");
     assert.equal(await page.inputValue(".field:has(label:text-is('Control type')) select"), "depth");
   });
+  await check("SDXL Image Reference, Identity Reference and multi-control forms", async () => {
+    await page.click(".family:has-text('SDXL')");
+    await page.click(".task:has-text('Image Reference')");
+    await page.waitForSelector(".panel-head h1:has-text('Image Reference')");
+    const modes = await page.locator(".field:has(label:text-is('Take from the reference')) option").allTextContents();
+    assert.ok(modes.includes("Style only") && modes.includes("Two references, one per region (experimental)"), modes.join());
+    assert.equal(await page.locator(".field:has(label:has-text('Source image'))").count(), 0);
+    assert.equal(await page.locator(".field:has(label:text-is('Area'))").count(), 0, "no mask without a source image");
+    await page.selectOption(".field:has(label:text-is('Start from')) select", "inpaint");
+    assert.equal(await page.locator(".field:has(label:has-text('Source image'))").count(), 1);
+    assert.equal(await page.locator(".field:has(label:has-text('Area'))").count(), 1);
+    await page.selectOption(".field:has(label:text-is('Add a control')) select", "depth");
+    assert.equal(await page.locator(".field:has(label:has-text('Control 1 image'))").count(), 1);
+    assert.equal(await page.locator(".field:has(label:text-is('Another control'))").count(), 1);
+    await page.selectOption(".field:has(label:text-is('Start from')) select", "prompt");
+    await page.click(".task:has-text('Identity Reference')");
+    await page.waitForSelector(".panel-head h1:has-text('Identity Reference')");
+    assert.match(await page.textContent(".panel"), /antelopev2/);
+    assert.match(await page.textContent("details.advanced summary .sum"), /30 steps · CFG 4.5/, "InstantID settings");
+    await page.click(".task:has-text('ControlNet')");
+    await page.waitForSelector(".panel-head h1:has-text('ControlNet')");
+    assert.equal(await page.locator(".field:has(label:text-is('Another control'))").count(), 0);
+    await page.selectOption(".field:has(label:text-is('Add a control')) select", "depth");
+    assert.equal(await page.locator(".field:has(label:text-is('Another control'))").count(), 1, "a third control can be added");
+    await page.selectOption(".field:has(label:text-is('Add a control')) select", "none");
+  });
   await check("generate shows live progress, then the result", async () => {
     await page.click(".family:has-text('Anima')");
     await page.click(".task:has-text('Text to Image')");

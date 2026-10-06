@@ -11,7 +11,7 @@
   "2": {
     "class_type": "CLIPTextEncode",
     "inputs": {
-      "text": "Describe the new picture",
+      "text": "Describe the new picture of this person",
       "clip": [
         "1",
         1
@@ -35,68 +35,73 @@
     }
   },
   "4": {
-    "class_type": "LoadImage",
+    "class_type": "InstantIDModelLoader",
     "inputs": {
-      "image": "input.png"
+      "instantid_file": "ip-adapter.bin"
     },
     "_meta": {
-      "title": "Control image"
+      "title": "InstantID"
     }
   },
   "5": {
-    "class_type": "DepthAnythingV2Preprocessor",
+    "class_type": "InstantIDFaceAnalysis",
     "inputs": {
-      "image": [
-        "4",
-        0
-      ],
-      "resolution": 1024
+      "provider": "CPU"
     },
     "_meta": {
-      "title": "Make depth map"
+      "title": "Face analysis (antelopev2)"
     }
   },
   "6": {
-    "class_type": "ImageScale",
+    "class_type": "ControlNetLoader",
     "inputs": {
-      "image": [
-        "5",
-        0
-      ],
-      "upscale_method": "lanczos",
-      "width": 1024,
-      "height": 1024,
-      "crop": "center"
+      "control_net_name": "instantid/diffusion_pytorch_model.safetensors"
     },
     "_meta": {
-      "title": "Fit map to output size"
+      "title": "InstantID ControlNet"
     }
   },
   "7": {
-    "class_type": "ControlNetLoader",
+    "class_type": "LoadImage",
     "inputs": {
-      "control_net_name": "controlnet-union-sdxl-1.0-promax.safetensors"
+      "image": "face.png"
     },
     "_meta": {
-      "title": "ControlNet · Union"
+      "title": "Face photo"
     }
   },
   "8": {
-    "class_type": "SetUnionControlNetType",
+    "class_type": "LoadImage",
     "inputs": {
-      "control_net": [
-        "7",
-        0
-      ],
-      "type": "depth"
+      "image": "pose.png"
     },
     "_meta": {
-      "title": "Union type: depth"
+      "title": "Head pose photo"
     }
   },
   "9": {
-    "class_type": "ControlNetApplyAdvanced",
+    "class_type": "ApplyInstantIDAdvanced",
     "inputs": {
+      "instantid": [
+        "4",
+        0
+      ],
+      "insightface": [
+        "5",
+        0
+      ],
+      "control_net": [
+        "6",
+        0
+      ],
+      "image": [
+        "7",
+        0
+      ],
+      "model": [
+        "1",
+        0
+      ],
       "positive": [
         "2",
         0
@@ -105,24 +110,19 @@
         "3",
         0
       ],
-      "control_net": [
+      "ip_weight": 0.8,
+      "cn_strength": 0.8,
+      "start_at": 0,
+      "end_at": 1,
+      "noise": 0.35,
+      "combine_embeds": "average",
+      "image_kps": [
         "8",
         0
-      ],
-      "image": [
-        "6",
-        0
-      ],
-      "strength": 0.7,
-      "start_percent": 0,
-      "end_percent": 0.8,
-      "vae": [
-        "1",
-        2
       ]
     },
     "_meta": {
-      "title": "Apply depth control"
+      "title": "Apply InstantID"
     }
   },
   "10": {
@@ -140,26 +140,26 @@
     "class_type": "KSampler",
     "inputs": {
       "model": [
-        "1",
+        "9",
         0
       ],
       "positive": [
         "9",
-        0
+        1
       ],
       "negative": [
         "9",
-        1
+        2
       ],
       "latent_image": [
         "10",
         0
       ],
       "seed": 123456789,
-      "steps": 28,
-      "cfg": 6,
-      "sampler_name": "euler_ancestral",
-      "scheduler": "normal",
+      "steps": 30,
+      "cfg": 4.5,
+      "sampler_name": "ddpm",
+      "scheduler": "karras",
       "denoise": 1
     },
     "_meta": {
@@ -189,7 +189,7 @@
         "12",
         0
       ],
-      "filename_prefix": "WireStudio/sdxl-control"
+      "filename_prefix": "WireStudio/sdxl-identity"
     },
     "_meta": {
       "title": "Save image"

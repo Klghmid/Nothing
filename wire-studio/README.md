@@ -10,7 +10,7 @@ before it runs, and never mixed with another family's models.
 
 | Create | Edit | Fix | Control | Finish |
 |---|---|---|---|---|
-| Text to Image · Style Reference (Krea 2) · Image to Image | Inpaint · Outpaint · Reframe · Background Replace · Krea 2 Identity Edit suite (Smart Edit, Object Remove / Replace, Background Swap, Person / Face / Head / Eye Replace, Insert Person, Outfit, Try-On, Scene Change, Restage, Sheet, Variation, Pose Restage, Identity Inpaint / Outpaint / Reframe) | Face Fix · Hand Fix · Face Swap | Pose · ControlNet · Img2Img + Control · Control map generator | Upscale · Remove background |
+| Text to Image · Style Reference (Krea 2) · Image / Identity Reference (SDXL) · Image to Image | Inpaint · Outpaint · Reframe · Background Replace · Krea 2 Identity Edit suite (Smart Edit, Object Remove / Replace, Background Swap, Person / Face / Head / Eye Replace, Insert Person, Outfit, Try-On, Scene Change, Restage, Sheet, Variation, Pose Restage, Identity Inpaint / Outpaint / Reframe) | Face Fix · Hand Fix · Face Swap | Pose · ControlNet · Img2Img + Control · Control map generator | Upscale · Remove background |
 
 See [docs/WORKFLOWS.md](docs/WORKFLOWS.md) for what each family runs for each task and why, and
 [docs/PLAN.md](docs/PLAN.md) for the architecture and roadmap, and
@@ -66,6 +66,7 @@ Custom node packs used by some tasks (each task tells you if it needs one):
 [comfyui-inpaint-nodes](https://github.com/Acly/comfyui-inpaint-nodes) (smoother outpaint),
 [ComfyUI_UltimateSDUpscale](https://github.com/ssitu/ComfyUI_UltimateSDUpscale) (refine above 2304 px),
 [ComfyUI-RMBG](https://github.com/1038lab/ComfyUI-RMBG) (remove background),
+[ComfyUI_IPAdapter_plus](https://github.com/cubiq/ComfyUI_IPAdapter_plus) and [ComfyUI_InstantID](https://github.com/cubiq/ComfyUI_InstantID) (SDXL image / identity reference),
 [comfyui-krea2-controlnet](https://github.com/facok/comfyui-krea2-controlnet), [ComfyUI-Krea2-UniDepth](https://github.com/cicalooo/ComfyUI-Krea2-UniDepth), [ComfyUI-Krea2-Ostris-Edit](https://github.com/ostris/ComfyUI-Krea2-Ostris-Edit) and [comfyui-krea2edit](https://github.com/lbouaraba/comfyui-krea2edit) (Krea 2 add-ons: depth, depth with references, pose, identity edit).
 
 ## Using it
