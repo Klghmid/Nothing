@@ -478,6 +478,15 @@ test("readiness is green for a fully set up ComfyUI", () => {
 });
 
 test("utilities and schema", () => {
+  // Control Map Generator: long side = resolution (never upscaled), thresholds and invert passed on.
+  const small = buildUtility("map", { image: "example.png", kind: "canny", imageW: 1024, imageH: 768, resolution: 512, cannyLow: 0.2, cannyHigh: 0.6, invert: true }, ctx).prompt;
+  const fit = nodesOf(small, "ImageScale").at(-1).inputs;
+  assert.deepEqual([fit.width, fit.height], [512, 384]);
+  assert.deepEqual([nodesOf(small, "Canny")[0].inputs.low_threshold, nodesOf(small, "Canny")[0].inputs.high_threshold], [0.2, 0.6]);
+  assert.ok(types(small).includes("ImageInvert"));
+  const big = buildUtility("map", { image: "example.png", kind: "canny", imageW: 640, imageH: 480, resolution: 2048 }, ctx).prompt;
+  assert.equal(nodesOf(big, "ImageScale").at(-1).inputs.width, 640, "never upscaled");
+  assert.ok(schema().controlKinds.depth, "the UI gets the control map types");
   // Native BiRefNet (official template) when its model is installed, else ComfyUI-RMBG.
   const bg = buildUtility("remove-bg", { image: "example.png" }, ctx).prompt;
   assert.deepEqual(["LoadBackgroundRemovalModel", "RemoveBackground", "InvertMask", "JoinImageWithAlpha"].filter((t) => types(bg).includes(t)).length, 4);

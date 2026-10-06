@@ -2,7 +2,7 @@
 import { h, put, icon, fmtTime, shortName, copyText, menu } from "./ui.js";
 import { api, viewUrl, thumb } from "./api.js";
 import { S, taskMeta, isActive, emit, upsertJob } from "./state.js";
-import { needList, foundFiles } from "./form.js";
+import { needList, foundFiles, imageSrc } from "./form.js";
 
 const overlay = () => document.getElementById("overlay");
 export function closeOverlay() {
@@ -365,11 +365,56 @@ export function renderQueue() {
   );
 }
 
+// ---------- control map generator ----------
+// Make a control map from an image with an installed preprocessor (canny is native, always there).
+// The map runs as a family-free tool job; its result opens in the viewer, and "Use as input" on it
+// hands it to a Control task as a ready-made map.
+const MAP_DEFAULTS = { kind: "canny", resolution: 1536, cannyLow: 0.15, cannyHigh: 0.4, invert: false };
+export function mapTool(img, { kind } = {}, onRun) {
+  const installed = Object.entries(S.schema.controlKinds || {}).filter(([k]) => k === "canny" || S.inventory?.preprocessors?.[k]);
+  const longSide = Math.max(img.w || 0, img.h || 0) || 1536;
+  const v = { ...MAP_DEFAULTS, kind: installed.some(([k]) => k === kind) ? kind : "canny", resolution: Math.min(1536, Math.max(256, Math.round(longSide / 64) * 64)) };
+  const slider = (key, label, min, max, step, fmt = (x) => String(x)) => {
+    const out = h("span", { class: "value" }, fmt(v[key]));
+    const range = h("input", { type: "range", min, max, step, value: v[key], "aria-label": label, oninput: (e) => ((v[key] = Number(e.target.value)), (out.textContent = fmt(v[key]))) });
+    return h("div", { class: "field" }, h("label", {}, label, out), range);
+  };
+  const canny = h("div", { class: "map-canny" }, slider("cannyLow", "Low threshold", 0.01, 0.99, 0.01), slider("cannyHigh", "High threshold", 0.01, 0.99, 0.01));
+  canny.hidden = v.kind !== "canny";
+  const select = h(
+    "select",
+    { "aria-label": "Map type", onchange: (e) => ((v.kind = e.target.value), (canny.hidden = v.kind !== "canny")) },
+    installed.map(([k, label]) => h("option", { value: k, selected: k === v.kind }, label)),
+  );
+  const missing = Object.entries(S.schema.controlKinds || {}).filter(([k]) => !installed.some(([x]) => x === k)).map(([, label]) => label);
+  const el = sheet(
+    "Make a control map",
+    null,
+    h(
+      "div",
+      { class: "card map-tool" },
+      h("div", { class: "map-src", style: { backgroundImage: `url("${imageSrc(img, "webp;70")}")` } }),
+      h(
+        "div",
+        { class: "map-form" },
+        h("div", { class: "field" }, h("label", {}, "Map type"), select),
+        missing.length ? h("div", { class: "hint" }, `Not installed: ${missing.join(", ")} (comfyui_controlnet_aux, or the native Depth Anything 3 model). Setup lists what each needs.`) : null,
+        slider("resolution", "Resolution (long side)", 256, 2048, 64, (x) => `${Math.min(x, longSide)} px`),
+        canny,
+        h("label", { class: "switch" }, h("span", { class: "text" }, "Invert (black lines on white)"), h("input", { type: "checkbox", onchange: (e) => (v.invert = e.target.checked) })),
+        h("button", { class: "btn primary", onclick: () => (closeOverlay(), onRun({ ...v })) }, icon("play"), "Make map"),
+        h("div", { class: "hint" }, "The map opens when it is ready. Use as input → a Control task takes it as a ready-made map."),
+      ),
+    ),
+  );
+  el.classList.add("compact");
+}
+
 export function useAsMenu(anchor, job, index, onChoose) {
   const fam = S.schema.families[job.family] || S.schema.families[S.family];
   const famId = S.schema.families[job.family] ? job.family : S.family;
   const targets = Object.entries(fam.tasks)
     .filter(([, t]) => !t.unavailable && t.fields.some((f) => f.type === "image"))
     .map(([taskId]) => ({ label: taskLabel(taskId), icon: taskMeta(taskId).icon, onClick: () => onChoose({ family: famId, task: taskId, job, index }) }));
-  menu(anchor, [{ head: `${fam.label} tasks` }, ...targets, "-", { label: "Remove background", icon: "scissors", onClick: () => onChoose({ utility: "remove-bg", job, index }) }]);
+  menu(anchor, [{ head: `${fam.label} tasks` }, ...targets, "-", { label: "Remove background", icon: "scissors", onClick: () => onChoose({ utility: "remove-bg", job, index }) }, { label: "Make control map…", icon: "grid", onClick: () => onChoose({ utility: "map-tool", job, index }) }]);
 }

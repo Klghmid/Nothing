@@ -97,6 +97,8 @@ const R = {
           { class: "actions" },
           h("button", { class: "btn small", onclick: async () => withUpload(fld.key, await pickFile()) }, icon("upload"), img ? "Replace" : "Upload"),
           h("button", { class: "btn small", onclick: () => emit("pick-image", { field: fld.key }) }, icon("gallery"), "From results"),
+          // Control tasks: preview / make the control map of this image (Control Map Generator).
+          img && taskMeta()?.group === "Control" ? h("button", { class: "btn small", onclick: () => emit("map-tool", { img, kind: v.kind }) }, icon("grid"), "Make map") : null,
         ),
       ),
       img ? h("button", { class: "icon-btn small remove", "aria-label": "Remove image", title: "Remove image", onclick: () => setImage(fld.key, null) }, icon("x")) : null,

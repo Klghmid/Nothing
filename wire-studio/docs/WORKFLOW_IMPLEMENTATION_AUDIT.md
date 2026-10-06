@@ -276,3 +276,25 @@ refusal, same shape only resized, Krea 2 depth guide kept; Remove background nat
 purity test covers every variant. Results: `npm test` 256/256 · browser checks 17/17 · live
 ComfyUI validator 123/123. Not run on a GPU (†).
 
+## Phase 9 — Control Map Generator
+
+The family-free map tool (`buildUtility("map")`, `engine/index.mjs`) already built a map with the
+first installed preprocessor for each type (`PREPROCESSORS`, `engine/common.mjs`: native Canny and
+Depth Anything 3 first, then comfyui_controlnet_aux). Phase 9 adds the UI and parameters:
+
+- **Where:** a *Make map* button on image slots of every Control task, and *Make control map…* in
+  the *Use as input* menu of any result.
+- **Dialog** (`mapTool`, `public/js/views.js`): only installed types are offered (canny always;
+  the others from the inventory's `preprocessors`), with the missing ones named; resolution of the
+  long side (256–2048, never upscaled — it also sets the detection resolution); canny thresholds;
+  invert. The map runs as a tool job, appears in history and opens in the viewer (save / download
+  from there).
+- **Send to Control:** *Use as input* on a map result puts it into the task's separate control
+  image when it has one (else its image), ticks *already a map* (or *pose skeleton* for a pose
+  map on Krea 2) and selects the map's type when the task offers it.
+
+Tests: map long side, no upscaling, thresholds and invert reach the graph, `controlKinds` in the
+schema; browser: make a depth map from a ControlNet image, open it, use it in ControlNet → the
+map switch is on and the type is Depth. Results: `npm test` 256/256 · browser checks 18/18 · live
+validator 123/123 (the map graphs per installed type are part of it).
+

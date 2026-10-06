@@ -125,8 +125,10 @@ export function buildUtility(kind, p, ctx) {
   let image;
   if (kind === "remove-bg") image = cutOut(g, src);
   else if (kind === "map") {
+    // Control Map Generator: the map's long side is `resolution` (never upscaled), which also sets
+    // the preprocessor's detection resolution; canny thresholds and invert come from `p`.
     const { w, h } = c.sourceSize(p);
-    const k = Math.min(1, 1536 / Math.max(w, h));
+    const k = Math.min(1, c.int(p.resolution, 1536, 256, 2048) / Math.max(w, h));
     image = c.controlMap(g, String(p.kind || "canny"), src, { ...p, isMap: false }, { width: c.round(w * k, 16), height: c.round(h * k, 16), invert: !!p.invert });
   } else throw Object.assign(new Error("Unknown utility"), { status: 400 });
   g.add("SaveImage", { images: image, filename_prefix: `WireStudio/utility-${kind}` }, "Save image");
@@ -190,5 +192,5 @@ export function schema() {
       ),
     };
   }
-  return { families, tasks: TASKS, groups: TASK_GROUPS, aspects: ASPECTS, order: FAMILY_IDS };
+  return { families, tasks: TASKS, groups: TASK_GROUPS, aspects: ASPECTS, order: FAMILY_IDS, controlKinds: CONTROL_KINDS };
 }

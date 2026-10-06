@@ -4,7 +4,7 @@ import { api, viewUrl } from "./api.js";
 import { S, key, values, setValue, famSchema, taskSchema, taskMeta, readiness, on, upsertJob, jobById, isActive } from "./state.js";
 import { renderPanel, imageFromFile, setImage, pickFile, withUpload } from "./form.js";
 import { renderStage, focusJob, updateProgress, updatePreview, maskHasPaint, exportMask, undoMask, primaryField, hasMask } from "./stage.js";
-import { lightbox, gallery, setup, renderQueue, pickResult, closeOverlay, useAsMenu, invalidateGallery, flatten } from "./views.js";
+import { lightbox, gallery, setup, renderQueue, pickResult, closeOverlay, useAsMenu, invalidateGallery, flatten, mapTool } from "./views.js";
 
 const mine = new Set(); // jobs started from this tab (toast + auto-show when finished)
 
@@ -174,11 +174,16 @@ async function promote(image) {
 async function useAs({ family, task, utility, job, index }) {
   try {
     const image = job.images[index || 0];
+    if (utility === "map-tool") return openMapTool(await promote(image));
     if (utility) return runUtility(utility, await promote(image));
     const img = await promote(image);
-    const fld = (S.schema.families[family].tasks[task].fields || []).find((f) => f.type === "image");
+    const fields = S.schema.families[family].tasks[task].fields || [];
+    // A control map goes to the task's separate control image when it has one, marked as a map.
+    const isMapJob = job.family === "utility" && job.task === "map";
+    const fld = (isMapJob && fields.find((f) => f.type === "image" && f.key === "control")) || fields.find((f) => f.type === "image");
     document.querySelector(".lightbox")?.remove();
     await setImage(fld.key, img, { f: family, t: task });
+    if (isMapJob) markAsMap(family, task, fields, job.params || {});
     S.view[`${family}/${task}`] = { jobId: null, index: 0, mode: "input" };
     goto({ family, task });
     toast(`Image added to ${taskMeta(task).label}`, "ok", 2000);
@@ -186,14 +191,25 @@ async function useAs({ family, task, utility, job, index }) {
     toast(e.message, "bad");
   }
 }
-async function runUtility(kind, img) {
+// A ready-made map: tick the task's "already a map / skeleton" switch and pick the map's type.
+function markAsMap(family, task, fields, p) {
+  const at = { f: family, t: task };
+  if (fields.some((f) => f.key === "isMap")) setValue("isMap", true, at);
+  if (p.kind === "pose" && fields.some((f) => f.key === "isSkeleton")) setValue("isSkeleton", true, at);
+  const kind = fields.find((f) => f.key === "kind");
+  if (kind && Array.isArray(kind.choices) && kind.choices.some((c) => c.value === p.kind)) setValue("kind", p.kind, at);
+}
+function openMapTool(img, opts = {}) {
+  mapTool(img, opts, (params) => runUtility("map", img, params));
+}
+async function runUtility(kind, img, extra = {}) {
   try {
-    const { job } = await api.run("utility", kind, { image: img.name, imageW: img.w, imageH: img.h });
+    const { job } = await api.run("utility", kind, { image: img.name, imageW: img.w, imageH: img.h, ...extra });
     mine.add(job.id);
     upsertJob(job);
     renderTopbar();
     renderQueue();
-    toast("Removing background… the result opens when it is ready", "", 3000);
+    toast(kind === "map" ? "Making the control map… it opens when it is ready" : "Removing background… the result opens when it is ready", "", 3000);
   } catch (e) {
     toast(e.message, "bad", 7000);
   }
@@ -338,6 +354,7 @@ on("pick-image", ({ field }) =>
     }
   }),
 );
+on("map-tool", ({ img, kind }) => openMapTool(img, { kind }));
 on("open-setup", (focus) => setup(focus));
 on("theme", () => {
   applyTheme(document.documentElement.dataset.theme === "light" ? "dark" : "light");

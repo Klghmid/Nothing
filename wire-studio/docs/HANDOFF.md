@@ -30,12 +30,19 @@ verified), `docs/CAPABILITY_MATRIX.md` (generated; also the "Workflow combinatio
 | 2 | `3305136` | Z-Image Fun ControlNet Union 2.1 (2602) modes, Lite, combined control + inpaint |
 | 3 | `f06f21f` | Krea 2 Identity Edit suite (19 tasks, `engine/families/krea2-edit.mjs`) |
 | 4–6 | `becd30a` | Krea 2 Style Reference task, UniDepth depth method, Img2Img + depth, depth-guided outpaint, real pose (OpenPose LoRA via Ostris Edit), combinations table |
-| 7–8 | (this commit) | Background Replace (describe / photo / blur, edge blend) and Reframe (aspect / exact size, alignment) for every family; native BiRefNet for Remove background |
+| 7–8 | `4d04304` | Background Replace (describe / photo / blur, edge blend) and Reframe (aspect / exact size, alignment) for every family; native BiRefNet for Remove background |
+| 9 | (this commit) | Control Map Generator UI (installed types, resolution, thresholds, invert, send to Control) |
 
-Last full verification (Phases 7–8): `npm test` 256/256, browser checks 17/17
+Last full verification (Phase 9): `npm test` 256/256, browser checks 18/18
 (`npm run test:ui`), live ComfyUI 0.38.0 validator 123/123 (`npm run validate:live`).
 
-## Phases 7–8 — done
+## Phases 7–9 — done
+
+Phase 9 (Control Map Generator): *Make map* on Control-task image slots and *Make control map…*
+in the *Use as input* menu; installed types only, resolution, canny thresholds, invert; a map
+result used as input is marked as a ready map. See the Phase 9 section of the audit.
+
+### Phases 7–8
 
 Background Replace and Reframe are wired into all four families (`engine/scene.mjs` + one
 `redraw()` per family); Remove background prefers native BiRefNet. See the Phases 7–8 sections
@@ -43,12 +50,6 @@ of `WORKFLOW_RESEARCH.md` and `WORKFLOW_IMPLEMENTATION_AUDIT.md`.
 
 ## Not started
 
-- **Phase 9 — Control Map Generator.** The engine has `buildUtility("map")` (`engine/index.mjs`)
-  and `utilityCases()`; no UI exposes it. Needed: a UI entry (e.g. "Make control map ▸ kind" in
-  the use-as menu and a "Preview map" button under control images), only installed preprocessors
-  (`S.inventory.preprocessors`), parameters (resolution, canny thresholds, invert), and "send to
-  Control" (set the image + `isMap: true` on the chosen control task). Kinds: canny, depth, pose,
-  lineart, scribble, HED, MLSD, gray (`PREPROCESSORS` in `engine/common.mjs`).
 - **Phases 10–12 — SDXL reference / identity / multi-control.** Research notes already in
   `WORKFLOW_RESEARCH.md` sources (IPAdapter_plus `a0f451a`: IPAdapterModelLoader,
   IPAdapterAdvanced weight types style transfer / composition / strong style / precise,

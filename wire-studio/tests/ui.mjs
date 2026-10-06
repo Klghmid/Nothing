@@ -141,6 +141,29 @@ try {
     assert.equal(await page.locator(".field:has(label:text-is('Aspect ratio'))").count(), 0);
     assert.equal(await page.locator(".field:has(label:has-text('Size'))").count(), 1);
   });
+  await check("Control Map Generator: make a map, then use it in ControlNet as a ready map", async () => {
+    await page.click(".family:has-text('SDXL')");
+    await page.click(".task:has-text('ControlNet')");
+    await page.waitForSelector(".panel-head h1:has-text('ControlNet')");
+    const [chooser] = await Promise.all([page.waitForEvent("filechooser"), page.click(".slot button:has-text('Upload')")]);
+    await chooser.setFiles(portrait);
+    await page.waitForSelector(".slot.filled");
+    await page.click(".slot button:has-text('Make map')");
+    await page.waitForSelector(".sheet[aria-label='Make a control map']");
+    const kinds = await page.locator(".map-tool select option").allTextContents();
+    assert.ok(kinds.includes("Canny edges") && kinds.includes("Depth") && kinds.includes("Pose (skeleton)"), kinds.join());
+    assert.equal(await page.isVisible(".map-canny"), true);
+    await shot("map-tool");
+    await page.selectOption(".map-tool select", "depth");
+    assert.equal(await page.isVisible(".map-canny"), false, "thresholds only for canny");
+    await page.click(".map-tool button:has-text('Make map')");
+    await page.waitForSelector(".lightbox .bar-top:has-text('Control map')", { timeout: 20000 });
+    await page.click(".lightbox button:has-text('Use as input')");
+    await page.click(".menu button:has-text('ControlNet')");
+    await page.waitForSelector(".panel-head h1:has-text('ControlNet')");
+    assert.equal(await page.isChecked("label.switch:has-text('already a map') input"), true, "marked as a ready map");
+    assert.equal(await page.inputValue(".field:has(label:text-is('Control type')) select"), "depth");
+  });
   await check("generate shows live progress, then the result", async () => {
     await page.click(".family:has-text('Anima')");
     await page.click(".task:has-text('Text to Image')");

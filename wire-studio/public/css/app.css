@@ -406,3 +406,11 @@ label.check input { width: auto; margin: 0; }
   .row4 { grid-template-columns: repeat(2, 1fr); }
 }
 @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+
+/* Control map generator */
+.sheet.compact { width: min(880px, calc(100vw - 32px)); align-self: start; }
+.map-tool { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 18px; }
+.map-src { min-height: 260px; border-radius: 12px; background: var(--panel-2, #111) center / contain no-repeat; }
+.map-form { display: grid; gap: 12px; align-content: start; }
+@media (max-width: 720px) { .map-tool { grid-template-columns: minmax(0, 1fr); } .map-src { min-height: 180px; } }
+
