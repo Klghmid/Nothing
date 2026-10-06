@@ -30,55 +30,16 @@ verified), `docs/CAPABILITY_MATRIX.md` (generated; also the "Workflow combinatio
 | 2 | `3305136` | Z-Image Fun ControlNet Union 2.1 (2602) modes, Lite, combined control + inpaint |
 | 3 | `f06f21f` | Krea 2 Identity Edit suite (19 tasks, `engine/families/krea2-edit.mjs`) |
 | 4–6 | `becd30a` | Krea 2 Style Reference task, UniDepth depth method, Img2Img + depth, depth-guided outpaint, real pose (OpenPose LoRA via Ostris Edit), combinations table |
+| 7–8 | (this commit) | Background Replace (describe / photo / blur, edge blend) and Reframe (aspect / exact size, alignment) for every family; native BiRefNet for Remove background |
 
-Last full verification (at `becd30a`): `npm test` 225/225, browser checks 16/16
-(`npm run test:ui`), live ComfyUI 0.38.0 validator 102/102 (`npm run validate:live`).
+Last full verification (Phases 7–8): `npm test` 256/256, browser checks 17/17
+(`npm run test:ui`), live ComfyUI 0.38.0 validator 123/123 (`npm run validate:live`).
 
-## In progress: Phases 7–8 (committed as scaffolding, NOT wired yet)
+## Phases 7–8 — done
 
-Already in the tree:
-- `engine/scene.mjs` — **written, not imported anywhere yet.** Family-free orchestration:
-  `subjectMask()` (native BiRefNet `LoadBackgroundRemovalModel → RemoveBackground` first, as the
-  official template `utility_birefnet_remove_background`; else ComfyUI-RMBG `BiRefNetRMBG`/`RMBG`
-  output 1), `cutOut()` (template's `InvertMask → JoinImageWithAlpha`), `subjectNeeds()`,
-  `sceneTasks({ redraw, outpaint, baseNeeds, common, advanced, inpaintNeeds, label })` returning a
-  `reframe` task (aspect or exact size + alignment → `c.reframeEdges` → the family's own
-  `outpaint.build`, then scale for exact size; inherits outpaint fields such as Krea's depth
-  guide) and a `bg-replace` task (modes prompt / image / blur; mask expand via `GrowMask`, feather
-  via MaskToImage → ImageBlur → ImageToMask; edge-band cleanup = `MaskComposite(subtract)` of the
-  grown and shrunk background mask, redrawn at low denoise with the family's redraw), and
-  `withSceneTasks(tasks, kit)` that inserts both after `outpaint`.
-- `engine/catalog.mjs`: TASKS `reframe` and `bg-replace` (group Edit); CORE_NODES now include
-  `LoadBackgroundRemovalModel, RemoveBackground, InvertMask, GrowMask, MaskComposite, JoinImageWithAlpha`.
-- `engine/model-list.mjs`: `birefnet` (models/background_removal/birefnet.safetensors, Comfy-Org/BiRefNet);
-  folder registered in `engine/suggested.mjs`, `scripts/build-model-guide.mjs`, `tests/docs.test.mjs`,
-  fixture files `bgRemoval` and fixture nodes `LoadBackgroundRemovalModel` / `RemoveBackground`.
-- `engine/capabilities.mjs` rows `background` and `reframe` already point at tasks `bg-replace`
-  and `reframe`.
-
-Remaining steps for Phases 7–8:
-1. In each family module add a `redraw(g, p, ctx, src, mask, denoise)` that returns the redrawn
-   image *before* paste-back, using that family's own inpaint method:
-   - Anima: loaders + prompts, LLLite inpainting-v2 patch with the mask (as `tasks.inpaint`),
-     `SetLatentNoiseMask`, `sampleAndDecode`. Make `tasks.inpaint.build` call it (one implementation).
-   - SDXL: loaders + prompts → existing `maskedRedraw(g, m, p, ctx, src, mask, {width,height}, denoise)`.
-   - Z-Image: loaders + prompts → existing `maskedRedraw(g, m, p, ctx, src, mask, denoise, null)`.
-   - Krea 2: loaders + prompts → existing `maskedRedraw(g, m, src, mask, denoise)`.
-   Then wrap each family's `tasks` with `withSceneTasks(tasks, { redraw, baseNeeds, common, advanced, inpaintNeeds, label })`.
-2. Switch the Remove-background utility (`buildUtility` in `engine/index.mjs`, readiness
-   `result.utility["remove-bg"]`, `TOOLS["remove-bg"]` note) to `cutOut()` so the native model is
-   preferred when installed.
-3. Add Krea combination "Depth-guided reframe" → `{ task: "reframe", choice: { key: "guide", value: "depth" } }`.
-4. Refresh the snapshot (`npm run validate:live -- --snapshot`), then replace the hand-written
-   fixture nodes with `live("…")` for the new core mask nodes (GrowMask, InvertMask, MaskComposite,
-   JoinImageWithAlpha) — `objectInfo()` in `tests/fixtures.mjs` must contain every node a graph uses.
-5. Tests: per family bg-replace (prompt mode samples only the background mask; image/blur modes
-   composite + band; subject pixels never redrawn), reframe (edges from aspect, exact size scales,
-   "already that shape" refusal, Krea depth guide passes through), native vs RMBG subject mask.
-6. `npm run docs`, `npm run export-workflows`, live validation, browser checks, research section
-   "Phases 7–8" (official BiRefNet template facts: foreground mask, inverted for
-   JoinImageWithAlpha, `birefnet.safetensors` 423.9 MB in `models/background_removal/`), audit
-   section, commit "Phases 7–8".
+Background Replace and Reframe are wired into all four families (`engine/scene.mjs` + one
+`redraw()` per family); Remove background prefers native BiRefNet. See the Phases 7–8 sections
+of `WORKFLOW_RESEARCH.md` and `WORKFLOW_IMPLEMENTATION_AUDIT.md`.
 
 ## Not started
 

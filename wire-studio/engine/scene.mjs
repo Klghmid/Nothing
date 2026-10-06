@@ -53,13 +53,19 @@ const BG_MODES = [
 ];
 const isMode = (...modes) => ({ key: "bgMode", is: modes });
 
+// Needs listed once each (several lists name the same model).
+const unique = (items) => {
+  const seen = new Set();
+  return items.filter((n) => n && !seen.has(n.kind + n.label) && seen.add(n.kind + n.label));
+};
+
 // `redraw(g, p, ctx, image, mask, denoise)` is the family's own masked redraw (its inpaint method,
-// returning the redrawn image before paste-back); `outpaint` is the family's Outpaint task.
-export function sceneTasks({ redraw, outpaint, baseNeeds, common = [], advanced = [], inpaintNeeds = () => [], label }) {
+// returning the redrawn image before paste-back); `outpaint` / `inpaint` are the family's tasks.
+// `reframeVariants` lists extra exported variants (e.g. a guide only some families have).
+export function sceneTasks({ redraw, outpaint, inpaint, baseNeeds, common = [], advanced = [], label, reframeVariants = [] }) {
   const tasks = {};
   if (outpaint && !outpaint.unavailable) {
     const own = (outpaint.fields || []).filter((f) => !["image", "edges"].includes(f.key));
-    const guided = (own.find((f) => f.key === "guide")?.choices || []).filter((ch) => ch.value !== "none");
     tasks.reframe = {
       status: outpaint.status || "ready",
       statusNote: outpaint.statusNote,
@@ -74,7 +80,7 @@ export function sceneTasks({ redraw, outpaint, baseNeeds, common = [], advanced 
         field.select("align", "Keep the picture at", c.ALIGN.map((a) => choice(a, a[0].toUpperCase() + a.slice(1))), "center"),
         ...own,
       ],
-      variants: [{ label: "", params: { target: "aspect", aspect: "16:9" } }, { label: "size", params: { target: "size", width: 1344, height: 768, align: "left" } }, ...guided.map((ch) => ({ label: String(ch.value), params: { target: "aspect", aspect: "16:9", guide: ch.value } }))],
+      variants: [{ label: "", params: { target: "aspect", aspect: "16:9" } }, { label: "size", params: { target: "size", width: 1344, height: 768, align: "left" } }, ...reframeVariants],
       needs: outpaint.needs,
       build(g, p, ctx) {
         const { w, h } = c.sourceSize(p);
@@ -123,7 +129,7 @@ export function sceneTasks({ redraw, outpaint, baseNeeds, common = [], advanced 
         { label: "blur", params: { bgMode: "blur" } },
       ],
       noCompare: false,
-      needs: (ctx) => [...baseNeeds(ctx), ...subjectNeeds(ctx), ...inpaintNeeds(ctx)],
+      needs: (ctx) => unique([...baseNeeds(ctx), ...subjectNeeds(ctx), ...(inpaint?.needs?.(ctx) || [])]),
       build(g, p, ctx) {
         const { w, h } = c.sourceSize(p);
         const src = c.loadImage(g, p.image, "Photo");
@@ -158,11 +164,13 @@ export function sceneTasks({ redraw, outpaint, baseNeeds, common = [], advanced 
 
 // The family's tasks with Reframe and Background Replace placed right after Outpaint.
 export function withSceneTasks(tasks, kit) {
-  const extra = sceneTasks({ ...kit, outpaint: tasks.outpaint });
+  const extra = sceneTasks({ ...kit, outpaint: tasks.outpaint, inpaint: tasks.inpaint });
   const outTasks = {};
   for (const [id, t] of Object.entries(tasks)) {
     outTasks[id] = t;
     if (id === "outpaint") Object.assign(outTasks, extra);
   }
-  return { ...extra, ...outTasks };
+  // A family without Outpaint still gets Background Replace (at the end).
+  for (const [id, t] of Object.entries(extra)) if (!(id in outTasks)) outTasks[id] = t;
+  return outTasks;
 }

@@ -5,67 +5,124 @@
       "image": "input.png"
     },
     "_meta": {
-      "title": "Image"
+      "title": "Photo"
     }
   },
   "2": {
-    "class_type": "LoadImage",
+    "class_type": "BiRefNetRMBG",
     "inputs": {
-      "image": "mask.png"
+      "image": [
+        "1",
+        0
+      ],
+      "background": "Alpha",
+      "model": "BiRefNet-general"
     },
     "_meta": {
-      "title": "Painted mask"
+      "title": "Find the subject"
     }
   },
   "3": {
+    "class_type": "InvertMask",
+    "inputs": {
+      "mask": [
+        "2",
+        1
+      ]
+    },
+    "_meta": {
+      "title": "Background area"
+    }
+  },
+  "4": {
+    "class_type": "GrowMask",
+    "inputs": {
+      "mask": [
+        "3",
+        0
+      ],
+      "expand": 4,
+      "tapered_corners": true
+    },
+    "_meta": {
+      "title": "Tighten around the subject"
+    }
+  },
+  "5": {
+    "class_type": "MaskToImage",
+    "inputs": {
+      "mask": [
+        "4",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "Feather"
+    }
+  },
+  "6": {
+    "class_type": "ImageBlur",
+    "inputs": {
+      "image": [
+        "5",
+        0
+      ],
+      "blur_radius": 6,
+      "sigma": 3
+    },
+    "_meta": {
+      "title": "Feather blur"
+    }
+  },
+  "7": {
     "class_type": "ImageToMask",
     "inputs": {
       "image": [
-        "2",
+        "6",
         0
       ],
       "channel": "red"
     },
     "_meta": {
-      "title": "Mask"
+      "title": "Feathered mask"
     }
   },
-  "4": {
+  "8": {
     "class_type": "UNETLoader",
     "inputs": {
-      "unet_name": "anima-base-v1.0.safetensors",
+      "unet_name": "z_image_turbo_bf16.safetensors",
       "weight_dtype": "default"
     },
     "_meta": {
-      "title": "Anima model"
+      "title": "Z-Image model"
     }
   },
-  "5": {
+  "9": {
     "class_type": "CLIPLoader",
     "inputs": {
-      "clip_name": "qwen_3_06b_base.safetensors",
-      "type": "stable_diffusion",
+      "clip_name": "qwen_3_4b.safetensors",
+      "type": "lumina2",
       "device": "default"
     },
     "_meta": {
-      "title": "Text encoder (Qwen3 0.6B)"
+      "title": "Text encoder (Qwen3 4B)"
     }
   },
-  "6": {
+  "10": {
     "class_type": "VAELoader",
     "inputs": {
-      "vae_name": "qwen_image_vae.safetensors"
+      "vae_name": "ae.safetensors"
     },
     "_meta": {
-      "title": "Qwen Image VAE"
+      "title": "Z-Image VAE (ae)"
     }
   },
-  "7": {
+  "11": {
     "class_type": "CLIPTextEncode",
     "inputs": {
-      "text": "What should appear in the painted area",
+      "text": "Describe the new background",
       "clip": [
-        "5",
+        "9",
         0
       ]
     },
@@ -73,56 +130,57 @@
       "title": "Prompt"
     }
   },
-  "8": {
-    "class_type": "CLIPTextEncode",
+  "12": {
+    "class_type": "ConditioningZeroOut",
     "inputs": {
-      "text": "worst quality, low quality, score_1, score_2, score_3, blurry, jpeg artifacts, sepia",
-      "clip": [
-        "5",
+      "conditioning": [
+        "11",
         0
       ]
     },
     "_meta": {
-      "title": "Negative prompt"
+      "title": "No negative (CFG 1)"
     }
   },
-  "9": {
+  "13": {
     "class_type": "ModelPatchLoader",
     "inputs": {
-      "name": "anima-lllite-inpainting-v2.safetensors"
+      "name": "Z-Image-Turbo-Fun-Controlnet-Union-2.1-2602-8steps.safetensors"
     },
     "_meta": {
-      "title": "inpaint context (LLLite) patch"
+      "title": "Fun ControlNet Union"
     }
   },
-  "10": {
-    "class_type": "AnimaLLLiteApply",
+  "14": {
+    "class_type": "ZImageFunControlnet",
     "inputs": {
       "model": [
-        "4",
+        "8",
         0
       ],
       "model_patch": [
-        "9",
+        "13",
         0
       ],
-      "image": [
+      "vae": [
+        "10",
+        0
+      ],
+      "inpaint_image": [
         "1",
         0
       ],
       "mask": [
-        "3",
+        "4",
         0
       ],
-      "strength": 1,
-      "start_percent": 0,
-      "end_percent": 1
+      "strength": 0.9
     },
     "_meta": {
-      "title": "Apply inpaint context (LLLite)"
+      "title": "Inpaint context (Fun Union)"
     }
   },
-  "11": {
+  "15": {
     "class_type": "VAEEncode",
     "inputs": {
       "pixels": [
@@ -130,7 +188,7 @@
         0
       ],
       "vae": [
-        "6",
+        "10",
         0
       ]
     },
@@ -138,15 +196,15 @@
       "title": "Encode image"
     }
   },
-  "12": {
+  "16": {
     "class_type": "SetLatentNoiseMask",
     "inputs": {
       "samples": [
-        "11",
+        "15",
         0
       ],
       "mask": [
-        "3",
+        "4",
         0
       ]
     },
@@ -154,29 +212,42 @@
       "title": "Limit to painted area"
     }
   },
-  "13": {
+  "17": {
+    "class_type": "ModelSamplingAuraFlow",
+    "inputs": {
+      "model": [
+        "14",
+        0
+      ],
+      "shift": 3
+    },
+    "_meta": {
+      "title": "Sampling shift"
+    }
+  },
+  "18": {
     "class_type": "KSampler",
     "inputs": {
       "model": [
-        "10",
+        "17",
         0
       ],
       "positive": [
-        "7",
+        "11",
         0
       ],
       "negative": [
-        "8",
-        0
-      ],
-      "latent_image": [
         "12",
         0
       ],
+      "latent_image": [
+        "16",
+        0
+      ],
       "seed": 123456789,
-      "steps": 30,
-      "cfg": 4,
-      "sampler_name": "euler",
+      "steps": 8,
+      "cfg": 1,
+      "sampler_name": "res_multistep",
       "scheduler": "simple",
       "denoise": 1
     },
@@ -184,15 +255,15 @@
       "title": "Sampler"
     }
   },
-  "14": {
+  "19": {
     "class_type": "VAEDecode",
     "inputs": {
       "samples": [
-        "13",
+        "18",
         0
       ],
       "vae": [
-        "6",
+        "10",
         0
       ]
     },
@@ -200,46 +271,7 @@
       "title": "Decode"
     }
   },
-  "15": {
-    "class_type": "MaskToImage",
-    "inputs": {
-      "mask": [
-        "3",
-        0
-      ]
-    },
-    "_meta": {
-      "title": "Soft edge"
-    }
-  },
-  "16": {
-    "class_type": "ImageBlur",
-    "inputs": {
-      "image": [
-        "15",
-        0
-      ],
-      "blur_radius": 4,
-      "sigma": 2
-    },
-    "_meta": {
-      "title": "Soft edge blur"
-    }
-  },
-  "17": {
-    "class_type": "ImageToMask",
-    "inputs": {
-      "image": [
-        "16",
-        0
-      ],
-      "channel": "red"
-    },
-    "_meta": {
-      "title": "Soft edge mask"
-    }
-  },
-  "18": {
+  "20": {
     "class_type": "ImageCompositeMasked",
     "inputs": {
       "destination": [
@@ -247,11 +279,11 @@
         0
       ],
       "source": [
-        "14",
+        "19",
         0
       ],
       "mask": [
-        "17",
+        "7",
         0
       ],
       "x": 0,
@@ -262,14 +294,14 @@
       "title": "Paste result into original"
     }
   },
-  "19": {
+  "21": {
     "class_type": "SaveImage",
     "inputs": {
       "images": [
-        "18",
+        "20",
         0
       ],
-      "filename_prefix": "WireStudio/anima-inpaint"
+      "filename_prefix": "WireStudio/zimage-bg-replace"
     },
     "_meta": {
       "title": "Save image"

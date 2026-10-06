@@ -10,7 +10,7 @@ before it runs, and never mixed with another family's models.
 
 | Create | Edit | Fix | Control | Finish |
 |---|---|---|---|---|
-| Text to Image · Style Reference (Krea 2) · Image to Image | Inpaint · Outpaint · Krea 2 Identity Edit suite (Smart Edit, Object Remove / Replace, Background Swap, Person / Face / Head / Eye Replace, Insert Person, Outfit, Try-On, Scene Change, Restage, Sheet, Variation, Pose Restage, Identity Inpaint / Outpaint / Reframe) | Face Fix · Hand Fix · Face Swap | Pose · ControlNet · Img2Img + Control | Upscale · Remove background |
+| Text to Image · Style Reference (Krea 2) · Image to Image | Inpaint · Outpaint · Reframe · Background Replace · Krea 2 Identity Edit suite (Smart Edit, Object Remove / Replace, Background Swap, Person / Face / Head / Eye Replace, Insert Person, Outfit, Try-On, Scene Change, Restage, Sheet, Variation, Pose Restage, Identity Inpaint / Outpaint / Reframe) | Face Fix · Hand Fix · Face Swap | Pose · ControlNet · Img2Img + Control | Upscale · Remove background |
 
 See [docs/WORKFLOWS.md](docs/WORKFLOWS.md) for what each family runs for each task and why, and
 [docs/PLAN.md](docs/PLAN.md) for the architecture and roadmap, and

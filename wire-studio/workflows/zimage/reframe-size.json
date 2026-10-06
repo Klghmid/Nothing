@@ -1,0 +1,282 @@
+{
+  "1": {
+    "class_type": "UNETLoader",
+    "inputs": {
+      "unet_name": "z_image_turbo_bf16.safetensors",
+      "weight_dtype": "default"
+    },
+    "_meta": {
+      "title": "Z-Image model"
+    }
+  },
+  "2": {
+    "class_type": "CLIPLoader",
+    "inputs": {
+      "clip_name": "qwen_3_4b.safetensors",
+      "type": "lumina2",
+      "device": "default"
+    },
+    "_meta": {
+      "title": "Text encoder (Qwen3 4B)"
+    }
+  },
+  "3": {
+    "class_type": "VAELoader",
+    "inputs": {
+      "vae_name": "ae.safetensors"
+    },
+    "_meta": {
+      "title": "Z-Image VAE (ae)"
+    }
+  },
+  "4": {
+    "class_type": "CLIPTextEncode",
+    "inputs": {
+      "text": "Describe the scenery to add (avoid repeating the subject)",
+      "clip": [
+        "2",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "Prompt"
+    }
+  },
+  "5": {
+    "class_type": "ConditioningZeroOut",
+    "inputs": {
+      "conditioning": [
+        "4",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "No negative (CFG 1)"
+    }
+  },
+  "6": {
+    "class_type": "LoadImage",
+    "inputs": {
+      "image": "input.png"
+    },
+    "_meta": {
+      "title": "Image"
+    }
+  },
+  "7": {
+    "class_type": "ImagePadForOutpaint",
+    "inputs": {
+      "image": [
+        "6",
+        0
+      ],
+      "left": 0,
+      "right": 768,
+      "top": 0,
+      "bottom": 0,
+      "feathering": 48
+    },
+    "_meta": {
+      "title": "Extend canvas"
+    }
+  },
+  "8": {
+    "class_type": "INPAINT_MaskedFill",
+    "inputs": {
+      "image": [
+        "7",
+        0
+      ],
+      "mask": [
+        "7",
+        1
+      ],
+      "fill": "navier-stokes",
+      "falloff": 0
+    },
+    "_meta": {
+      "title": "Pre-fill new area"
+    }
+  },
+  "9": {
+    "class_type": "ModelPatchLoader",
+    "inputs": {
+      "name": "Z-Image-Turbo-Fun-Controlnet-Union-2.1-2602-8steps.safetensors"
+    },
+    "_meta": {
+      "title": "Fun ControlNet Union"
+    }
+  },
+  "10": {
+    "class_type": "ZImageFunControlnet",
+    "inputs": {
+      "model": [
+        "1",
+        0
+      ],
+      "model_patch": [
+        "9",
+        0
+      ],
+      "vae": [
+        "3",
+        0
+      ],
+      "inpaint_image": [
+        "8",
+        0
+      ],
+      "mask": [
+        "7",
+        1
+      ],
+      "strength": 0.9
+    },
+    "_meta": {
+      "title": "Inpaint context (Fun Union)"
+    }
+  },
+  "11": {
+    "class_type": "VAEEncode",
+    "inputs": {
+      "pixels": [
+        "8",
+        0
+      ],
+      "vae": [
+        "3",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "Encode image"
+    }
+  },
+  "12": {
+    "class_type": "SetLatentNoiseMask",
+    "inputs": {
+      "samples": [
+        "11",
+        0
+      ],
+      "mask": [
+        "7",
+        1
+      ]
+    },
+    "_meta": {
+      "title": "Limit to painted area"
+    }
+  },
+  "13": {
+    "class_type": "ModelSamplingAuraFlow",
+    "inputs": {
+      "model": [
+        "10",
+        0
+      ],
+      "shift": 3
+    },
+    "_meta": {
+      "title": "Sampling shift"
+    }
+  },
+  "14": {
+    "class_type": "KSampler",
+    "inputs": {
+      "model": [
+        "13",
+        0
+      ],
+      "positive": [
+        "4",
+        0
+      ],
+      "negative": [
+        "5",
+        0
+      ],
+      "latent_image": [
+        "12",
+        0
+      ],
+      "seed": 123456789,
+      "steps": 8,
+      "cfg": 1,
+      "sampler_name": "res_multistep",
+      "scheduler": "simple",
+      "denoise": 1
+    },
+    "_meta": {
+      "title": "Sampler"
+    }
+  },
+  "15": {
+    "class_type": "VAEDecode",
+    "inputs": {
+      "samples": [
+        "14",
+        0
+      ],
+      "vae": [
+        "3",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "Decode"
+    }
+  },
+  "16": {
+    "class_type": "ImageCompositeMasked",
+    "inputs": {
+      "destination": [
+        "8",
+        0
+      ],
+      "source": [
+        "15",
+        0
+      ],
+      "mask": [
+        "7",
+        1
+      ],
+      "x": 0,
+      "y": 0,
+      "resize_source": false
+    },
+    "_meta": {
+      "title": "Paste result into original"
+    }
+  },
+  "17": {
+    "class_type": "ImageScale",
+    "inputs": {
+      "image": [
+        "16",
+        0
+      ],
+      "upscale_method": "lanczos",
+      "width": 1344,
+      "height": 768,
+      "crop": "center"
+    },
+    "_meta": {
+      "title": "Resize to the exact size"
+    }
+  },
+  "18": {
+    "class_type": "SaveImage",
+    "inputs": {
+      "images": [
+        "17",
+        0
+      ],
+      "filename_prefix": "WireStudio/zimage-reframe"
+    },
+    "_meta": {
+      "title": "Save image"
+    }
+  }
+}

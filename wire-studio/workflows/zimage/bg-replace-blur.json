@@ -1,0 +1,433 @@
+{
+  "1": {
+    "class_type": "LoadImage",
+    "inputs": {
+      "image": "input.png"
+    },
+    "_meta": {
+      "title": "Photo"
+    }
+  },
+  "2": {
+    "class_type": "BiRefNetRMBG",
+    "inputs": {
+      "image": [
+        "1",
+        0
+      ],
+      "background": "Alpha",
+      "model": "BiRefNet-general"
+    },
+    "_meta": {
+      "title": "Find the subject"
+    }
+  },
+  "3": {
+    "class_type": "InvertMask",
+    "inputs": {
+      "mask": [
+        "2",
+        1
+      ]
+    },
+    "_meta": {
+      "title": "Background area"
+    }
+  },
+  "4": {
+    "class_type": "GrowMask",
+    "inputs": {
+      "mask": [
+        "3",
+        0
+      ],
+      "expand": 4,
+      "tapered_corners": true
+    },
+    "_meta": {
+      "title": "Tighten around the subject"
+    }
+  },
+  "5": {
+    "class_type": "MaskToImage",
+    "inputs": {
+      "mask": [
+        "4",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "Feather"
+    }
+  },
+  "6": {
+    "class_type": "ImageBlur",
+    "inputs": {
+      "image": [
+        "5",
+        0
+      ],
+      "blur_radius": 6,
+      "sigma": 3
+    },
+    "_meta": {
+      "title": "Feather blur"
+    }
+  },
+  "7": {
+    "class_type": "ImageToMask",
+    "inputs": {
+      "image": [
+        "6",
+        0
+      ],
+      "channel": "red"
+    },
+    "_meta": {
+      "title": "Feathered mask"
+    }
+  },
+  "8": {
+    "class_type": "ImageBlur",
+    "inputs": {
+      "image": [
+        "1",
+        0
+      ],
+      "blur_radius": 18,
+      "sigma": 6
+    },
+    "_meta": {
+      "title": "Blurred background"
+    }
+  },
+  "9": {
+    "class_type": "ImageCompositeMasked",
+    "inputs": {
+      "destination": [
+        "1",
+        0
+      ],
+      "source": [
+        "8",
+        0
+      ],
+      "mask": [
+        "7",
+        0
+      ],
+      "x": 0,
+      "y": 0,
+      "resize_source": false
+    },
+    "_meta": {
+      "title": "Paste result into original"
+    }
+  },
+  "10": {
+    "class_type": "GrowMask",
+    "inputs": {
+      "mask": [
+        "4",
+        0
+      ],
+      "expand": 6,
+      "tapered_corners": true
+    },
+    "_meta": {
+      "title": "Band outer edge"
+    }
+  },
+  "11": {
+    "class_type": "GrowMask",
+    "inputs": {
+      "mask": [
+        "4",
+        0
+      ],
+      "expand": -6,
+      "tapered_corners": true
+    },
+    "_meta": {
+      "title": "Band inner edge"
+    }
+  },
+  "12": {
+    "class_type": "MaskComposite",
+    "inputs": {
+      "destination": [
+        "10",
+        0
+      ],
+      "source": [
+        "11",
+        0
+      ],
+      "x": 0,
+      "y": 0,
+      "operation": "subtract"
+    },
+    "_meta": {
+      "title": "Edge band"
+    }
+  },
+  "13": {
+    "class_type": "UNETLoader",
+    "inputs": {
+      "unet_name": "z_image_turbo_bf16.safetensors",
+      "weight_dtype": "default"
+    },
+    "_meta": {
+      "title": "Z-Image model"
+    }
+  },
+  "14": {
+    "class_type": "CLIPLoader",
+    "inputs": {
+      "clip_name": "qwen_3_4b.safetensors",
+      "type": "lumina2",
+      "device": "default"
+    },
+    "_meta": {
+      "title": "Text encoder (Qwen3 4B)"
+    }
+  },
+  "15": {
+    "class_type": "VAELoader",
+    "inputs": {
+      "vae_name": "ae.safetensors"
+    },
+    "_meta": {
+      "title": "Z-Image VAE (ae)"
+    }
+  },
+  "16": {
+    "class_type": "CLIPTextEncode",
+    "inputs": {
+      "text": "Describe the new background",
+      "clip": [
+        "14",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "Prompt"
+    }
+  },
+  "17": {
+    "class_type": "ConditioningZeroOut",
+    "inputs": {
+      "conditioning": [
+        "16",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "No negative (CFG 1)"
+    }
+  },
+  "18": {
+    "class_type": "ModelPatchLoader",
+    "inputs": {
+      "name": "Z-Image-Turbo-Fun-Controlnet-Union-2.1-2602-8steps.safetensors"
+    },
+    "_meta": {
+      "title": "Fun ControlNet Union"
+    }
+  },
+  "19": {
+    "class_type": "ZImageFunControlnet",
+    "inputs": {
+      "model": [
+        "13",
+        0
+      ],
+      "model_patch": [
+        "18",
+        0
+      ],
+      "vae": [
+        "15",
+        0
+      ],
+      "inpaint_image": [
+        "9",
+        0
+      ],
+      "mask": [
+        "12",
+        0
+      ],
+      "strength": 0.9
+    },
+    "_meta": {
+      "title": "Inpaint context (Fun Union)"
+    }
+  },
+  "20": {
+    "class_type": "VAEEncode",
+    "inputs": {
+      "pixels": [
+        "9",
+        0
+      ],
+      "vae": [
+        "15",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "Encode image"
+    }
+  },
+  "21": {
+    "class_type": "SetLatentNoiseMask",
+    "inputs": {
+      "samples": [
+        "20",
+        0
+      ],
+      "mask": [
+        "12",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "Limit to painted area"
+    }
+  },
+  "22": {
+    "class_type": "ModelSamplingAuraFlow",
+    "inputs": {
+      "model": [
+        "19",
+        0
+      ],
+      "shift": 3
+    },
+    "_meta": {
+      "title": "Sampling shift"
+    }
+  },
+  "23": {
+    "class_type": "KSampler",
+    "inputs": {
+      "model": [
+        "22",
+        0
+      ],
+      "positive": [
+        "16",
+        0
+      ],
+      "negative": [
+        "17",
+        0
+      ],
+      "latent_image": [
+        "21",
+        0
+      ],
+      "seed": 123456789,
+      "steps": 8,
+      "cfg": 1,
+      "sampler_name": "res_multistep",
+      "scheduler": "simple",
+      "denoise": 0.35
+    },
+    "_meta": {
+      "title": "Sampler"
+    }
+  },
+  "24": {
+    "class_type": "VAEDecode",
+    "inputs": {
+      "samples": [
+        "23",
+        0
+      ],
+      "vae": [
+        "15",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "Decode"
+    }
+  },
+  "25": {
+    "class_type": "MaskToImage",
+    "inputs": {
+      "mask": [
+        "12",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "Feather"
+    }
+  },
+  "26": {
+    "class_type": "ImageBlur",
+    "inputs": {
+      "image": [
+        "25",
+        0
+      ],
+      "blur_radius": 4,
+      "sigma": 2
+    },
+    "_meta": {
+      "title": "Feather blur"
+    }
+  },
+  "27": {
+    "class_type": "ImageToMask",
+    "inputs": {
+      "image": [
+        "26",
+        0
+      ],
+      "channel": "red"
+    },
+    "_meta": {
+      "title": "Feathered mask"
+    }
+  },
+  "28": {
+    "class_type": "ImageCompositeMasked",
+    "inputs": {
+      "destination": [
+        "9",
+        0
+      ],
+      "source": [
+        "24",
+        0
+      ],
+      "mask": [
+        "27",
+        0
+      ],
+      "x": 0,
+      "y": 0,
+      "resize_source": false
+    },
+    "_meta": {
+      "title": "Paste result into original"
+    }
+  },
+  "29": {
+    "class_type": "SaveImage",
+    "inputs": {
+      "images": [
+        "28",
+        0
+      ],
+      "filename_prefix": "WireStudio/zimage-bg-replace"
+    },
+    "_meta": {
+      "title": "Save image"
+    }
+  }
+}

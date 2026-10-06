@@ -4,6 +4,7 @@ import { packOf, TASKS, TASK_GROUPS, ASPECTS, PACKS, CONTROL_KINDS } from "./cat
 import { readInventory as readFiles, FAMILY_IDS, classify, variantOf } from "./inventory.mjs";
 import { suggestions } from "./suggested.mjs";
 import * as c from "./common.mjs";
+import { cutOut, subjectNeeds, subjectReady } from "./scene.mjs";
 import anima from "./families/anima.mjs";
 import sdxl from "./families/sdxl.mjs";
 import zimage from "./families/zimage.mjs";
@@ -122,7 +123,7 @@ export function buildUtility(kind, p, ctx) {
   const g = new Graph({ family: "utility", info: ctx.info });
   const src = c.loadImage(g, p.image, "Image");
   let image;
-  if (kind === "remove-bg") image = c.removeBackground(g, src);
+  if (kind === "remove-bg") image = cutOut(g, src);
   else if (kind === "map") {
     const { w, h } = c.sourceSize(p);
     const k = Math.min(1, 1536 / Math.max(w, h));
@@ -151,7 +152,7 @@ export function readiness(ctx) {
     for (const [taskId, task] of Object.entries(fam.tasks)) result[id][taskId] = taskReadiness(task, ctx);
   }
   result.utility = {
-    "remove-bg": { state: ctx.info.BiRefNetRMBG || ctx.info.RMBG ? "ready" : "missing", items: [{ ok: !!(ctx.info.BiRefNetRMBG || ctx.info.RMBG), level: "required", kind: "node", label: "BiRefNetRMBG or RMBG", why: "Removes the background", help: PACKS.rmbg }] },
+    "remove-bg": { state: subjectReady(ctx.info) ? "ready" : "missing", items: subjectNeeds(ctx).map((n) => ({ ...n, why: "Removes the background" })) },
   };
   return result;
 }

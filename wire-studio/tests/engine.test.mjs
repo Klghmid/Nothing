@@ -349,6 +349,60 @@ test("Krea 2 safety check: task LoRAs only go to the loaders made for them", asy
   assert.throws(() => assertFamily("sdxl", h, ctx.inv), /belongs to another family/);
 });
 
+test("Background Replace: subject mask, background-only sampling, photo / blur compositing, every family", () => {
+  const base = { prompt: "a quiet beach at sunset", seed: 1, image: "photo.png", imageW: 832, imageH: 1216 };
+  const nodeOf = (prompt, link) => prompt[link[0]];
+  for (const family of ["anima", "sdxl", "zimage", "krea2"]) {
+    const gen = buildWorkflow(family, "bg-replace", { ...base, bgMode: "prompt" }, ctx).prompt;
+    assert.ok(types(gen).includes("RemoveBackground") && types(gen).includes("InvertMask"), `${family}: subject mask, inverted`);
+    const grow = nodesOf(gen, "GrowMask")[0].inputs;
+    assert.equal(grow.expand, 4);
+    assert.equal(nodeOf(gen, grow.mask).class_type, "InvertMask", `${family}: the sampled area is the background`);
+    const noised = [...nodesOf(gen, "SetLatentNoiseMask"), ...nodesOf(gen, "VAEEncodeForInpaint")][0].inputs;
+    assert.equal(nodeOf(gen, noised.mask).class_type, "GrowMask", `${family}: only the background is redrawn`);
+    const last = Object.values(gen).find((n) => n.class_type === "SaveImage").inputs.images;
+    assert.equal(gen[last[0]].class_type, "ImageCompositeMasked", `${family}: the subject is pasted back`);
+    assert.equal(nodeOf(gen, gen[last[0]].inputs.destination).inputs.image, "photo.png");
+    assert.throws(() => buildWorkflow(family, "bg-replace", { ...base, prompt: "", bgMode: "prompt" }, ctx), /Describe the new background/);
+    // A photo: scaled to the subject photo, composited, then a thin edge band is redrawn gently.
+    const photo = buildWorkflow(family, "bg-replace", { ...base, bgMode: "image", background: "beach.png" }, ctx).prompt;
+    const scaled = nodesOf(photo, "ImageScale").find((n) => photo[n.inputs.image[0]].inputs?.image === "beach.png");
+    assert.ok(scaled && scaled.inputs.width === 832 && scaled.inputs.height === 1216, `${family}: background fitted to the photo`);
+    assert.equal(nodesOf(photo, "MaskComposite")[0].inputs.operation, "subtract", "edge band");
+    assert.equal(nodesOf(photo, "KSampler")[0].inputs.denoise, 0.35);
+    assert.throws(() => buildWorkflow(family, "bg-replace", { ...base, bgMode: "image" }, ctx), /background photo/);
+    // Blur without the edge blend uses no model at all.
+    const blur = buildWorkflow(family, "bg-replace", { ...base, bgMode: "blur", cleanup: false }, ctx).prompt;
+    assert.ok(types(blur).includes("ImageBlur") && !types(blur).includes("KSampler") && !types(blur).some((t) => /Loader/.test(t) && t !== "LoadBackgroundRemovalModel"), `${family}: blur is model-free`);
+  }
+  // Without the native BiRefNet model, ComfyUI-RMBG's mask output (index 1) is used.
+  const noNative = objectInfo({ ...FILES, bgRemoval: [] });
+  const rmbg = buildWorkflow("sdxl", "bg-replace", { ...base, bgMode: "blur", cleanup: false }, { info: noNative, inv: readInventory(noNative) }).prompt;
+  const inv = nodesOf(rmbg, "InvertMask")[0].inputs.mask;
+  assert.equal(rmbg[inv[0]].class_type, "BiRefNetRMBG");
+  assert.equal(inv[1], 1);
+});
+
+test("Reframe: extends to an aspect ratio or exact size through the family's own outpaint", () => {
+  const base = { prompt: "", seed: 1, image: "photo.png", imageW: 832, imageH: 1216 };
+  for (const family of ["anima", "sdxl", "zimage", "krea2"]) {
+    const wide = buildWorkflow(family, "reframe", { ...base, target: "aspect", aspect: "16:9", align: "center" }, ctx).prompt;
+    const pad = nodesOf(wide, "ImagePadForOutpaint")[0].inputs;
+    assert.ok(pad.left > 0 && pad.right > 0 && pad.top === 0 && pad.bottom === 0, `${family}: grows sideways`);
+    assert.ok(Math.abs((832 + pad.left + pad.right) / 1216 - 16 / 9) < 0.01);
+    const left = buildWorkflow(family, "reframe", { ...base, target: "aspect", aspect: "16:9", align: "left" }, ctx).prompt;
+    assert.equal(nodesOf(left, "ImagePadForOutpaint")[0].inputs.left, 0, `${family}: picture kept at the left`);
+    const exact = buildWorkflow(family, "reframe", { ...base, target: "size", width: 1344, height: 768 }, ctx).prompt;
+    const last = exact[Object.values(exact).find((n) => n.class_type === "SaveImage").inputs.images[0]];
+    assert.deepEqual([last.class_type, last.inputs.width, last.inputs.height], ["ImageScale", 1344, 768], `${family}: exact size`);
+    assert.throws(() => buildWorkflow(family, "reframe", { ...base, imageW: 1344, imageH: 756, target: "aspect", aspect: "16:9" }, ctx), /already 16:9/);
+    const same = buildWorkflow(family, "reframe", { ...base, imageW: 1024, imageH: 1024, target: "size", width: 768, height: 768 }, ctx).prompt;
+    assert.ok(!types(same).includes("KSampler"), `${family}: same shape is only resized`);
+  }
+  const guided = buildWorkflow("krea2", "reframe", { ...base, target: "aspect", aspect: "16:9", guide: "depth" }, ctx).prompt;
+  assert.ok(types(guided).includes("Krea2ControlImageEncode"), "Krea 2 reframe keeps the outpaint depth guide");
+});
+
 test("Krea 2 Smart Edit: a second image reaches both the appearance path and the encoder", () => {
   // comfyui-krea2edit's pixel path (vae + source_image) rebuilds its source list from
   // source_image / source_image_b only, so source_latent_b alone would be silently ignored.
@@ -424,8 +478,11 @@ test("readiness is green for a fully set up ComfyUI", () => {
 });
 
 test("utilities and schema", () => {
+  // Native BiRefNet (official template) when its model is installed, else ComfyUI-RMBG.
   const bg = buildUtility("remove-bg", { image: "example.png" }, ctx).prompt;
-  assert.ok(types(bg).includes("BiRefNetRMBG"));
+  assert.deepEqual(["LoadBackgroundRemovalModel", "RemoveBackground", "InvertMask", "JoinImageWithAlpha"].filter((t) => types(bg).includes(t)).length, 4);
+  const noNative = objectInfo({ ...FILES, bgRemoval: [] });
+  assert.ok(types(buildUtility("remove-bg", { image: "example.png" }, { info: noNative, inv: readInventory(noNative) }).prompt).includes("BiRefNetRMBG"));
   const map = buildUtility("map", { image: "example.png", kind: "pose", imageW: 800, imageH: 600 }, ctx).prompt;
   assert.ok(types(map).includes("DWPreprocessor"));
   const s = schema();

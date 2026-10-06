@@ -1,6 +1,6 @@
 {
  "comfyui": "0.38.0",
- "captured": "2026-10-02",
+ "captured": "2026-10-06",
  "nodes": {
   "AnimaLLLiteApply": {
    "input": {
@@ -1413,6 +1413,39 @@
    ],
    "python_module": "comfy_extras.nodes_flux"
   },
+  "GrowMask": {
+   "input": {
+    "required": {
+     "mask": [
+      "MASK",
+      {}
+     ],
+     "expand": [
+      "INT",
+      {
+       "default": 0,
+       "min": -16384,
+       "max": 16384,
+       "step": 1
+      }
+     ],
+     "tapered_corners": [
+      "BOOLEAN",
+      {
+       "advanced": true,
+       "default": true
+      }
+     ]
+    }
+   },
+   "output": [
+    "MASK"
+   ],
+   "output_name": [
+    "MASK"
+   ],
+   "python_module": "comfy_extras.nodes_mask"
+  },
   "HEDPreprocessor": {
    "input": {
     "required": {
@@ -1826,6 +1859,44 @@
     "IMAGE"
    ],
    "python_module": "comfy_extras.nodes_upscale_model"
+  },
+  "InvertMask": {
+   "input": {
+    "required": {
+     "mask": [
+      "MASK",
+      {}
+     ]
+    }
+   },
+   "output": [
+    "MASK"
+   ],
+   "output_name": [
+    "MASK"
+   ],
+   "python_module": "comfy_extras.nodes_mask"
+  },
+  "JoinImageWithAlpha": {
+   "input": {
+    "required": {
+     "image": [
+      "IMAGE",
+      {}
+     ],
+     "alpha": [
+      "MASK",
+      {}
+     ]
+    }
+   },
+   "output": [
+    "IMAGE"
+   ],
+   "output_name": [
+    "IMAGE"
+   ],
+   "python_module": "comfy_extras.nodes_compositing"
   },
   "KSampler": {
    "input": {
@@ -2703,6 +2774,29 @@
    ],
    "python_module": "custom_nodes.comfyui_controlnet_aux"
   },
+  "LoadBackgroundRemovalModel": {
+   "input": {
+    "required": {
+     "bg_removal_name": [
+      "COMBO",
+      {
+       "tooltip": "The model used to remove backgrounds from images",
+       "multiselect": false,
+       "options": [
+        "birefnet.safetensors"
+       ]
+      }
+     ]
+    }
+   },
+   "output": [
+    "BACKGROUND_REMOVAL"
+   ],
+   "output_name": [
+    "bg_model"
+   ],
+   "python_module": "comfy_extras.nodes_bg_removal"
+  },
   "LoadDA3Model": {
    "input": {
     "required": {
@@ -2917,6 +3011,59 @@
     "IMAGE"
    ],
    "python_module": "custom_nodes.comfyui_controlnet_aux"
+  },
+  "MaskComposite": {
+   "input": {
+    "required": {
+     "destination": [
+      "MASK",
+      {}
+     ],
+     "source": [
+      "MASK",
+      {}
+     ],
+     "x": [
+      "INT",
+      {
+       "default": 0,
+       "min": 0,
+       "max": 16384,
+       "step": 1
+      }
+     ],
+     "y": [
+      "INT",
+      {
+       "default": 0,
+       "min": 0,
+       "max": 16384,
+       "step": 1
+      }
+     ],
+     "operation": [
+      "COMBO",
+      {
+       "multiselect": false,
+       "options": [
+        "multiply",
+        "add",
+        "subtract",
+        "and",
+        "or",
+        "xor"
+       ]
+      }
+     ]
+    }
+   },
+   "output": [
+    "MASK"
+   ],
+   "output_name": [
+    "MASK"
+   ],
+   "python_module": "comfy_extras.nodes_mask"
   },
   "MaskToImage": {
    "input": {
@@ -3447,6 +3594,31 @@
     "ORIGINAL_IMAGE"
    ],
    "python_module": "custom_nodes.ComfyUI-ReActor"
+  },
+  "RemoveBackground": {
+   "input": {
+    "required": {
+     "bg_removal_model": [
+      "BACKGROUND_REMOVAL",
+      {
+       "tooltip": "Background removal model used to generate the mask"
+      }
+     ],
+     "image": [
+      "IMAGE",
+      {
+       "tooltip": "Input image to remove the background from"
+      }
+     ]
+    }
+   },
+   "output": [
+    "MASK"
+   ],
+   "output_name": [
+    "mask"
+   ],
+   "python_module": "comfy_extras.nodes_bg_removal"
   },
   "RepeatLatentBatch": {
    "input": {

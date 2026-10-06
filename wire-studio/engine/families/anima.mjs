@@ -7,6 +7,7 @@ import { field, choice, need } from "../fields.mjs";
 import { MODELS, PACKS } from "../catalog.mjs";
 import * as c from "../common.mjs";
 import { detailerNeeds, mapNeeds, upscaleNeeds, outpaintNeeds } from "../needs.mjs";
+import { withSceneTasks } from "../scene.mjs";
 
 const SAMPLE = { steps: 30, cfg: 4, sampler: "euler", scheduler: "simple" };
 // Turbo / distilled Anima models: CFG 1, 8–12 steps (Anima Turbo model card; 10 tested live in Anima Studio).
@@ -51,6 +52,18 @@ const preferPatch = (ctx, list) => {
 // Every installed Anima control patch (the inpaint patches are not control patches).
 const controlPatches = (ctx) => fam(ctx).patches.filter((n) => !/inpaint/i.test(n));
 const sampleAndDecode = (g, m, latent, p, denoise = 1) => c.decode(g, c.ksampler(g, { ...m, latent, sample: c.sampling(p, SAMPLE), denoise }), m.vae);
+
+// Masked redraw with Anima's own inpaint method (LLLite inpainting v2 context when installed),
+// before paste-back; shared by Inpaint and Background Replace.
+function inpaintRedraw(g, p, ctx, src, mask, denoise) {
+  const m = loaders(g, p, ctx);
+  Object.assign(m, prompts(g, m, p));
+  const patch = patchFor(ctx, /inpainting-v2/i) || patchFor(ctx, /inpainting/i);
+  if (patch && g.has("AnimaLLLiteApply")) m.model = lllite(g, m.model, patch, src, { strength: p.context }, mask, "inpaint context (LLLite)");
+  else g.note("Anima inpaint patch not installed: using plain masked sampling");
+  const latent = g.add("SetLatentNoiseMask", { samples: c.encode(g, src, m.vae), mask }, "Limit to painted area");
+  return sampleAndDecode(g, m, latent, p, denoise);
+}
 
 const baseNeeds = (ctx) => [
   need.model(fam(ctx).models, MODELS.animaBase, "Anima model", "The diffusion model"),
@@ -106,7 +119,7 @@ export default {
     style: "No IPAdapter or style-reference model exists for Anima, and Anima rejects area conditioning (Anima Studio live test).",
     identity: "No identity-preserving edit or reference model exists for Anima.",
   },
-  tasks: {
+  tasks: withSceneTasks({
     generate: {
       evidence: "official",
       verified: "inference",
@@ -137,16 +150,10 @@ export default {
       fields: [field.image("image", "Image"), field.mask(), field.prompt({ placeholder: "What should appear in the painted area" }), field.slider("denoise", "Redraw strength", 0.1, 1, 0.01, 1, { hint: "1.0 replaces the area; 0.5 changes it gently" }), field.slider("context", "Match surroundings", 0, 1.5, 0.05, 1, { advanced: true, hint: "Strength of the Anima LLLite inpaint patch" }), ...common, ...advanced],
       needs: (ctx) => [...baseNeeds(ctx), need.node(ctx, "AnimaLLLiteApply", PACKS.core, "Applies the inpaint patch", "recommended"), need.model(patchFor(ctx, /inpainting/i), MODELS.animaInpaint, "Anima LLLite inpainting v2", "Makes the fill match its surroundings", "recommended")],
       build(g, p, ctx) {
-        const m = loaders(g, p, ctx);
-        Object.assign(m, prompts(g, m, p));
         const src = c.loadImage(g, p.image, "Image");
         const mask = c.loadMask(g, p.mask);
-        const patch = patchFor(ctx, /inpainting-v2/i) || patchFor(ctx, /inpainting/i);
-        if (patch && g.has("AnimaLLLiteApply")) m.model = lllite(g, m.model, patch, src, { strength: p.context }, mask, "inpaint context (LLLite)");
-        else g.note("Anima inpaint patch not installed: using plain masked sampling");
-        const latent = g.add("SetLatentNoiseMask", { samples: c.encode(g, src, m.vae), mask }, "Limit to painted area");
         const { w, h } = c.sourceSize(p);
-        return c.composite(g, src, sampleAndDecode(g, m, latent, p, c.clamp(p.denoise, 1, 0.1, 1)), c.softEdge(g, mask, w, h));
+        return c.composite(g, src, inpaintRedraw(g, p, ctx, src, mask, c.clamp(p.denoise, 1, 0.1, 1)), c.softEdge(g, mask, w, h));
       },
     },
     outpaint: {
@@ -292,5 +299,5 @@ export default {
         return c.upscaleRefine(g, src, p, ctx, { ...m, sample: c.sampling(p, SAMPLE), refineSteps: 12 });
       },
     },
-  },
+  }, { redraw: inpaintRedraw, baseNeeds, common, advanced, label: "Anima" }),
 };

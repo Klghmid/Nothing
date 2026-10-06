@@ -8,6 +8,7 @@ import { field, choice, need } from "../fields.mjs";
 import { MODELS, PACKS } from "../catalog.mjs";
 import * as c from "../common.mjs";
 import { detailerNeeds, swapNeeds, mapNeeds, upscaleNeeds, outpaintNeeds } from "../needs.mjs";
+import { withSceneTasks } from "../scene.mjs";
 
 const SAMPLE = { steps: 28, cfg: 6, sampler: "euler_ancestral", scheduler: "normal" };
 // Few-step SDXL models (Turbo / Lightning / Hyper / DMD2): low CFG, euler + sgm_uniform as in the
@@ -74,6 +75,14 @@ function maskedRedraw(g, m, p, ctx, image, mask, dims, denoise) {
   return sampleAndDecode(g, m, latent, p, denoise);
 }
 
+// SDXL's own masked redraw before paste-back, for Background Replace.
+function redraw(g, p, ctx, image, mask, denoise) {
+  const m = loaders(g, p, ctx);
+  Object.assign(m, prompts(g, m, p));
+  const { w, h } = c.sourceSize(p);
+  return maskedRedraw(g, m, p, ctx, image, mask, { width: w, height: h }, denoise);
+}
+
 const baseNeeds = (ctx) => [need.model(fam(ctx).models, MODELS.sdxlBase, "SDXL checkpoint", "Any SDXL / Illustrious / NoobAI / Pony checkpoint")];
 const netNeeds = (ctx, why, level = "required") => need.model(fam(ctx).controlnets, MODELS.sdxlUnion, "SDXL ControlNet (Union ProMax recommended)", why, level);
 const common = [field.model(), field.loras()];
@@ -93,7 +102,7 @@ export default {
     style: "IPAdapter style / composition reference (roadmap).",
     identity: "InstantID identity-preserving generation (roadmap).",
   },
-  tasks: {
+  tasks: withSceneTasks({
     generate: {
       evidence: "official",
       verified: "inference",
@@ -267,5 +276,5 @@ export default {
         return c.upscaleRefine(g, src, p, ctx, { ...m, sample: c.sampling(p, { ...SAMPLE, sampler: "dpmpp_2m", scheduler: "karras" }), refineSteps: 12 });
       },
     },
-  },
+  }, { redraw: redraw, baseNeeds, common, advanced, label: "SDXL" }),
 };

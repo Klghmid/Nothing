@@ -50,7 +50,7 @@ export const CAPABILITIES = [
 
 // Family-free tools (engine/index.mjs buildUtility), with their own status.
 export const TOOLS = {
-  "remove-bg": { status: "ready", evidence: "community", verified: "graph", note: "ComfyUI-RMBG BiRefNet / RMBG; no model family involved" },
+  "remove-bg": { status: "ready", evidence: "official", verified: "graph", note: "Native BiRefNet (official template) when its model is installed, else ComfyUI-RMBG; no model family involved" },
 };
 
 const choicesOf = (task, key) => task.fields?.find((f) => f.key === key)?.choices;

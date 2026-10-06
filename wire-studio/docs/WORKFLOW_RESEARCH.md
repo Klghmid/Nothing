@@ -358,3 +358,53 @@ raster"). It cannot be built from the installed loaders, so it is not offered.
 **VRAM:** not measured here (no GPU in the research environment). UniDepth recommends FP8 Krea 2
 weights and names native INT8 as the supported minimum for its depth and edit functions.
 
+---
+
+## Phases 7–8 — Background Replace and Reframe (every family)
+
+**Families:** all four, each with its own models. The orchestration (`engine/scene.mjs`) is
+family-free and only hands masks and padded canvases to the family's existing inpaint and
+outpaint graphs, so `assertFamily()` still checks every graph and no family's nodes are shared.
+
+### Subject mask
+
+| Source | Finding |
+|---|---|
+| Comfy-Org template `utility_birefnet_remove_background` (templates package shipped with ComfyUI 0.38.0) | `LoadBackgroundRemovalModel(birefnet.safetensors)` → `RemoveBackground(image)` → `MASK`; the template inverts it (`InvertMask`) before `JoinImageWithAlpha`. Model: `Comfy-Org/BiRefNet` → `background_removal/birefnet.safetensors` (423.9 MB) in `models/background_removal/` |
+| ComfyUI `comfy_extras/nodes_bg_removal.py` | `RemoveBackground` "Generates a foreground mask" (subject = 1); the model list is the `background_removal` folder |
+| ComfyUI `node_helpers` / core mask nodes (`/object_info`) | `InvertMask`, `GrowMask(expand, tapered_corners)`, `MaskComposite(…, operation: subtract)`, `ImageBlur(blur_radius ≤ 31, sigma ≤ 10)` |
+| ComfyUI-RMBG `229529e` | `BiRefNetRMBG` / `RMBG` return `IMAGE, MASK, IMAGE`; output 1 is the foreground mask — used when the native model is not installed |
+
+Wire Studio prefers the native, official path when `birefnet.safetensors` is installed and falls
+back to ComfyUI-RMBG. The family-free *Remove background* tool now does the same (the template's
+`InvertMask → JoinImageWithAlpha`).
+
+### Background Replace
+
+There is no official background-replacement template for these families; the method is Wire
+Studio's composition of documented steps, so every mode is **EXPERIMENTAL †**:
+
+| Mode | Graph | Why this way |
+|---|---|---|
+| Describe a new background | background mask = `InvertMask(subject)`, tightened with `GrowMask(+4 px)` against halos → the family's own inpaint (Anima LLLite inpainting v2, SDXL Union ProMax repaint, Z-Image Fun Union 2.x inpaint, Krea 2 differential diffusion) on that mask → subject pasted back through a feathered copy of the mask | Only the background is sampled; the subject's pixels are never redrawn |
+| Use a background photo | the photo scaled / center-cropped to the subject photo's size and composited behind the subject; then an **edge band** (`GrowMask(+r)` minus `GrowMask(−r)` of the background mask) is redrawn by the family at low strength (0.35) and blended back | Compositing alone leaves a cut-out edge; a thin, gentle redraw blends light and colour at the outline only |
+| Blur the background | `ImageBlur` of the photo composited outside the subject; optional edge band as above (without it, no model runs at all) | — |
+
+The "generated / supplied / prompt" backgrounds of the plan map to *Describe* (generated from the
+prompt by the family's inpaint), *Use a background photo* (supplied) and the optional *Scene*
+prompt that steers the edge blend. Mask expansion, feathering and edge cleanup are the three
+mask controls the plan asked for.
+
+### Reframe
+
+Reframe computes how far to extend each side (`reframeEdges`, already used by Identity Reframe;
+multiples of 8, never cropping) for a target **aspect ratio** or **exact size** and an
+**alignment**, then runs the family's **own Outpaint** task with those edges, inheriting all of
+its options (pre-fill, Z-Image guide image, Krea 2 depth guide). An exact size is reached by
+extending to its aspect ratio and then scaling; an image already of that shape is only resized.
+Status follows each family's Outpaint (READY † where Outpaint is READY, PARTIAL for Krea 2,
+whose outpaint has no inpaint model).
+
+**VRAM:** not measured (no GPU). BiRefNet runs at its own resolution; the inpaint / outpaint cost
+is that of the family's existing task.
+

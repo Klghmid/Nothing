@@ -13,6 +13,7 @@ import { MODELS, PACKS } from "../catalog.mjs";
 import * as c from "../common.mjs";
 import { detailerNeeds, swapNeeds, mapNeeds, upscaleNeeds, outpaintNeeds } from "../needs.mjs";
 import { createEditTasks } from "./krea2-edit.mjs";
+import { withSceneTasks } from "../scene.mjs";
 
 const TURBO = { steps: 8, cfg: 1, sampler: "euler", scheduler: "simple" };
 const RAW = { steps: 52, cfg: 4, sampler: "euler", scheduler: "simple" };
@@ -158,6 +159,13 @@ function poseConditioning(g, m, map, text, title) {
   return g.add("FluxKontextMultiReferenceLatentMethod", { conditioning: encoded, reference_latents_method: "index_timestep_zero" }, `${title} · reference method`);
 }
 
+// Krea 2's own masked redraw before paste-back, for Background Replace.
+function redraw(g, p, ctx, image, mask, denoise) {
+  const m = loaders(g, p, ctx);
+  Object.assign(m, prompts(g, m, p));
+  return maskedRedraw(g, m, image, mask, denoise);
+}
+
 const baseNeeds = (ctx) => [
   need.model(fam(ctx).models, MODELS.krea2Turbo, "Krea 2 model (Turbo or RAW)", "The diffusion model"),
   need.model(fam(ctx).clips, MODELS.krea2Clip, "Qwen3-VL 4B text encoder", "Reads the prompt (type krea2)"),
@@ -224,6 +232,7 @@ export default {
       note: "The Identity Edit patch ignores reference latents (so UniDepth's depth map is dropped) and runs the input projection once per source image, so the depth Control-LoRA would add the depth map to the source images too, or stop with a token-count mismatch when their sizes differ.",
     },
     { label: "Depth-guided outpaint", from: { task: "outpaint", choice: { key: "guide", value: "depth" } } },
+    { label: "Depth-guided reframe", from: { task: "reframe", choice: { key: "guide", value: "depth" } } },
     { label: "Pose → Image", from: { task: "pose" } },
     { label: "Pose + Source image", from: { task: "pose", field: "source" }, evidence: "composed", note: "Img2img start latent with the pose LoRA (Wire Studio composition)" },
     { label: "Pose + Identity", from: { task: "k2-pose" }, note: "Pose Restage in the Identity Edit suite" },
@@ -234,7 +243,7 @@ export default {
     canny: "No public Krea 2 canny Control-LoRA.",
     lineart: "No public Krea 2 line-art Control-LoRA (one is announced by tori29umai).",
   },
-  tasks: {
+  tasks: withSceneTasks({
     generate: {
       evidence: "official",
       verified: "graph",
@@ -540,5 +549,5 @@ export default {
     },
     // Identity Edit suite (Smart Edit and 18 dedicated edit tasks): krea2-edit.mjs.
     ...createEditTasks({ fam, loaders, baseNeeds }),
-  },
+  }, { redraw: redraw, baseNeeds, common, advanced, label: "Krea 2", reframeVariants: [{ label: "depth", params: { target: "aspect", aspect: "16:9", guide: "depth" } }] }),
 };

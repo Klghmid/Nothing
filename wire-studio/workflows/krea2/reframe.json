@@ -1,0 +1,227 @@
+{
+  "1": {
+    "class_type": "UNETLoader",
+    "inputs": {
+      "unet_name": "krea2_turbo_fp8_scaled.safetensors",
+      "weight_dtype": "default"
+    },
+    "_meta": {
+      "title": "Krea 2 model"
+    }
+  },
+  "2": {
+    "class_type": "CLIPLoader",
+    "inputs": {
+      "clip_name": "qwen3vl_4b_fp8_scaled.safetensors",
+      "type": "krea2",
+      "device": "default"
+    },
+    "_meta": {
+      "title": "Text encoder (Qwen3-VL 4B)"
+    }
+  },
+  "3": {
+    "class_type": "VAELoader",
+    "inputs": {
+      "vae_name": "qwen_image_vae.safetensors"
+    },
+    "_meta": {
+      "title": "Qwen Image VAE"
+    }
+  },
+  "4": {
+    "class_type": "CLIPTextEncode",
+    "inputs": {
+      "text": "Describe the scenery to add (avoid repeating the subject)",
+      "clip": [
+        "2",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "Prompt"
+    }
+  },
+  "5": {
+    "class_type": "ConditioningZeroOut",
+    "inputs": {
+      "conditioning": [
+        "4",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "No negative (CFG 1)"
+    }
+  },
+  "6": {
+    "class_type": "LoadImage",
+    "inputs": {
+      "image": "input.png"
+    },
+    "_meta": {
+      "title": "Image"
+    }
+  },
+  "7": {
+    "class_type": "ImagePadForOutpaint",
+    "inputs": {
+      "image": [
+        "6",
+        0
+      ],
+      "left": 400,
+      "right": 400,
+      "top": 0,
+      "bottom": 0,
+      "feathering": 48
+    },
+    "_meta": {
+      "title": "Extend canvas"
+    }
+  },
+  "8": {
+    "class_type": "INPAINT_MaskedFill",
+    "inputs": {
+      "image": [
+        "7",
+        0
+      ],
+      "mask": [
+        "7",
+        1
+      ],
+      "fill": "navier-stokes",
+      "falloff": 0
+    },
+    "_meta": {
+      "title": "Pre-fill new area"
+    }
+  },
+  "9": {
+    "class_type": "DifferentialDiffusion",
+    "inputs": {
+      "model": [
+        "1",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "Differential diffusion"
+    }
+  },
+  "10": {
+    "class_type": "VAEEncode",
+    "inputs": {
+      "pixels": [
+        "8",
+        0
+      ],
+      "vae": [
+        "3",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "Encode image"
+    }
+  },
+  "11": {
+    "class_type": "SetLatentNoiseMask",
+    "inputs": {
+      "samples": [
+        "10",
+        0
+      ],
+      "mask": [
+        "7",
+        1
+      ]
+    },
+    "_meta": {
+      "title": "Limit to painted area"
+    }
+  },
+  "12": {
+    "class_type": "KSampler",
+    "inputs": {
+      "model": [
+        "9",
+        0
+      ],
+      "positive": [
+        "4",
+        0
+      ],
+      "negative": [
+        "5",
+        0
+      ],
+      "latent_image": [
+        "11",
+        0
+      ],
+      "seed": 123456789,
+      "steps": 8,
+      "cfg": 1,
+      "sampler_name": "euler",
+      "scheduler": "simple",
+      "denoise": 1
+    },
+    "_meta": {
+      "title": "Sampler"
+    }
+  },
+  "13": {
+    "class_type": "VAEDecode",
+    "inputs": {
+      "samples": [
+        "12",
+        0
+      ],
+      "vae": [
+        "3",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "Decode"
+    }
+  },
+  "14": {
+    "class_type": "ImageCompositeMasked",
+    "inputs": {
+      "destination": [
+        "8",
+        0
+      ],
+      "source": [
+        "13",
+        0
+      ],
+      "mask": [
+        "7",
+        1
+      ],
+      "x": 0,
+      "y": 0,
+      "resize_source": false
+    },
+    "_meta": {
+      "title": "Paste result into original"
+    }
+  },
+  "15": {
+    "class_type": "SaveImage",
+    "inputs": {
+      "images": [
+        "14",
+        0
+      ],
+      "filename_prefix": "WireStudio/krea2-reframe"
+    },
+    "_meta": {
+      "title": "Save image"
+    }
+  }
+}

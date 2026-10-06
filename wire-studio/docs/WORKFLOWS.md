@@ -44,7 +44,9 @@ themselves live in code (`engine/families/*.mjs`) and as exported files (`../wor
 | Image to Image | ✓ | ✓ | ✓ | ✓ |
 | Smart Edit (instruction) | — | — | — | ✓ add-on (Identity Edit LoRA) + 18 dedicated edit tasks |
 | Inpaint | ✓ LLLite inpaint v2 context | ✓ Union ProMax *repaint* context | ✓ Fun Union 2.x inpaint context | ✓ differential diffusion |
-| Outpaint | ✓ | ✓ | ✓ | ✓ |
+| Outpaint | ✓ | ✓ | ✓ | ✓ (+ depth guide, *experimental*) |
+| Reframe (aspect / exact size) | ✓ via its Outpaint | ✓ via its Outpaint | ✓ via its Outpaint | ✓ via its Outpaint (+ depth guide) |
+| Background Replace | *experimental*: BiRefNet subject mask + LLLite inpaint | *experimental*: + Union ProMax repaint | *experimental*: + Fun Union inpaint | *experimental*: + differential diffusion (also Background Swap in Identity Edit) |
 | Face Fix (face / eyes / lips) | ✓ | ✓ | ✓ | ✓ |
 | Hand Fix | ✓ | ✓ | ✓ | ✓ |
 | Face Swap | **not offered** | ✓ ReActor + SDXL blend | ✓ ReActor + Z-Image blend | ✓ ReActor + Krea 2 blend |

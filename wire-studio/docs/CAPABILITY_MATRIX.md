@@ -46,11 +46,11 @@ real hardware in this form (Anima Studio's live tests). See
 | Identity Editing | UNSUPPORTED | MISSING | MISSING | READY † |
 | Object Remove | MISSING | MISSING | MISSING | READY † |
 | Object Replace | MISSING | MISSING | MISSING | READY † |
-| Background Replace | MISSING | MISSING | MISSING | READY † |
+| Background Replace | EXPERIMENTAL † | EXPERIMENTAL † | EXPERIMENTAL † | READY † |
 | Face / Head Replace (identity) | MISSING | MISSING | MISSING | READY † |
 | Virtual Try-On | MISSING | MISSING | MISSING | READY † |
 | Character Restage / Sheet | MISSING | MISSING | MISSING | READY † |
-| Reframe | MISSING | MISSING | MISSING | EXPERIMENTAL † |
+| Reframe | READY † | READY † | READY † | PARTIAL † |
 
 **Where each cell comes from**
 
@@ -72,16 +72,16 @@ real hardware in this form (Anima Studio's live tests). See
   - Face Swap: UNSUPPORTED — Not offered for Anima: face-swap models (InsightFace) are trained on photos and do not detect anime faces reliably. Use Face Fix with a character prompt or LoRA instead.
   - Upscale: READY — task `upscale`; Wire Studio composition of documented nodes; run on a GPU
   - Tile Restore: MISSING
-  - Remove Background: READY — shared tool (no model family); community model or node pack; graph validated, not yet run on a GPU; ComfyUI-RMBG BiRefNet / RMBG; no model family involved
+  - Remove Background: READY — shared tool (no model family); official template / model author; graph validated, not yet run on a GPU; Native BiRefNet (official template) when its model is installed, else ComfyUI-RMBG; no model family involved
   - Style Reference: UNSUPPORTED — No IPAdapter or style-reference model exists for Anima, and Anima rejects area conditioning (Anima Studio live test).
   - Identity Editing: UNSUPPORTED — No identity-preserving edit or reference model exists for Anima.
   - Object Remove: MISSING
   - Object Replace: MISSING
-  - Background Replace: MISSING
+  - Background Replace: EXPERIMENTAL — task `bg-replace`; Wire Studio composition of documented nodes; graph validated, not yet run on a GPU; Wire Studio's composition: a BiRefNet subject mask, then Anima's own inpaint; not yet run on a GPU
   - Face / Head Replace (identity): MISSING
   - Virtual Try-On: MISSING
   - Character Restage / Sheet: MISSING
-  - Reframe: MISSING
+  - Reframe: READY — task `reframe`; Wire Studio composition of documented nodes; graph validated, not yet run on a GPU
 - **SDXL**
   - Generate: READY — task `generate`; official template / model author; run on a GPU
   - Img2Img: READY — task `img2img`; Wire Studio composition of documented nodes; run on a GPU
@@ -100,16 +100,16 @@ real hardware in this form (Anima Studio's live tests). See
   - Face Swap: READY — task `faceswap`; community model or node pack; graph validated, not yet run on a GPU
   - Upscale: READY — task `upscale`; Wire Studio composition of documented nodes; run on a GPU
   - Tile Restore: MISSING
-  - Remove Background: READY — shared tool (no model family); community model or node pack; graph validated, not yet run on a GPU; ComfyUI-RMBG BiRefNet / RMBG; no model family involved
+  - Remove Background: READY — shared tool (no model family); official template / model author; graph validated, not yet run on a GPU; Native BiRefNet (official template) when its model is installed, else ComfyUI-RMBG; no model family involved
   - Style Reference: MISSING — IPAdapter style / composition reference (roadmap).
   - Identity Editing: MISSING — InstantID identity-preserving generation (roadmap).
   - Object Remove: MISSING
   - Object Replace: MISSING
-  - Background Replace: MISSING
+  - Background Replace: EXPERIMENTAL — task `bg-replace`; Wire Studio composition of documented nodes; graph validated, not yet run on a GPU; Wire Studio's composition: a BiRefNet subject mask, then SDXL's own inpaint; not yet run on a GPU
   - Face / Head Replace (identity): MISSING
   - Virtual Try-On: MISSING
   - Character Restage / Sheet: MISSING
-  - Reframe: MISSING
+  - Reframe: READY — task `reframe`; Wire Studio composition of documented nodes; graph validated, not yet run on a GPU
 - **Z-Image**
   - Generate: READY — task `generate`; official template / model author; run on a GPU
   - Img2Img: READY — task `img2img`; Wire Studio composition of documented nodes; run on a GPU
@@ -128,16 +128,16 @@ real hardware in this form (Anima Studio's live tests). See
   - Face Swap: READY — task `faceswap`; community model or node pack; graph validated, not yet run on a GPU
   - Upscale: READY — task `upscale`; official template / model author; run on a GPU
   - Tile Restore: RESEARCH_ONLY — Z-Image-Turbo-Fun-Controlnet-Tile-2.1 exists, but no official ComfyUI template or documented input preparation could be verified (see WORKFLOW_RESEARCH.md, Phase 2).
-  - Remove Background: READY — shared tool (no model family); community model or node pack; graph validated, not yet run on a GPU; ComfyUI-RMBG BiRefNet / RMBG; no model family involved
+  - Remove Background: READY — shared tool (no model family); official template / model author; graph validated, not yet run on a GPU; Native BiRefNet (official template) when its model is installed, else ComfyUI-RMBG; no model family involved
   - Style Reference: MISSING — No style-reference model for Z-Image was found.
   - Identity Editing: MISSING — Z-Image-Edit is announced but not released.
   - Object Remove: MISSING
   - Object Replace: MISSING
-  - Background Replace: MISSING
+  - Background Replace: EXPERIMENTAL — task `bg-replace`; Wire Studio composition of documented nodes; graph validated, not yet run on a GPU; Wire Studio's composition: a BiRefNet subject mask, then Z-Image's own inpaint; not yet run on a GPU
   - Face / Head Replace (identity): MISSING
   - Virtual Try-On: MISSING
   - Character Restage / Sheet: MISSING
-  - Reframe: MISSING
+  - Reframe: READY — task `reframe`; Wire Studio composition of documented nodes; graph validated, not yet run on a GPU
 - **Krea 2**
   - Generate: READY — task `generate`; official template / model author; graph validated, not yet run on a GPU
   - Img2Img: READY — task `img2img`; Wire Studio composition of documented nodes; graph validated, not yet run on a GPU
@@ -156,7 +156,7 @@ real hardware in this form (Anima Studio's live tests). See
   - Face Swap: READY — task `faceswap`; community model or node pack; graph validated, not yet run on a GPU
   - Upscale: READY — task `upscale`; Wire Studio composition of documented nodes; graph validated, not yet run on a GPU
   - Tile Restore: MISSING
-  - Remove Background: READY — shared tool (no model family); community model or node pack; graph validated, not yet run on a GPU; ComfyUI-RMBG BiRefNet / RMBG; no model family involved
+  - Remove Background: READY — shared tool (no model family); official template / model author; graph validated, not yet run on a GPU; Native BiRefNet (official template) when its model is installed, else ComfyUI-RMBG; no model family involved
   - Style Reference: READY — task `style`; official template / model author; graph validated, not yet run on a GPU
   - Identity Editing: READY — task `edit`; community model or node pack; graph validated, not yet run on a GPU
   - Object Remove: READY — task `k2-remove`; community model or node pack; graph validated, not yet run on a GPU
@@ -165,7 +165,7 @@ real hardware in this form (Anima Studio's live tests). See
   - Face / Head Replace (identity): READY — task `k2-face`; community model or node pack; graph validated, not yet run on a GPU
   - Virtual Try-On: READY — task `k2-tryon`; community model or node pack; graph validated, not yet run on a GPU
   - Character Restage / Sheet: READY — task `k2-restage`; community model or node pack; graph validated, not yet run on a GPU
-  - Reframe: EXPERIMENTAL — task `k2-reframe`; community model or node pack; graph validated, not yet run on a GPU; Reframing extends the canvas with Identity Outpaint (experimental)
+  - Reframe: PARTIAL — task `reframe`; Wire Studio composition of documented nodes; graph validated, not yet run on a GPU; No Krea 2 inpaint model; differential diffusion + masked sampling
 <!-- /generated:matrix -->
 
 ## Workflow combinations
@@ -190,6 +190,7 @@ say why they are not offered (evidence in [WORKFLOW_RESEARCH.md](WORKFLOW_RESEAR
 | Depth conditioning range | EXPERIMENTAL | task `control`; community model or node pack; graph validated, not yet run on a GPU | UniDepth only, one start/end window for the depth map and its references together; the Control-LoRA nodes have no range |
 | Depth + Identity | UNSUPPORTED | — | The Identity Edit patch ignores reference latents (so UniDepth's depth map is dropped) and runs the input projection once per source image, so the depth Control-LoRA would add the depth map to the source images too, or stop with a token-count mismatch when their sizes differ. |
 | Depth-guided outpaint | EXPERIMENTAL | task `outpaint`; Wire Studio composition of documented nodes; graph validated, not yet run on a GPU |  |
+| Depth-guided reframe | EXPERIMENTAL | task `reframe`; Wire Studio composition of documented nodes; graph validated, not yet run on a GPU |  |
 | Pose → Image | EXPERIMENTAL | task `pose`; community model or node pack; graph validated, not yet run on a GPU |  |
 | Pose + Source image | EXPERIMENTAL | task `pose`; Wire Studio composition of documented nodes; graph validated, not yet run on a GPU | Img2img start latent with the pose LoRA (Wire Studio composition) |
 | Pose + Identity | EXPERIMENTAL | task `k2-pose`; community model or node pack; graph validated, not yet run on a GPU | Pose Restage in the Identity Edit suite |

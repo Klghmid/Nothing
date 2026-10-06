@@ -10,6 +10,7 @@ import { fail } from "../graph.mjs";
 import { MODELS, PACKS } from "../catalog.mjs";
 import * as c from "../common.mjs";
 import { detailerNeeds, swapNeeds, mapNeeds, upscaleNeeds, outpaintNeeds } from "../needs.mjs";
+import { withSceneTasks } from "../scene.mjs";
 
 const TURBO = { steps: 8, cfg: 1, sampler: "res_multistep", scheduler: "simple" };
 const BASE = { steps: 25, cfg: 4, sampler: "res_multistep", scheduler: "simple" };
@@ -83,6 +84,13 @@ function maskedRedraw(g, m, p, ctx, image, mask, denoise, guide = null) {
   return finish(g, m, g.add("SetLatentNoiseMask", { samples: c.encode(g, image, m.vae), mask }, "Limit to painted area"), p, denoise);
 }
 
+// Z-Image's own masked redraw before paste-back, for Background Replace.
+function redraw(g, p, ctx, image, mask, denoise) {
+  const m = loaders(g, p, ctx);
+  Object.assign(m, prompts(g, m, p));
+  return maskedRedraw(g, m, p, ctx, image, mask, denoise);
+}
+
 const baseNeeds = (ctx) => [
   need.model(fam(ctx).models, MODELS.zimageTurbo, "Z-Image model (Turbo or Base)", "The diffusion model"),
   need.model(fam(ctx).clips, MODELS.zimageClip, "Qwen3 4B text encoder", "Reads the prompt"),
@@ -131,7 +139,7 @@ export default {
     style: "No style-reference model for Z-Image was found.",
     identity: "Z-Image-Edit is announced but not released.",
   },
-  tasks: {
+  tasks: withSceneTasks({
     generate: {
       evidence: "official",
       verified: "inference",
@@ -362,5 +370,5 @@ export default {
         return c.upscaleRefine(g, src, p, ctx, { ...m, model: shifted(g, m.model, p), refineSteps: 5 });
       },
     },
-  },
+  }, { redraw: redraw, baseNeeds, common, advanced, label: "Z-Image" }),
 };

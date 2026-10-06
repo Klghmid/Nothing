@@ -246,3 +246,33 @@ task, not only one parameter set. Browser: Style Reference modes, Depth method a
 fields, Pose. Results: `npm test` 225/225 · browser checks 16/16 · live ComfyUI validator
 102/102. Not run on a GPU: everything in this section (†).
 
+## Phases 7–8 — Background Replace and Reframe
+
+Research: [WORKFLOW_RESEARCH.md § Phases 7–8](WORKFLOW_RESEARCH.md#phases-78--background-replace-and-reframe-every-family).
+Implementation: `engine/scene.mjs` (family-free: `subjectMask`, `cutOut`, `subjectNeeds`,
+`sceneTasks`, `withSceneTasks`) and one `redraw()` per family — its existing inpaint method
+returning the image before paste-back (Anima's Inpaint now calls the same `inpaintRedraw()`; its
+graph is structurally identical to before, only node numbers changed).
+
+| Workflow | Families | Status | Export |
+|---|---|---|---|
+| Background Replace — describe | Anima, SDXL, Z-Image, Krea 2 | EXPERIMENTAL † | `<family>/bg-replace-prompt.json` |
+| Background Replace — photo (+ edge blend) | all four | EXPERIMENTAL † | `<family>/bg-replace-image.json` |
+| Background Replace — blur (+ edge blend) | all four | EXPERIMENTAL † | `<family>/bg-replace-blur.json` |
+| Reframe — aspect ratio + alignment | all four | the family's Outpaint status † | `<family>/reframe.json` |
+| Reframe — exact size | all four | as above | `<family>/reframe-size.json` |
+| Reframe — depth guide | Krea 2 | EXPERIMENTAL † | `krea2/reframe-depth.json` |
+| Remove background (tool) | — | READY † (now native BiRefNet first) | — |
+
+Requirements: Background Replace — the family's base models, plus `birefnet.safetensors` in
+`models/background_removal/` (native `RemoveBackground`) **or** ComfyUI-RMBG; the family's inpaint
+add-ons stay recommended. Reframe — exactly the family's Outpaint requirements.
+
+Tests: every family — only the background mask is sampled, the subject is pasted back from the
+original, a background photo is fitted to the photo, the edge band is a subtract of grown and
+shrunk masks at strength 0.35, blur without blending uses no model; RMBG fallback (mask output 1);
+Reframe edges for an aspect ratio and alignment, exact-size scaling, "already that shape"
+refusal, same shape only resized, Krea 2 depth guide kept; Remove background native vs RMBG. The
+purity test covers every variant. Results: `npm test` 256/256 · browser checks 17/17 · live
+ComfyUI validator 123/123. Not run on a GPU (†).
+

@@ -120,6 +120,27 @@ try {
     assert.equal(await page.locator("label.switch:has-text('pose skeleton')").count(), 1);
     assert.match(await page.textContent(".panel"), /OpenPose Control-LoRA/);
   });
+  await check("Background Replace and Reframe forms follow the chosen mode", async () => {
+    await page.click(".family:has-text('SDXL')");
+    await page.click(".task:has-text('Background Replace')");
+    await page.waitForSelector(".panel-head h1:has-text('Background Replace')");
+    const modes = await page.locator(".field:has(label:text-is('New background')) option").allTextContents();
+    assert.deepEqual(modes, ["Describe a new background (experimental)", "Use a background photo (experimental)", "Blur the background (experimental)"]);
+    assert.equal(await page.locator("textarea.prompt").count(), 1);
+    assert.equal(await page.locator("label.switch:has-text('Blend the edge')").count(), 0, "no edge blend for a described background");
+    await page.selectOption(".field:has(label:text-is('New background')) select", "image");
+    assert.equal(await page.locator(".field:has(label:has-text('Background photo'))").count(), 1);
+    assert.equal(await page.locator("label.switch:has-text('Blend the edge')").count(), 1);
+    await page.selectOption(".field:has(label:text-is('New background')) select", "blur");
+    assert.equal(await page.locator(".field:has(label:text-is('Blur strength'))").count(), 1);
+    await page.click(".task:has-text('Reframe')");
+    await page.waitForSelector(".panel-head h1:text-is('Reframe')");
+    assert.equal(await page.locator(".field:has(label:text-is('Aspect ratio'))").count(), 1);
+    assert.equal(await page.locator(".field:has(label:has-text('Size'))").count(), 0);
+    await page.selectOption(".field:has(label:text-is('New shape')) select", "size");
+    assert.equal(await page.locator(".field:has(label:text-is('Aspect ratio'))").count(), 0);
+    assert.equal(await page.locator(".field:has(label:has-text('Size'))").count(), 1);
+  });
   await check("generate shows live progress, then the result", async () => {
     await page.click(".family:has-text('Anima')");
     await page.click(".task:has-text('Text to Image')");
